@@ -19,7 +19,9 @@
 
 .jig-logbook__at {
   font-family: var(--mono);
-  font-size: 10.5px;
+  /* 11px — floor item 3's under-11px rule; --faint stays fine here since a timestamp is
+     provenance (floor item 2's explicit exception), not load-bearing state. */
+  font-size: 11px;
   color: var(--faint);
 }
 

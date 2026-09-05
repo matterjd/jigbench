@@ -4,6 +4,9 @@ import { resolveRepoRoot } from '../repo-root.js';
 export interface ServeCommandOptions {
   repo?: string;
   port?: number;
+  /** Interface to bind to — defaults to loopback-only inside `createJigServer`. Exposed here
+   * so `--host` can opt into LAN exposure deliberately; nothing sets it implicitly. */
+  host?: string;
   open?: boolean;
 }
 
@@ -22,6 +25,7 @@ export async function runServeCommand(options: ServeCommandOptions): Promise<Ser
   const handle = await createJigServer({
     repoRoot,
     port: options.port ?? 4600,
+    host: options.host,
     openBrowser: options.open ?? true,
   });
 

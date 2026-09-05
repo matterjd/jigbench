@@ -20,13 +20,16 @@ export function App() {
       rail={<div className="jig-rail__brand">JIG</div>}
       plate={
         <Panel title="Plate">
-          <p>plate · not wired — S3</p>
+          <p>Plate — where the app renders and is clicked. Not wired yet (S3).</p>
         </Panel>
       }
       side={
         <Panel title="Sim">
           <SimStrip />
-          <p className="jig-side__connection">bench socket: {connected ? 'open' : 'reconnecting'}</p>
+          <p className={`jig-side__connection jig-side__connection--${connected ? 'ok' : 'warn'}`}>
+            <span aria-hidden="true" className="jig-side__connection-dot" />
+            bench socket: {connected ? 'open' : 'reconnecting'}
+          </p>
         </Panel>
       }
       tray={

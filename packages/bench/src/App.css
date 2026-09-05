@@ -9,7 +9,27 @@
 
 .jig-side__connection {
   margin-top: 10px;
-  font-size: 10.5px;
+  font-size: 11px;
   font-family: var(--mono);
-  color: var(--faint);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.jig-side__connection-dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+/* Load-bearing connection state — floor items 2 and 6: never --faint (provenance-only), and
+   color never carries the meaning alone, so a dot glyph pairs with the ok/warn tone. */
+.jig-side__connection--ok {
+  color: var(--ok);
+}
+
+.jig-side__connection--warn {
+  color: var(--warn);
 }
