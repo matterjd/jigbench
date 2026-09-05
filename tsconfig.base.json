@@ -14,12 +14,6 @@
     "declarationMap": true,
     "sourceMap": true,
     "isolatedModules": true,
-    "verbatimModuleSyntax": false,
-    "paths": {
-      "@jigbench/core": ["./packages/core/src/index.ts"],
-      "@jigbench/core/*": ["./packages/core/src/*"],
-      "@jigbench/server": ["./packages/server/src/index.ts"],
-      "@jigbench/server/*": ["./packages/server/src/*"]
-    }
+    "verbatimModuleSyntax": false
   }
 }
