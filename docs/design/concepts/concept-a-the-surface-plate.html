@@ -1,0 +1,1524 @@
+<!doctype html>
+<html lang="en" data-tool="loupe" data-plate="app" data-tray="closed">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="dark">
+<title>Concept A · The Surface Plate — Jig (sim)</title>
+<style>
+/* ==========================================================================
+   Concept A · The Surface Plate — Jig, benchtop round 1 (COMMISSION.md F1–F22)
+
+   A SIM. Nothing here is wired: no server, no proxy, no model, no MCP. The app
+   on the plate is "Ledger · SIM", a pretend third-party Angular app drawn in its
+   OWN tokens (see the .ledger block) so the loupe has something honest to name.
+   Every fake is labeled SIM; the SIM strip is the only clock on the page.
+
+   THE BET: the app is the subject and the chrome is instrument. Rail left, plate
+   centre, properties right, the work-order tray as a bottom drawer, the Halls on
+   Ctrl/⌘+K. Designed for 1440×900.
+
+   The :root block below is design-book/tokens/starter.css, VERBATIM (floor B,
+   items 8–9). Everything after the END marker is this concept's own, and every
+   colour after it is a var() over that block — Jig's chrome invents nothing.
+   ========================================================================== */
+
+/* ==========================================================================
+   Matter Design Book · starter tokens — v0.1 (2026-08-03)
+
+   FOR NEW SURFACES ONLY. This file seeds a brand-new app; it is NOT a mirror
+   of any existing app's tokens and no existing app should import it. Each
+   app's own token file (cc styles.scss, sage theme.ts, wyrdglass _tokens.scss,
+   gravitas palette.ts) remains that app's truth — the book's drift rule
+   (design-book/00-the-claim.md) governs disagreements.
+
+   Provenance: ground/ink/status from command-center styles.scss:5-27
+   ("Obsidian & Ember", ideas/command-center/BRIEF.md D12); gold law from
+   axis-grim ADR 0001; storm from wyrdglass electros accent, promoted by the
+   book; motion scale from wyrdglass _tokens.scss.
+   ========================================================================== */
+
+:root {
+  /* Ground — the depth ladder's material (design-book/03) */
+  --bg0: #0a0c0f;            /* z0 the floor */
+  --bg1: #10141a;            /* z1 rest — panels, hairline, no shadow */
+  --bg2: #171d26;            /* z2 raised — in-flight, inner blocks */
+  --bg3: #1f2733;            /* z3 held — active/selected ground */
+  --line: #232b37;           /* primary hairline */
+  --line-soft: #1a212b;      /* internal divider */
+  --scrim: rgba(4, 6, 9, 0.6);  /* z4 the veil */
+
+  /* Ink */
+  --ink: #e8e6e1;            /* primary text */
+  --dim: #9aa3ad;            /* secondary text */
+  --faint: #5c6672;          /* provenance only — never load-bearing (a11y floor) */
+
+  /* Status voices — semantics are law (design-book/01): never decorative */
+  --ember: #f2762e;          /* a HUMAN is the next actor — the only demand color */
+  --ember-soft: rgba(242, 118, 46, 0.14);
+  --ember-dark: #a34d1e;     /* gradient stop / pressed */
+  --wyrd: #9d8cff;           /* agent-side identity & memory */
+  --wyrd-soft: rgba(157, 140, 255, 0.12);
+  --ok: #7fb069;             /* verified good */
+  --ok-soft: rgba(127, 176, 105, 0.12);
+  --warn: #d9a441;           /* in flight / aging */
+  --warn-soft: rgba(217, 164, 65, 0.14);
+  --alert: #e0483e;          /* a flow is STOPPED */
+  --alert-soft: rgba(224, 72, 62, 0.12);
+  --on-accent: #0a0c0f;      /* dark text on filled accent chips */
+
+  /* Lore accents — the Triune channels (design-book/01) */
+  --gold: #e0b55b;           /* sacred: hairline/ring/stroke ONLY — never a fill */
+  --storm: #5fc9e0;          /* live/right-now signals — must not compete with ember */
+  --storm-soft: rgba(95, 201, 224, 0.12);
+
+  /* Type */
+  --sans: 'Segoe UI Variable', 'Segoe UI', Inter, system-ui, sans-serif;
+  --mono: 'Cascadia Code', 'JetBrains Mono', Consolas, ui-monospace, monospace;
+  /* Ramp: body 14/1.45 · display 20-22/650 (one per screen) · panel title
+     11/600 uppercase +0.14em · secondary 12.5 · provenance 10.5 mono ·
+     chips 9-10.5/700 uppercase (sub-11px must pair with a non-text signal) */
+
+  /* Shape — 4px grid */
+  --r: 10px;                 /* panels */
+  --r-inner: 6px;            /* inner blocks, inputs */
+  --r-micro: 4px;            /* micro chips */
+  --r-pill: 999px;           /* pills */
+
+  /* Earned shadows — lift only, never at rest (design-book/03) */
+  --shadow-held: 0 6px 24px rgba(0, 0, 0, 0.45);    /* z3 held */
+  --shadow-overlay: 0 18px 48px rgba(0, 0, 0, 0.55); /* z5 overlay */
+
+  /* Motion mass (design-book/03): feather / slab / stone / oath */
+  --t-feather: 120ms;
+  --t-slab: 280ms;
+  --t-stone: 400ms;
+  --t-oath: 800ms;           /* hold-gated fill — time IS the affordance */
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --ease-settle: cubic-bezier(0.05, 0.7, 0.1, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1); /* feather-class acks only */
+}
+
+/* Reduced motion is mandatory: depth stays, travel goes. */
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --t-feather: 0ms;
+    --t-slab: 0ms;
+    --t-stone: 0ms;
+    /* --t-oath stays: the hold IS the safety, not an animation */
+  }
+}
+
+/* ==========================================================================
+   END of the inherited token block (design-book/tokens/starter.css, verbatim).
+   Everything below is Concept A's own. Derived values are named where derived.
+   ========================================================================== */
+
+*, *::before, *::after { box-sizing: border-box; }
+html, body { height: 100%; }
+body {
+  margin: 0;
+  background: var(--bg0);
+  color: var(--ink);
+  font: 14px/1.45 var(--sans);
+  overflow: hidden; /* the bench is a cockpit: one screen, no page scroll */
+  display: grid;
+  grid-template-rows: 28px 44px 1fr auto; /* SIM strip · helm · bench · tray */
+}
+button { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; }
+input, textarea { font: inherit; color: inherit; }
+button:focus-visible, input:focus-visible, textarea:focus-visible, [tabindex]:focus-visible {
+  outline: 2px solid var(--storm);
+  outline-offset: 2px;
+}
+.mono { font-family: var(--mono); }
+.dim { color: var(--dim); }
+.faint { color: var(--faint); } /* provenance only — never load-bearing (item 2) */
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+[hidden] { display: none !important; }
+
+/* Type ramp (01-foundations): nothing on this page renders under 11px. */
+.title {
+  font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.14em; color: var(--dim);
+}
+.chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; line-height: 1;
+  padding: 5px 8px; border-radius: var(--r-micro);
+  border: 1px solid var(--line); color: var(--dim); background: var(--bg1);
+  white-space: nowrap;
+}
+.chip .dot { width: 6px; height: 6px; border-radius: var(--r-pill); background: currentColor; flex: none; }
+.chip.storm { color: var(--storm); border-color: var(--storm); background: var(--storm-soft); }
+.chip.wyrd { color: var(--wyrd); border-color: var(--wyrd); background: var(--wyrd-soft); }
+.chip.ok { color: var(--ok); border-color: var(--ok); background: var(--ok-soft); }
+.chip.warn { color: var(--warn); border-color: var(--warn); background: var(--warn-soft); }
+.chip.sim { color: var(--dim); border-style: dashed; }
+.prov { font: 11px/1.4 var(--mono); color: var(--faint); }
+
+/* ---- SIM strip — the harness, not the app; the ONLY clock on the page ---- */
+.sim-strip {
+  display: flex; align-items: center; gap: 16px; padding: 0 16px;
+  background: var(--bg1); border-bottom: 1px dashed var(--line);
+  font: 11px/1 var(--mono); color: var(--dim); letter-spacing: 0.04em;
+}
+.sim-strip b { color: var(--ink); font-weight: 700; }
+.sim-strip .spacer { flex: 1; }
+.sim-strip .clock { color: var(--ink); }
+
+/* ---- Helm — Jig's own header: wordmark · bench · clamp · shop · the Halls ---- */
+.helm {
+  display: flex; align-items: center; gap: 12px; padding: 0 16px 0 12px;
+  background: var(--bg0); border-bottom: 1px solid var(--line);
+}
+.wordmark { display: flex; align-items: center; gap: 8px; font-weight: 650; font-size: 15px; letter-spacing: 0.02em; }
+.wordmark svg { width: 20px; height: 20px; }
+.helm .bench-name { display: flex; align-items: baseline; gap: 8px; white-space: nowrap; }
+.helm .chip { flex: none; }
+.helm .bench-name .name { font-family: var(--mono); font-size: 13px; color: var(--ink); }
+.helm .pair { font-size: 12.5px; color: var(--dim); }
+.helm .spacer { flex: 1; }
+.helm .halls-hint { display: inline-flex; align-items: center; gap: 8px; height: 28px; white-space: nowrap; flex: none; padding: 0 10px; border: 1px solid var(--line); border-radius: var(--r-inner); color: var(--dim); font-size: 12.5px; }
+.helm .halls-hint kbd { font: 11px/1 var(--mono); color: var(--ink); border: 1px solid var(--line); border-radius: var(--r-micro); padding: 3px 5px; background: var(--bg1); }
+.helm .halls-hint:hover { background: var(--bg2); }
+
+/* ---- The bench: rail · plate · properties ---- */
+.bench {
+  display: grid; grid-template-columns: 56px 1fr 336px; min-height: 0;
+}
+.rail {
+  display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 8px 0;
+  background: var(--bg1); border-right: 1px solid var(--line);
+}
+.tool {
+  position: relative; width: 40px; height: 40px; display: grid; place-items: center;
+  border-radius: var(--r-inner); color: var(--dim); border: 1px solid transparent;
+  transition: background var(--t-feather) var(--ease-standard), color var(--t-feather) var(--ease-standard);
+}
+.tool svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+.tool:hover { background: var(--bg2); color: var(--ink); }
+.tool[aria-pressed="true"] { background: var(--bg3); color: var(--ink); border-color: var(--line); }
+.tool[aria-pressed="true"]::before {
+  /* the 3px accent spine, storm = this is the live tool (position + glyph, never colour alone) */
+  content: ""; position: absolute; left: -9px; top: 8px; bottom: 8px; width: 3px; border-radius: 2px; background: var(--storm);
+}
+.tool .key { position: absolute; right: 3px; bottom: 2px; font: 11px/1 var(--mono); color: var(--faint); }
+.rail .gap { flex: 1; }
+.rail .rail-foot { display: grid; gap: 4px; justify-items: center; padding-bottom: 4px; }
+
+/* A tool's plain word — shown on hover / first encounter (F14). z2 raised, no shadow. */
+.tip {
+  position: fixed; z-index: 20; pointer-events: none;
+  max-width: 280px; padding: 8px 10px; border-radius: var(--r-inner);
+  background: var(--bg2); border: 1px solid var(--line); color: var(--ink); font-size: 12.5px; line-height: 1.4;
+  opacity: 0; transition: opacity var(--t-feather) var(--ease-standard);
+}
+.tip.on { opacity: 1; }
+.tip b { font-weight: 650; }
+.tip .pair { color: var(--dim); }
+
+/* ---- The plate — where the app renders and is clicked ---- */
+.plate-wrap {
+  position: relative; min-width: 0; min-height: 0;
+  display: grid; grid-template-rows: 20px 1fr; grid-template-columns: 20px 1fr;
+  background: var(--bg0);
+}
+.ruler { position: relative; background: var(--bg1); overflow: hidden; }
+.ruler.top { grid-row: 1; grid-column: 2; border-bottom: 1px solid var(--line); }
+.ruler.left { grid-row: 2; grid-column: 1; border-right: 1px solid var(--line); }
+.ruler .corner { position: absolute; }
+.corner-box { grid-row: 1; grid-column: 1; background: var(--bg1); border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); display: grid; place-items: center; font: 11px/1 var(--mono); color: var(--faint); }
+.ruler canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
+.ruler .cursor { position: absolute; background: var(--storm); }
+.ruler.top .cursor { top: 0; bottom: 0; width: 1px; }
+.ruler.left .cursor { left: 0; right: 0; height: 1px; }
+.ruler .cursor-read {
+  position: absolute; font: 11px/1 var(--mono); color: var(--storm); background: var(--bg1); padding: 2px 3px; white-space: nowrap;
+}
+.ruler.top .cursor-read { top: 3px; }
+.ruler.left .cursor-read { left: 2px; writing-mode: vertical-rl; transform: rotate(180deg); }
+
+.plate {
+  grid-row: 2; grid-column: 2; position: relative; overflow: auto; min-width: 0; min-height: 0;
+  /* the floor's texture: the 4px gauge grid the survey found, drawn as fog, never content */
+  background-color: var(--bg0);
+  background-image: linear-gradient(var(--line-soft) 1px, transparent 1px), linear-gradient(90deg, var(--line-soft) 1px, transparent 1px);
+  background-size: 32px 32px;
+}
+.plate-inner { position: relative; padding: 24px; display: inline-block; min-width: 100%; }
+.frame {
+  position: relative; display: inline-block; vertical-align: top;
+  border: 1px solid var(--line); border-radius: var(--r-micro);
+  transform-origin: 0 0;
+}
+/* Jig's own labels inside a scaled frame counter-scale by --inv (= 1 / plate scale) so they stay at their printed size while the app zooms */
+.frame-tab, .loupe-tag, .mark, .lit-box .n { transform: scale(var(--inv, 1)); }
+.frame-tab { transform-origin: 0 100%; }
+.loupe-tag { transform-origin: 0 100%; }
+.loupe-box.low .loupe-tag { transform-origin: 0 0; }
+.lit-box .n { transform-origin: 100% 100%; }
+.frame-tab {
+  position: absolute; left: -1px; top: -24px; height: 24px; display: inline-flex; align-items: center; gap: 8px; padding: 0 8px;
+  font: 11px/1 var(--mono); color: var(--dim); background: var(--bg1); border: 1px solid var(--line); border-bottom: 0; border-radius: var(--r-micro) var(--r-micro) 0 0;
+}
+.frame-tab .fixture-on { color: var(--warn); }
+.frame-tab .fit-tag { color: var(--wyrd); font-weight: 700; }
+
+/* loupe overlay: a 1px storm outline over the pointed element, its name beside it */
+.loupe-box {
+  position: absolute; pointer-events: none; border: 1px solid var(--storm); border-radius: 2px;
+  box-shadow: none; display: none; z-index: 5;
+}
+.loupe-box.on { display: block; }
+.loupe-box.pinned { border-style: dashed; }
+.loupe-tag {
+  position: absolute; left: -1px; top: -22px; height: 20px; display: inline-flex; align-items: center; gap: 8px; padding: 0 6px;
+  font: 11px/1 var(--mono); color: var(--storm); background: var(--bg1); border: 1px solid var(--storm); border-bottom: 0; border-radius: 2px 2px 0 0; white-space: nowrap;
+} /* a hairline label, not a filled bar: storm may never compete with the one ember mass */
+.loupe-box.low .loupe-tag { top: auto; bottom: -22px; border-radius: 0 0 2px 2px; border-bottom: 1px solid var(--storm); border-top: 0; }
+.loupe-tag .size { opacity: 0.8; }
+/* guides: the pointed element's edges, extended to the rulers; snap to the 4px gauge grid */
+.guide { position: absolute; pointer-events: none; background: var(--storm); opacity: 0.55; display: none; z-index: 4; }
+.guide.v { width: 1px; top: 0; bottom: 0; }
+.guide.h { height: 1px; left: 0; right: 0; }
+.guide.on { display: block; }
+/* gauge-lit: every use of a gauge the Gauges tab pointed at */
+.lit-box { position: absolute; pointer-events: none; border: 1px dashed var(--storm); z-index: 4; }
+.lit-box .n { position: absolute; right: -1px; top: -16px; font: 11px/1 var(--mono); color: var(--storm); background: var(--bg0); padding: 1px 3px; }
+
+/* marks: a numbered scribe mark — a spot with a request attached */
+.mark {
+  position: absolute; z-index: 6; width: 24px; height: 24px; margin: -12px 0 0 -12px; border-radius: var(--r-pill);
+  background: var(--bg1); border: 1.5px solid var(--ink); color: var(--ink); display: grid; place-items: center;
+  font: 11px/1 var(--mono); font-weight: 700; cursor: pointer; transform-origin: 50% 50%;
+  transition: background var(--t-feather) var(--ease-standard);
+}
+.mark::after { /* the scribe's tick: a hairline to the exact point */
+  content: ""; position: absolute; left: 50%; top: 100%; width: 1px; height: 8px; background: var(--ink);
+}
+.mark:hover { background: var(--bg2); }
+.mark.current { border-color: var(--storm); color: var(--storm); }
+.mark.current::after { background: var(--storm); }
+.mark.released { border-color: var(--gold); } /* the oath was held: a gold RING, never a fill */
+.mark.scrapped { display: none; }
+
+/* the plate's own voice: mode line, zoom, printed */
+.plate-foot {
+  position: absolute; left: 20px; right: 0; bottom: 0; height: 28px; display: flex; align-items: center; gap: 12px; padding: 0 12px;
+  background: var(--bg1); border-top: 1px solid var(--line); font-size: 12.5px; color: var(--dim); z-index: 7;
+}
+.plate-foot .mode { color: var(--ink); }
+.plate-foot .mode .pair { color: var(--dim); }
+.plate-foot .spacer { flex: 1; }
+.plate-foot .zoom { display: inline-flex; gap: 2px; }
+.plate-foot .zoom button { height: 20px; min-width: 32px; padding: 0 6px; border-radius: var(--r-micro); font: 11px/1 var(--mono); color: var(--dim); border: 1px solid transparent; }
+.plate-foot .zoom button:hover { background: var(--bg2); color: var(--ink); }
+.plate-foot .zoom button[aria-pressed="true"] { background: var(--bg3); color: var(--ink); border-color: var(--line); }
+.printed {
+  display: inline-flex; align-items: center; gap: 6px; height: 22px; padding: 0 8px; border-radius: var(--r-micro);
+  border: 1px solid var(--line); color: var(--ink); font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; background: var(--bg1);
+}
+.printed:hover { background: var(--bg2); }
+.printed svg { width: 12px; height: 12px; stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round; }
+
+/* the toolpath ghost pointer: moves ONLY while a replay runs (a live process) */
+.ghost { position: absolute; z-index: 8; width: 18px; height: 18px; pointer-events: none; display: none; }
+.ghost.on { display: block; }
+.ghost svg { width: 18px; height: 18px; fill: var(--ink); stroke: var(--bg0); stroke-width: 1; }
+@media (prefers-reduced-motion: no-preference) {
+  .ghost { transition: left var(--t-stone) var(--ease-settle), top var(--t-stone) var(--ease-settle); }
+}
+
+/* trial fit: two frames, before beside after (Law II's fate mirror) */
+.plate-inner.fit { display: flex; gap: 24px; align-items: flex-start; }
+.plate-inner.fit .frame { flex: none; }
+.fit-only { display: none; } /* a change the shop has not built yet; the AFTER frame un-hides only its own order's */
+
+/* ==========================================================================
+   Ledger · SIM — the clamped app. THIS IS THE SUBJECT, NOT JIG CHROME. Drawn in
+   its own token file as the survey read it (src/styles/_tokens.scss · SIM): a
+   light Material-ish invoicing app on a 4px grid. Jig's chrome never uses --lg-*.
+   ========================================================================== */
+.ledger {
+  --lg-bg: #f7f8fa; --lg-surface: #ffffff; --lg-line: #d9dee5;
+  --lg-ink: #1c2128; --lg-dim: #5b6470;
+  --lg-primary: #1a56db; --lg-primary-ink: #ffffff;
+  --lg-ok: #1b7f4a; --lg-warn: #9a6400; --lg-danger: #b42318;
+  --lg-space-1: 4px; --lg-space-2: 8px; --lg-space-3: 12px; --lg-space-4: 16px; --lg-space-6: 24px;
+  --lg-radius-sm: 4px; --lg-radius-md: 8px; --lg-radius-pill: 999px;
+  --lg-shadow-card: 0 1px 2px rgba(16, 24, 40, 0.08);
+  --lg-font: 'Segoe UI', Roboto, system-ui, sans-serif;
+  --lg-text-sm: 12px; --lg-text-md: 14px; --lg-text-lg: 18px;
+  --lg-motion-fast: 150ms; --lg-z-nav: 10; --lg-z-dialog: 100;
+
+  width: 960px; height: 600px; display: grid; grid-template-rows: 48px 1fr; grid-template-columns: 168px 1fr;
+  background: var(--lg-bg); color: var(--lg-ink); font: var(--lg-text-md)/1.4 var(--lg-font);
+  border-radius: var(--r-micro); overflow: hidden; text-align: left; cursor: default; user-select: none;
+}
+.ledger * { box-sizing: border-box; }
+.lg-top { grid-column: 1 / -1; display: flex; align-items: center; gap: var(--lg-space-4); padding: 0 var(--lg-space-4); background: var(--lg-surface); border-bottom: 1px solid var(--lg-line); z-index: var(--lg-z-nav); }
+.lg-brand { font-weight: 700; font-size: 16px; display: flex; align-items: center; gap: var(--lg-space-2); }
+.lg-brand i { width: 20px; height: 20px; border-radius: var(--lg-radius-sm); background: var(--lg-primary); display: inline-block; }
+.lg-top .lg-search { flex: 1; max-width: 320px; height: 32px; border: 1px solid var(--lg-line); border-radius: var(--lg-radius-sm); padding: 0 var(--lg-space-3); color: var(--lg-dim); font-size: var(--lg-text-sm); display: flex; align-items: center; background: var(--lg-bg); }
+.lg-top .lg-spacer { flex: 1; }
+.lg-avatar { width: 28px; height: 28px; border-radius: var(--lg-radius-pill); background: var(--lg-line); color: var(--lg-ink); font-size: var(--lg-text-sm); font-weight: 700; display: grid; place-items: center; }
+.lg-nav { background: var(--lg-surface); border-right: 1px solid var(--lg-line); padding: var(--lg-space-3) var(--lg-space-2); display: flex; flex-direction: column; gap: var(--lg-space-1); }
+.lg-nav a { display: block; padding: var(--lg-space-2) var(--lg-space-3); border-radius: var(--lg-radius-sm); color: var(--lg-dim); text-decoration: none; font-size: var(--lg-text-md); }
+.lg-nav a.on { background: var(--lg-bg); color: var(--lg-primary); font-weight: 600; }
+.lg-main { display: grid; grid-template-columns: 1fr 288px; gap: var(--lg-space-4); padding: var(--lg-space-4); min-height: 0; overflow: hidden; }
+.lg-page-head { display: flex; align-items: center; gap: var(--lg-space-3); margin-bottom: var(--lg-space-3); }
+.lg-page-head h1 { font-size: var(--lg-text-lg); margin: 0; font-weight: 600; }
+.lg-page-head .lg-spacer { flex: 1; }
+.lg-btn { height: 32px; padding: 0 var(--lg-space-3); border-radius: var(--lg-radius-sm); border: 1px solid var(--lg-line); background: var(--lg-surface); color: var(--lg-ink); font: 600 var(--lg-text-sm)/1 var(--lg-font); display: inline-flex; align-items: center; gap: var(--lg-space-2); cursor: pointer; }
+.lg-btn.primary { background: var(--lg-primary); color: var(--lg-primary-ink); border-color: var(--lg-primary); }
+.lg-card { background: var(--lg-surface); border: 1px solid var(--lg-line); border-radius: var(--lg-radius-md); overflow: hidden; }
+.lg-table { width: 100%; border-collapse: collapse; font-size: var(--lg-text-sm); }
+.lg-table th { text-align: left; font-weight: 600; color: var(--lg-dim); padding: var(--lg-space-2); border-bottom: 1px solid var(--lg-line); background: var(--lg-bg); white-space: nowrap; }
+.lg-table td { padding: var(--lg-space-2); border-bottom: 1px solid var(--lg-line); white-space: nowrap; }
+.lg-table td:nth-child(2) { white-space: normal; }
+.lg-table tr.on td { background: color-mix(in srgb, var(--lg-primary) 8%, var(--lg-surface)); }
+.lg-table td.num { text-align: right; font-variant-numeric: tabular-nums; }
+.lg-pill { display: inline-block; padding: 2px var(--lg-space-2); border-radius: var(--lg-radius-pill); font-size: var(--lg-text-sm); font-weight: 600; border: 1px solid currentColor; }
+.lg-pill.paid { color: var(--lg-ok); }
+.lg-pill.due { color: var(--lg-warn); }
+.lg-pill.overdue { color: var(--lg-danger); }
+.lg-side { display: grid; grid-template-rows: auto 1fr; gap: var(--lg-space-4); min-height: 0; }
+.lg-detail { padding: var(--lg-space-4); box-shadow: var(--lg-shadow-card); }
+.lg-detail h2 { font-size: var(--lg-text-md); margin: 0 0 var(--lg-space-2); font-weight: 600; display: flex; align-items: center; gap: var(--lg-space-2); }
+.lg-detail dl { display: grid; grid-template-columns: auto 1fr; gap: var(--lg-space-1) var(--lg-space-3); margin: 0; font-size: var(--lg-text-sm); }
+.lg-detail dt { color: var(--lg-dim); }
+.lg-detail dd { margin: 0; }
+.lg-detail .lg-actions { display: flex; gap: var(--lg-space-2); margin-top: var(--lg-space-3); }
+.lg-form { padding: var(--lg-space-4); display: flex; flex-direction: column; gap: var(--lg-space-3); min-height: 0; overflow: hidden; }
+.lg-form h2 { font-size: var(--lg-text-md); margin: 0; font-weight: 600; }
+.lg-field { display: grid; gap: var(--lg-space-1); font-size: var(--lg-text-sm); }
+.lg-field label { color: var(--lg-dim); display: flex; gap: var(--lg-space-2); align-items: center; }
+.lg-field .sim-tag { font: 700 11px/1 var(--mono); color: var(--lg-warn); border: 1px dashed currentColor; border-radius: 3px; padding: 1px 3px; letter-spacing: 0.04em; }
+.lg-field input, .lg-field textarea { height: 32px; border: 1px solid var(--lg-line); border-radius: var(--lg-radius-sm); padding: 0 var(--lg-space-2); font: var(--lg-text-sm) var(--lg-font); color: var(--lg-ink); background: var(--lg-surface); width: 100%; }
+.lg-field textarea { height: 56px; padding: var(--lg-space-2); resize: none; }
+.lg-help { font-size: var(--lg-text-sm); color: var(--lg-dim); }
+.lg-form .lg-row { display: flex; gap: var(--lg-space-2); }
+
+/* ---- Properties column: Loupe · Gauges · Logbook ---- */
+.props { display: grid; grid-template-rows: 36px 1fr; min-height: 0; min-width: 0; overflow: hidden; background: var(--bg1); border-left: 1px solid var(--line); }
+.tabs { display: flex; align-items: stretch; border-bottom: 1px solid var(--line); padding: 0 6px; gap: 2px; min-width: 0; }
+.tabs button { position: relative; padding: 0 8px; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.1em; color: var(--dim); display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+.tabs button:hover { color: var(--ink); }
+.tabs button[aria-selected="true"] { color: var(--ink); }
+.tabs button[aria-selected="true"]::after { content: ""; position: absolute; left: 10px; right: 10px; bottom: -1px; height: 2px; background: var(--storm); }
+.tabs .count { font: 11px/1 var(--mono); color: var(--dim); border: 1px solid var(--line); border-radius: var(--r-pill); padding: 2px 6px; }
+.pane { display: none; min-height: 0; overflow: auto; padding: 12px; }
+.pane[aria-hidden="false"] { display: block; }
+.pane h3 { margin: 0 0 8px; }
+.pane .row { display: flex; align-items: center; gap: 8px; }
+.block { border: 1px solid var(--line); border-radius: var(--r-inner); background: var(--bg1); padding: 10px 12px; margin-bottom: 10px; }
+.block .title { margin-bottom: 6px; }
+.kv { display: grid; grid-template-columns: 72px 1fr; gap: 4px 10px; font-size: 12.5px; }
+.kv dt { color: var(--dim); }
+.kv dd { margin: 0; color: var(--ink); overflow-wrap: anywhere; }
+.kv dd.mono { font-size: 12px; }
+.empty { color: var(--dim); font-size: 12.5px; padding: 8px 0; }
+.empty b { color: var(--ink); font-weight: 600; }
+.crumbs { display: flex; flex-wrap: wrap; gap: 4px 6px; font: 12px/1.3 var(--mono); color: var(--dim); }
+.crumbs b { color: var(--ink); font-weight: 700; }
+.crumbs .sep { color: var(--faint); }
+.gauge-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.gchip {
+  display: inline-flex; align-items: center; gap: 6px; height: 24px; padding: 0 8px 0 6px; border-radius: var(--r-micro);
+  border: 1px solid var(--line); background: var(--bg2); color: var(--ink); font: 11px/1 var(--mono);
+  transition: border-color var(--t-feather) var(--ease-standard);
+}
+.gchip .sw { width: 10px; height: 10px; border-radius: 2px; border: 1px solid var(--line); flex: none; }
+.gchip:hover, .gchip.lit { border-color: var(--storm); }
+.gchip .cat { color: var(--dim); }
+
+/* Gauges — the design system, measured and categorized; two-way lit with the plate */
+.gauges .cat-head { display: flex; align-items: center; gap: 8px; margin: 10px 0 6px; }
+.gauges .cat-head .n { font: 11px/1 var(--mono); color: var(--dim); }
+.gauge {
+  display: grid; grid-template-columns: 28px 1fr auto; align-items: center; gap: 10px; width: 100%; text-align: left;
+  padding: 6px 8px; border-radius: var(--r-inner); border: 1px solid transparent; color: var(--ink);
+  transition: background var(--t-feather) var(--ease-standard);
+}
+.gauge:hover { background: var(--bg2); }
+.gauge.lit { background: var(--bg3); border-color: var(--storm); }
+.gauge .sw { width: 28px; height: 20px; border-radius: var(--r-micro); border: 1px solid var(--line); display: grid; place-items: center; font: 11px/1 var(--mono); color: var(--dim); }
+.gauge .name { font: 12px/1.3 var(--mono); }
+.gauge .val { font: 11px/1.3 var(--mono); color: var(--dim); }
+.gauge .uses { font: 11px/1 var(--mono); color: var(--dim); }
+.gauge.lit .uses { color: var(--storm); }
+.gauges-foot { display: flex; align-items: center; gap: 8px; margin-top: 10px; }
+
+/* Logbook — the record of everything that happened; provenance and ages (Law II) */
+.log { display: grid; gap: 2px; }
+.log-row { display: grid; grid-template-columns: 52px 1fr; gap: 10px; padding: 6px 8px; border-radius: var(--r-micro); border-left: 3px solid var(--line); }
+.log-row .age { font: 11px/1.4 var(--mono); color: var(--faint); text-align: right; padding-top: 2px; }
+.log-row .what { font-size: 12.5px; color: var(--ink); }
+.log-row .who { font: 11px/1.4 var(--mono); color: var(--dim); }
+.log-row.human { border-left-color: var(--ink); }
+.log-row.shop { border-left-color: var(--wyrd); }
+.log-row.model { border-left-color: var(--dim); }
+.log-row.bench { border-left-color: var(--line); }
+.log-filter { display: flex; gap: 4px; flex-wrap: wrap; margin-bottom: 8px; align-items: center; }
+.log-filter button { font: 11px/1 var(--mono); color: var(--dim); border: 1px solid var(--line); border-radius: var(--r-pill); padding: 4px 8px; }
+.log-filter button[aria-pressed="true"] { color: var(--ink); background: var(--bg3); }
+
+/* Fixture / Toolpath panes share the block grammar */
+.fx-list { display: grid; gap: 6px; }
+.fx {
+  display: grid; grid-template-columns: 1fr auto; gap: 4px 10px; align-items: center; text-align: left; width: 100%;
+  padding: 8px 10px; border: 1px solid var(--line); border-radius: var(--r-inner); background: var(--bg1); color: var(--ink);
+}
+.fx:hover { background: var(--bg2); }
+.fx[aria-pressed="true"] { background: var(--bg3); border-color: var(--warn); }
+.fx .name { font: 12.5px/1.3 var(--mono); }
+.fx .shape { font: 11px/1.3 var(--mono); color: var(--dim); grid-column: 1 / -1; }
+.tp-steps { display: grid; gap: 2px; margin-top: 8px; }
+.tp-step { display: grid; grid-template-columns: 20px 1fr auto; gap: 8px; align-items: center; padding: 5px 8px; border-radius: var(--r-micro); font: 12px/1.3 var(--mono); color: var(--dim); }
+.tp-step .i { color: var(--faint); }
+.tp-step.now { background: var(--bg3); color: var(--ink); }
+.tp-step.done { color: var(--ink); }
+.btn {
+  display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 10px; border-radius: var(--r-inner);
+  border: 1px solid var(--line); background: var(--bg1); color: var(--ink); font-size: 12.5px; font-weight: 600;
+  transition: background var(--t-feather) var(--ease-standard);
+}
+.btn:hover { background: var(--bg2); }
+.btn[aria-pressed="true"] { background: var(--bg3); }
+.btn.rec[aria-pressed="true"] { border-color: var(--alert); color: var(--alert); }
+.btn svg { width: 12px; height: 12px; }
+.btn:disabled { color: var(--dim); cursor: not-allowed; }
+
+/* ---- The work-order tray: a bottom drawer with a handle (Law II.8) ---- */
+.tray { background: var(--bg1); border-top: 1px solid var(--line); display: grid; grid-template-rows: 36px 0; min-height: 0; }
+.tray.open { grid-template-rows: 36px 292px; }
+@media (prefers-reduced-motion: no-preference) {
+  .tray { transition: grid-template-rows var(--t-stone) var(--ease-settle); } /* stone: a drawer of record */
+}
+.tray-handle { display: flex; align-items: center; gap: 12px; padding: 0 16px 0 0; color: var(--ink); }
+.tray-toggle { flex: 1; display: flex; align-items: center; gap: 12px; padding: 0 16px; height: 36px; text-align: left; color: var(--ink); }
+.tray-toggle:hover { background: var(--bg2); }
+.tray-handle .grip { width: 28px; height: 3px; border-radius: 2px; background: var(--line); }
+.tray-handle .title { color: var(--ink); }
+.tray-handle .sum { font-size: 12.5px; color: var(--dim); }
+.tray-handle .spacer { flex: 1; }
+.tray-handle .caret { width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 1.8; transition: transform var(--t-slab) var(--ease-standard); }
+.tray.open .caret { transform: rotate(180deg); }
+.tray-body { display: grid; grid-template-columns: 384px 1fr; min-height: 0; overflow: hidden; }
+.tray.open .tray-body { border-top: 1px solid var(--line); }
+.orders { border-right: 1px solid var(--line); overflow: auto; padding: 8px; display: grid; gap: 4px; align-content: start; }
+.order {
+  display: grid; gap: 6px; width: 100%; text-align: left; padding: 8px 10px; border-radius: var(--r-inner);
+  border: 1px solid transparent; color: var(--ink);
+}
+.order:hover { background: var(--bg2); }
+.order[aria-pressed="true"] { background: var(--bg3); border-color: var(--line); }
+.order .head { display: flex; align-items: center; gap: 8px; }
+.order .id { font: 11px/1 var(--mono); color: var(--dim); }
+.order .slug { font-size: 13px; font-weight: 600; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.order .mark-no { width: 18px; height: 18px; border-radius: var(--r-pill); border: 1.5px solid var(--ink); font: 700 11px/1 var(--mono); display: grid; place-items: center; }
+/* the state ladder — visible on EVERY order */
+.ladder { display: grid; grid-template-columns: repeat(5, 1fr); gap: 0; position: relative; }
+.ladder::before { content: ""; position: absolute; left: 10%; right: 10%; top: 5px; height: 1px; background: var(--line); }
+.rung { display: grid; justify-items: center; gap: 4px; position: relative; }
+.rung .pip { width: 11px; height: 11px; border-radius: var(--r-pill); border: 1.5px solid var(--line); background: var(--bg1); display: grid; place-items: center; }
+.rung .pip::after { content: ""; width: 5px; height: 5px; border-radius: 50%; background: transparent; }
+.rung .lbl { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--dim); white-space: normal; text-align: center; line-height: 1.15; max-width: 64px; } /* dim, not faint: the path ahead is load-bearing */
+.rung.done .pip { border-color: var(--dim); }
+.rung.done .pip::after { background: var(--dim); }
+.rung.done .lbl { color: var(--dim); }
+.rung.now .pip { border-color: var(--ink); }
+.rung.now .pip::after { background: var(--ink); }
+.rung.now .lbl { color: var(--ink); }
+.rung.oath .pip { outline: 1.5px solid var(--gold); outline-offset: 2px; } /* the held oath: a gold RING — an outline stroke, never a fill, never a shadow */
+.rung.shop.now .pip { border-color: var(--wyrd); }
+.rung.shop.now .pip::after { background: var(--wyrd); }
+.rung.shop.now .lbl { color: var(--wyrd); }
+.rung.fit.now .pip { border-color: var(--ok); }
+.rung.fit.now .pip::after { background: var(--ok); }
+.rung.fit.now .lbl { color: var(--ok); }
+@media (prefers-reduced-motion: no-preference) {
+  /* the ONE thing allowed to move at rest, and only while the shop is live on an order */
+  .rung.shop.now.live .pip::after { animation: shop-pulse 1.6s var(--ease-standard) infinite; }
+}
+@keyframes shop-pulse { 0%, 100% { transform: scale(1); opacity: 1; } 50% { transform: scale(0.5); opacity: 0.5; } }
+
+.faces { display: grid; grid-template-columns: 1fr 1fr; min-height: 0; overflow: hidden; }
+.face { padding: 12px 14px; min-height: 0; display: flex; flex-direction: column; }
+.face .body { flex: 1; min-height: 0; overflow: auto; }
+.face + .face { border-left: 1px solid var(--line); }
+.face .head { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; flex: none; }
+.face .head .title { color: var(--ink); }
+.face.shop .head .title { color: var(--wyrd); }
+.face dl { margin: 0; display: grid; grid-template-columns: 84px 1fr; gap: 6px 10px; font-size: 12.5px; }
+.face dt { color: var(--dim); }
+.face dd { margin: 0; }
+.face dd ul { margin: 0; padding-left: 16px; }
+.face dd li { margin: 0 0 2px; }
+.face .draft { border: 1px dashed var(--line); border-radius: var(--r-inner); padding: 8px 10px; }
+.face .draft textarea { width: 100%; min-height: 40px; background: var(--bg2); border: 1px solid var(--line); border-radius: var(--r-micro); padding: 6px 8px; font-size: 12.5px; resize: vertical; }
+.face pre { margin: 0; font: 12px/1.5 var(--mono); color: var(--ink); white-space: pre-wrap; overflow-wrap: anywhere; }
+.face .shop-wait { color: var(--dim); font-size: 12.5px; }
+.face .shop-wait b { color: var(--ink); font-weight: 600; }
+.face-actions { display: flex; align-items: center; gap: 12px; margin-top: 10px; flex-wrap: wrap; flex: none; } /* pinned: the one demand never needs a scroll */
+.scrap { font-size: 12.5px; color: var(--dim); display: inline-flex; gap: 8px; align-items: center; }
+
+/* RELEASE — the one demand on the screen, and it is HELD (Law I.2). Oath class: linear fill, ~800ms. */
+.release {
+  position: relative; display: inline-flex; align-items: center; gap: 10px; height: 36px; padding: 0 14px 0 10px; border-radius: var(--r-inner);
+  border: 1px solid var(--ember); color: var(--ember); background: var(--ember-soft); font-size: 12.5px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase;
+  user-select: none; touch-action: none;
+}
+.release .ring { width: 20px; height: 20px; }
+.release .ring circle { fill: none; stroke-width: 2.5; }
+.release .ring .track { stroke: var(--ember); opacity: 0.3; }
+.release .ring .fill { stroke: var(--ember); stroke-dasharray: 50.27; stroke-dashoffset: 50.27; transform: rotate(-90deg); transform-origin: 50% 50%; }
+.release.holding { background: var(--ember); color: var(--on-accent); box-shadow: var(--shadow-held); transform: translateY(-1px); } /* z3: held, lifted, earns its shadow */
+.release.holding .ring .track, .release.holding .ring .fill { stroke: var(--on-accent); }
+.release.holding .ring .fill { transition: stroke-dashoffset var(--t-oath) linear; stroke-dashoffset: 0; }
+.release .pair { font-weight: 400; text-transform: none; letter-spacing: 0; font-size: 12px; opacity: 0.9; }
+.release:disabled { border-color: var(--line); color: var(--dim); background: var(--bg1); cursor: not-allowed; }
+.release:disabled .ring .track, .release:disabled .ring .fill { stroke: var(--dim); }
+.release-say { font-size: 12.5px; color: var(--dim); min-height: 18px; }
+.release-say b { color: var(--ink); font-weight: 600; }
+
+/* ---- The Halls: Ctrl/⌘+K — one move to invoke, one to name (Law II.2) ---- */
+.veil { position: fixed; inset: 0; background: var(--scrim); z-index: 40; display: none; } /* z4 */
+.veil.on { display: block; }
+.halls {
+  position: fixed; z-index: 50; left: 50%; top: 120px; width: 560px; transform: translateX(-50%);
+  background: var(--bg1); border: 1px solid var(--line); border-radius: var(--r); box-shadow: var(--shadow-overlay); /* z5 overlay: the one earned deep shadow */
+  display: none;
+}
+.halls.on { display: block; }
+.halls input { width: 100%; height: 44px; padding: 0 14px; background: var(--bg2); border: 0; border-bottom: 1px solid var(--line); border-radius: var(--r) var(--r) 0 0; font-size: 14px; color: var(--ink); }
+.halls input::placeholder { color: var(--dim); }
+.halls ul { list-style: none; margin: 0; padding: 6px; max-height: 320px; overflow: auto; }
+.halls li { display: grid; grid-template-columns: 1fr auto; gap: 12px; align-items: center; padding: 8px 10px; border-radius: var(--r-inner); font-size: 13px; color: var(--ink); cursor: pointer; }
+.halls li .k { font: 11px/1 var(--mono); color: var(--dim); }
+.halls li .pair { color: var(--dim); font-size: 12px; margin-left: 8px; }
+.halls li[aria-selected="true"] { background: var(--bg3); }
+.halls .foot { display: flex; gap: 12px; padding: 6px 12px 8px; border-top: 1px solid var(--line); font-size: 11px; color: var(--dim); }
+.halls .foot kbd { font: 11px/1 var(--mono); color: var(--ink); }
+
+/* ---- Sketch: a screen that does not exist yet, drawn with the app's gauges ---- */
+.sheet {
+  position: relative; width: 960px; height: 600px; background: var(--bg1); color: var(--ink); overflow: hidden; border-radius: var(--r-micro);
+  background-image: linear-gradient(var(--line-soft) 1px, transparent 1px), linear-gradient(90deg, var(--line-soft) 1px, transparent 1px);
+  background-size: 16px 16px; cursor: crosshair;
+}
+.sk { position: absolute; border: 1px solid var(--dim); border-radius: 2px; color: var(--dim); font: 11px/1 var(--mono); padding: 4px 6px; background: var(--bg1); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sk.text { border-style: none; background: none; }
+.sk.text::after { content: ""; display: block; height: 1px; background: var(--dim); margin-top: 6px; }
+.sk.btn-sk { border-color: var(--ink); color: var(--ink); text-align: center; }
+.sk.hot { border: 1px dashed var(--storm); color: var(--storm); background: var(--storm-soft); cursor: pointer; }
+.sk.hot:hover { background: var(--bg3); }
+.sk .g { color: var(--faint); }
+.sketch-bar { display: flex; gap: 6px; align-items: center; margin-bottom: 8px; flex-wrap: wrap; }
+.sketch-bar .pal { display: inline-flex; gap: 4px; }
+.sketch-bar .pal button { font: 11px/1 var(--mono); color: var(--dim); border: 1px solid var(--line); border-radius: var(--r-micro); padding: 6px 8px; }
+.sketch-bar .pal button[aria-pressed="true"] { color: var(--ink); background: var(--bg3); }
+</style>
+</head>
+<body>
+
+<!-- SIM strip: the harness speaking, not the app. The only clock on the page. -->
+<div class="sim-strip" role="note" aria-label="simulation strip">
+  <span><b>SIM</b> · concept A · the Surface Plate</span>
+  <span>nothing here is wired — no server, no proxy, no model, no MCP; every fake is labeled SIM</span>
+  <span class="spacer"></span>
+  <span>designed 1440×900</span>
+  <span class="clock" id="clock" aria-label="clock">--:--</span>
+</div>
+
+<!-- Helm: Jig's own header -->
+<header class="helm">
+  <div class="wordmark" aria-label="Jig">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="3" rx="1" fill="none" stroke="var(--ink)" stroke-width="1.6"/><path d="M6 7v11M18 7v11M6 13h12" fill="none" stroke="var(--ink)" stroke-width="1.6" stroke-linecap="round"/><circle cx="12" cy="13" r="1.6" fill="var(--storm)"/></svg>
+    Jig
+  </div>
+  <div class="bench-name">
+    <span class="title">bench</span>
+    <span class="name">ledger-sim</span>
+    <span class="pair" data-first="bench">— one clamped repo</span>
+  </div>
+  <span class="chip sim" title="clamp — attach a repo or docs folder"><span class="dot" aria-hidden="true"></span>clamped · ~/src/ledger · SIM</span>
+  <span class="chip sim"><span class="dot" aria-hidden="true"></span>survey · Angular · .NET · 17 components · 26 gauges · SIM</span>
+  <span class="spacer"></span>
+  <span class="chip storm" id="shop-chip" title="the shop — the connected agents"><span class="dot" aria-hidden="true"></span>Claude Code · connected · SIM</span>
+  <button class="halls-hint" id="halls-open" type="button" aria-label="open the Halls, the command surface"><kbd>Ctrl</kbd><kbd>K</kbd> <span>the Halls</span></button>
+</header>
+
+<main class="bench">
+  <!-- Tool rail -->
+  <nav class="rail" aria-label="tools">
+    <button class="tool" type="button" data-tool="hand" aria-pressed="false" aria-label="Hand — move the plate" data-word="Hand" data-pair="move the plate; drag scrolls, wheel zooms" data-key="H">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 13V5.5a1.5 1.5 0 0 1 3 0V12M11 6a1.5 1.5 0 0 1 3 0v6M14 7.5a1.5 1.5 0 0 1 3 0V12M17 10a1.5 1.5 0 0 1 3 0v5a6 6 0 0 1-6 6h-2.5a6 6 0 0 1-4.7-2.3L3.5 15a1.6 1.6 0 0 1 2.4-2.1L8 15"/></svg>
+      <span class="key" aria-hidden="true">H</span>
+    </button>
+    <button class="tool" type="button" data-tool="loupe" aria-pressed="true" aria-label="Loupe — point at anything and see what it is" data-word="Loupe" data-pair="point at anything and see what it is; click to place a mark" data-key="L">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5 21 21M10.5 7.5v6M7.5 10.5h6"/></svg>
+      <span class="key" aria-hidden="true">L</span>
+    </button>
+    <button class="tool" type="button" data-tool="mark" aria-pressed="false" aria-label="Mark — a highlighted spot with a request attached" data-word="Mark" data-pair="a highlighted spot with a request attached; click anywhere on the plate" data-key="M">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20l3.5-1L19 7.5a2.1 2.1 0 0 0-3-3L4.5 16 4 20z"/><path d="M14 6l3 3"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
+      <span class="key" aria-hidden="true">M</span>
+    </button>
+    <button class="tool" type="button" data-tool="fixture" aria-pressed="false" aria-label="Fixture — a reproducible set of test data" data-word="Fixture" data-pair="a reproducible set of test data, from the survey's data shapes" data-key="F">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8h16M4 16h16M8 4v16M16 4v16"/><rect x="9.5" y="9.5" width="5" height="5" rx="1"/></svg>
+      <span class="key" aria-hidden="true">F</span>
+    </button>
+    <button class="tool" type="button" data-tool="toolpath" aria-pressed="false" aria-label="Toolpath — a recorded click sequence, replayable" data-word="Toolpath" data-pair="a recorded click sequence, replayable on both sides of a trial fit" data-key="T">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 18c4-10 6-10 8-4s4 6 8-6"/><circle cx="4" cy="18" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="20" cy="8" r="1.6"/></svg>
+      <span class="key" aria-hidden="true">T</span>
+    </button>
+    <button class="tool" type="button" data-tool="sketch" aria-pressed="false" aria-label="Sketch — a screen that does not exist yet" data-word="Sketch" data-pair="a screen that does not exist yet, drawn with the app's gauges" data-key="S">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="4.5" width="17" height="15" rx="1.5" stroke-dasharray="3 2"/><path d="M7 9h6M7 12.5h10M7 16h4"/></svg>
+      <span class="key" aria-hidden="true">S</span>
+    </button>
+    <span class="gap"></span>
+    <div class="rail-foot">
+      <span class="prov" title="the plate's gauge grid, from the survey">4px</span>
+    </div>
+  </nav>
+
+  <!-- Plate -->
+  <section class="plate-wrap" aria-label="plate">
+    <div class="corner-box" aria-hidden="true">px</div>
+    <div class="ruler top" aria-hidden="true"><canvas id="ruler-top"></canvas><div class="cursor" id="cur-x" hidden></div><div class="cursor-read" id="read-x" hidden></div></div>
+    <div class="ruler left" aria-hidden="true"><canvas id="ruler-left"></canvas><div class="cursor" id="cur-y" hidden></div><div class="cursor-read" id="read-y" hidden></div></div>
+    <div class="plate" id="plate" tabindex="0" aria-label="the plate — where the app renders and is clicked">
+      <div class="plate-inner" id="plate-inner">
+        <div class="frame" id="frame-before">
+          <div class="frame-tab" id="frame-tab">
+            <span>Ledger · SIM</span><span class="faint">·</span><span>localhost:4200 through the Jig proxy · SIM</span>
+            <span class="fixture-on" id="frame-fixture" hidden></span>
+          </div>
+
+          <!-- ======== Ledger · SIM — the clamped third-party Angular app ======== -->
+          <div class="ledger" id="ledger" data-c="AppComponent">
+            <div class="lg-top" data-c="TopBarComponent">
+              <div class="lg-brand"><i aria-hidden="true"></i>Ledger</div>
+              <div class="lg-search" data-c="SearchBoxComponent">Find an invoice, customer…</div>
+              <span class="lg-spacer"></span>
+              <button class="lg-btn" type="button" data-c="LgButtonComponent" data-g="color.line,radius.sm,type.sm,space.3">Export</button>
+              <div class="lg-avatar" data-c="AvatarComponent" data-g="color.line,type.sm">MJ</div>
+            </div>
+            <nav class="lg-nav" data-c="SideNavComponent">
+              <a class="on" data-c="NavItemComponent" data-g="color.primary,radius.sm,space.2,space.3">Invoices</a>
+              <a data-c="NavItemComponent" data-g="radius.sm,space.2,space.3">Customers</a>
+              <a data-c="NavItemComponent" data-g="radius.sm,space.2,space.3">Payments</a>
+              <a data-c="NavItemComponent" data-g="radius.sm,space.2,space.3">Reports</a>
+              <a data-c="NavItemComponent" data-g="radius.sm,space.2,space.3">Settings</a>
+            </nav>
+            <div class="lg-main" data-c="InvoicesPageComponent">
+              <div>
+                <div class="lg-page-head" data-c="PageHeaderComponent" data-g="type.lg,space.3">
+                  <h1>Invoices</h1>
+                  <span class="lg-pill due fit-only" data-c="LgPillComponent" data-g="color.warn,type.sm,radius.pill">3 due this week · SIM</span>
+                  <span class="lg-spacer"></span>
+                  <button class="lg-btn" type="button" data-c="LgButtonComponent" data-g="color.line,radius.sm,type.sm,space.3">Filter</button>
+                  <button class="lg-btn primary" type="button" data-c="LgButtonComponent" data-g="color.primary,radius.sm,type.sm,space.3">New invoice</button>
+                </div>
+                <div class="lg-card" data-c="InvoiceListComponent" data-g="color.surface,color.line,radius.md">
+                  <table class="lg-table" id="lg-table" data-c="DataTableComponent" data-g="type.sm,space.2,space.3,color.line">
+                    <thead><tr><th>Number</th><th>Customer</th><th class="num">Amount</th><th>Due</th><th>Status</th><th class="fit-only">Days</th></tr></thead>
+                    <tbody id="lg-rows"></tbody>
+                  </table>
+                </div>
+              </div>
+              <div class="lg-side">
+                <div class="lg-card lg-detail" data-c="InvoiceDetailComponent" data-g="color.surface,shadow.card,radius.md,space.4,type.md">
+                  <h2><span id="lg-d-num">INV-1042</span> <span class="lg-pill overdue" id="lg-d-status" data-c="LgPillComponent" data-g="color.danger,type.sm,radius.pill">overdue</span></h2>
+                  <dl>
+                    <dt>Customer</dt><dd id="lg-d-cust">Halvorsen &amp; Daughters</dd>
+                    <dt>Amount</dt><dd id="lg-d-amt">$4,280.00</dd>
+                    <dt>Due</dt><dd id="lg-d-due">2026-08-21</dd>
+                    <dt class="fit-only">Days late</dt><dd class="fit-only" id="lg-d-days">15</dd>
+                  </dl>
+                  <div class="lg-actions">
+                    <button class="lg-btn" type="button" data-c="LgButtonComponent" data-g="color.line,radius.sm,type.sm,space.3">Send reminder</button>
+                    <button class="lg-btn primary fit-only" type="button" data-c="LgButtonComponent" data-g="color.primary,radius.sm,type.sm,space.3">Mark paid</button>
+                  </div>
+                </div>
+                <form class="lg-card lg-form" id="lg-form" data-c="InvoiceFormComponent" data-g="color.surface,radius.md,space.3,space.4,type.sm" onsubmit="return false">
+                  <h2>New invoice</h2>
+                  <div class="lg-field" data-c="LgFieldComponent" data-g="color.line,radius.sm,type.sm,space.1,space.2"><label for="f-cust">Customer <span class="sim-tag" hidden>SIM</span></label><input id="f-cust" type="text" placeholder="Customer name"></div>
+                  <div class="lg-row">
+                    <div class="lg-field" data-c="LgFieldComponent" data-g="color.line,radius.sm,type.sm,space.1,space.2" style="flex:1"><label for="f-amt">Amount <span class="sim-tag" hidden>SIM</span></label><input id="f-amt" type="text" placeholder="0.00"></div>
+                    <div class="lg-field" data-c="LgFieldComponent" data-g="color.line,radius.sm,type.sm,space.1,space.2" style="flex:1"><label for="f-due">Due <span class="sim-tag" hidden>SIM</span></label><input id="f-due" type="text" placeholder="YYYY-MM-DD"></div>
+                  </div>
+                  <div class="lg-help fit-only" data-c="DueHintComponent" data-g="type.sm,color.dim">Due in 30 days — net-30 from today · SIM</div>
+                  <div class="lg-field" data-c="LgFieldComponent" data-g="color.line,radius.sm,type.sm,space.1,space.2"><label for="f-notes">Notes <span class="sim-tag" hidden>SIM</span></label><textarea id="f-notes" placeholder="Optional"></textarea></div>
+                  <div class="lg-row"><span class="lg-spacer" style="flex:1"></span><button class="lg-btn primary" type="button" data-c="LgButtonComponent" data-g="color.primary,radius.sm,type.sm,space.3">Save invoice</button></div>
+                </form>
+              </div>
+            </div>
+          </div>
+          <!-- ======== end Ledger · SIM ======== -->
+
+          <div class="loupe-box" id="loupe-box"><div class="loupe-tag" id="loupe-tag"></div></div>
+          <div class="guide v" id="g-l"></div><div class="guide v" id="g-r"></div><div class="guide h" id="g-t"></div><div class="guide h" id="g-b"></div>
+          <div id="lit-layer"></div>
+          <div id="marks-layer"></div>
+          <div class="ghost" id="ghost"><svg viewBox="0 0 18 18" aria-hidden="true"><path d="M3 2l11 6.5-4.6 1.2 2.8 4.8-1.8 1-2.8-4.8L4 14z"/></svg></div>
+        </div>
+
+        <!-- Sketch sheet (a mode of the plate) -->
+        <div class="frame" id="frame-sketch" hidden>
+          <div class="frame-tab"><span>Sketch · payment-reminders</span><span class="faint">·</span><span>.jig/sketches/payment-reminders.json · SIM</span></div>
+          <div class="sheet" id="sheet" aria-label="sketch sheet"></div>
+        </div>
+      </div>
+
+      <div class="plate-foot">
+        <span class="mode" id="mode-line"><b>loupe</b> <span class="pair">— point at anything and see what it is · click to place a mark</span></span>
+        <span class="spacer"></span>
+        <span class="prov" id="snap-read">snap 4px</span>
+        <span class="zoom" role="group" aria-label="plate scale">
+          <button type="button" data-zoom="0.5" aria-pressed="false">50</button>
+          <button type="button" data-zoom="0.75" aria-pressed="false">75</button>
+          <button type="button" data-zoom="1" aria-pressed="true">100</button>
+          <button type="button" data-zoom="1.25" aria-pressed="false">125</button>
+        </span>
+        <button class="printed" id="plate-printed" type="button" hidden title="printed — return the plate to its own scale and a single frame"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12a8 8 0 1 1 2.3 5.7M4 18v-5h5"/></svg>printed</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- Properties column -->
+  <aside class="props" aria-label="properties">
+    <div class="tabs" role="tablist">
+      <button type="button" role="tab" id="tab-loupe" aria-selected="true" aria-controls="pane-loupe">Loupe</button>
+      <button type="button" role="tab" id="tab-gauges" aria-selected="false" aria-controls="pane-gauges">Gauges <span class="count">26</span></button>
+      <button type="button" role="tab" id="tab-log" aria-selected="false" aria-controls="pane-log">Logbook <span class="count" id="log-count">0</span></button>
+    </div>
+
+    <div class="pane" id="pane-loupe" role="tabpanel" aria-hidden="false">
+      <div id="loupe-pane"></div>
+    </div>
+
+    <div class="pane gauges" id="pane-gauges" role="tabpanel" aria-hidden="true">
+      <div class="row" style="justify-content:space-between">
+        <span class="title">gauges <span class="pair" style="text-transform:none;letter-spacing:0;font-weight:400">— the design system, measured</span></span>
+        <button class="printed" id="gauges-printed" type="button" hidden title="printed — unlight every gauge"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12a8 8 0 1 1 2.3 5.7M4 18v-5h5"/></svg>printed</button>
+      </div>
+      <div class="prov" style="margin:4px 0 6px">src/styles/_tokens.scss · 26 read by the survey · SIM</div>
+      <div id="gauges-list"></div>
+    </div>
+
+    <div class="pane" id="pane-log" role="tabpanel" aria-hidden="true">
+      <div class="log-filter" id="log-filter">
+        <span class="title" style="margin-right:4px">logbook</span>
+        <button type="button" data-who="all" aria-pressed="true">all</button>
+        <button type="button" data-who="human" aria-pressed="false">human</button>
+        <button type="button" data-who="model" aria-pressed="false">model</button>
+        <button type="button" data-who="shop" aria-pressed="false">shop</button>
+        <button type="button" data-who="bench" aria-pressed="false">bench</button>
+        <button class="printed" id="log-printed" type="button" hidden style="margin-left:auto" title="printed — show everything"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12a8 8 0 1 1 2.3 5.7M4 18v-5h5"/></svg>printed</button>
+      </div>
+      <div class="prov" style="margin-bottom:8px">.jig/logbook.jsonl · ages relative to the SIM clock · nothing here leaves the machine</div>
+      <div class="log" id="log-list"></div>
+    </div>
+  </aside>
+</main>
+
+<!-- Work-order tray: bottom drawer -->
+<footer class="tray" id="tray" aria-label="work-order tray">
+  <div class="tray-handle">
+    <button class="tray-toggle" id="tray-handle" type="button" aria-expanded="false" aria-controls="tray-body">
+      <span class="grip" aria-hidden="true"></span>
+      <span class="title">work orders</span>
+      <span class="sum" id="tray-sum">none yet — put the loupe on the plate and click to place a mark</span>
+      <span class="spacer"></span>
+      <svg class="caret" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 15l6-6 6 6"/></svg>
+    </button>
+    <span class="scrap" id="scrap-sum" hidden></span>
+  </div>
+  <div class="tray-body" id="tray-body">
+    <div class="orders" id="orders"></div>
+    <div class="faces" id="faces"></div>
+  </div>
+</footer>
+
+<!-- The Halls -->
+<div class="veil" id="veil"></div>
+<div class="halls" id="halls" role="dialog" aria-label="the Halls — command surface" aria-modal="true">
+  <input id="halls-in" type="text" placeholder="name the thing — a tool, a gauge, a work order, a component…" autocomplete="off" spellcheck="false">
+  <ul id="halls-list" role="listbox"></ul>
+  <div class="foot"><span><kbd>↑↓</kbd> move</span><span><kbd>↵</kbd> go</span><span><kbd>Esc</kbd> close</span><span style="margin-left:auto">the Halls · one move to invoke, one to name</span></div>
+</div>
+
+<div class="tip" id="tip" role="tooltip"></div>
+
+<script>
+'use strict';
+/* ==========================================================================
+   Concept A · The Surface Plate — behaviour. Plain JS, no libraries.
+   Everything the survey "found" is a table below and is SIM.
+   ========================================================================== */
+const $ = (s, r) => (r || document).querySelector(s);
+const $$ = (s, r) => Array.from((r || document).querySelectorAll(s));
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const kebab = (s) => s.replace(/Component$/, '').replace(/([a-z])([A-Z])/g, '$1-$2').toLowerCase();
+const snap4 = (v) => Math.round(v / 4) * 4;
+const oath = () => { const v = getComputedStyle(document.documentElement).getPropertyValue('--t-oath').trim(); return parseFloat(v) || 800; };
+
+/* ---- the survey (SIM): what Jig read from the clamped repo ---- */
+const SURVEY = {
+  AppComponent:          { sel: 'app-root',           file: 'src/app/app.component.ts',                         kind: 'standalone · root',   inputs: [], outputs: [] },
+  TopBarComponent:       { sel: 'lg-top-bar',         file: 'src/app/shell/top-bar.component.ts',               kind: 'standalone',          inputs: ['user: User'], outputs: ['search: EventEmitter<string>'] },
+  SearchBoxComponent:    { sel: 'lg-search-box',      file: 'src/app/shared/search-box.component.ts',           kind: 'standalone',          inputs: ['placeholder: string'], outputs: ['query: EventEmitter<string>'] },
+  LgButtonComponent:     { sel: 'button[lg-button]',  file: 'src/app/shared/button.component.ts',               kind: 'standalone · attr',   inputs: ['variant: "primary" | "ghost"', 'disabled: boolean'], outputs: ['pressed: EventEmitter<void>'] },
+  AvatarComponent:       { sel: 'lg-avatar',          file: 'src/app/shared/avatar.component.ts',               kind: 'standalone',          inputs: ['initials: string'], outputs: [] },
+  SideNavComponent:      { sel: 'lg-side-nav',        file: 'src/app/shell/side-nav.component.ts',              kind: 'standalone',          inputs: ['items: NavItem[]'], outputs: [] },
+  NavItemComponent:      { sel: 'a[lg-nav-item]',     file: 'src/app/shell/nav-item.component.ts',              kind: 'standalone · attr',   inputs: ['route: string', 'active: boolean'], outputs: [] },
+  InvoicesPageComponent: { sel: 'lg-invoices-page',   file: 'src/app/invoices/invoices-page.component.ts',      kind: 'standalone · routed', inputs: [], outputs: [] },
+  PageHeaderComponent:   { sel: 'lg-page-header',     file: 'src/app/shared/page-header.component.ts',          kind: 'standalone',          inputs: ['title: string'], outputs: [] },
+  LgPillComponent:       { sel: 'lg-pill',            file: 'src/app/shared/pill.component.ts',                 kind: 'standalone',          inputs: ['tone: "paid" | "due" | "overdue"'], outputs: [] },
+  InvoiceListComponent:  { sel: 'lg-invoice-list',    file: 'src/app/invoices/invoice-list.component.ts',       kind: 'standalone · signals', inputs: ['invoices: Invoice[]', 'selectedId: string | null'], outputs: ['pick: EventEmitter<string>'] },
+  DataTableComponent:    { sel: 'lg-data-table',      file: 'src/app/shared/data-table.component.ts',           kind: 'standalone · generic', inputs: ['columns: Column<T>[]', 'rows: T[]'], outputs: ['rowClick: EventEmitter<T>'] },
+  InvoiceDetailComponent:{ sel: 'lg-invoice-detail',  file: 'src/app/invoices/invoice-detail.component.ts',     kind: 'standalone · signals', inputs: ['invoice: Invoice'], outputs: ['remind: EventEmitter<string>'] },
+  InvoiceFormComponent:  { sel: 'lg-invoice-form',    file: 'src/app/invoices/invoice-form.component.ts',       kind: 'standalone · reactive forms', inputs: ['draft: Partial<Invoice>'], outputs: ['save: EventEmitter<Invoice>'] },
+  LgFieldComponent:      { sel: 'lg-field',           file: 'src/app/shared/field.component.ts',                kind: 'standalone',          inputs: ['label: string', 'hint?: string'], outputs: [] },
+  DueHintComponent:      { sel: 'lg-due-hint',        file: 'src/app/invoices/due-hint.component.ts (NEW · trial fit)', kind: 'standalone', inputs: ['due: string'], outputs: [] },
+};
+
+/* ---- gauges (SIM): the app's own design system, measured and categorized ---- */
+const GAUGES = [
+  ['color', 'color.bg',          '--lg-bg',          '#f7f8fa'],
+  ['color', 'color.surface',     '--lg-surface',     '#ffffff'],
+  ['color', 'color.line',        '--lg-line',        '#d9dee5'],
+  ['color', 'color.ink',         '--lg-ink',         '#1c2128'],
+  ['color', 'color.dim',         '--lg-dim',         '#5b6470'],
+  ['color', 'color.primary',     '--lg-primary',     '#1a56db'],
+  ['color', 'color.primary-ink', '--lg-primary-ink', '#ffffff'],
+  ['color', 'color.ok',          '--lg-ok',          '#1b7f4a'],
+  ['color', 'color.warn',        '--lg-warn',        '#9a6400'],
+  ['color', 'color.danger',      '--lg-danger',      '#b42318'],
+  ['type',  'type.font',         '--lg-font',        'Segoe UI, Roboto, system-ui'],
+  ['type',  'type.sm',           '--lg-text-sm',     '12px'],
+  ['type',  'type.md',           '--lg-text-md',     '14px'],
+  ['type',  'type.lg',           '--lg-text-lg',     '18px'],
+  ['space', 'space.1',           '--lg-space-1',     '4px'],
+  ['space', 'space.2',           '--lg-space-2',     '8px'],
+  ['space', 'space.3',           '--lg-space-3',     '12px'],
+  ['space', 'space.4',           '--lg-space-4',     '16px'],
+  ['space', 'space.6',           '--lg-space-6',     '24px'],
+  ['radius','radius.sm',         '--lg-radius-sm',   '4px'],
+  ['radius','radius.md',         '--lg-radius-md',   '8px'],
+  ['radius','radius.pill',       '--lg-radius-pill', '999px'],
+  ['shadow','shadow.card',       '--lg-shadow-card', '0 1px 2px rgba(16,24,40,.08)'],
+  ['motion','motion.fast',       '--lg-motion-fast', '150ms'],
+  ['z',     'z.nav',             '--lg-z-nav',       '10'],
+  ['z',     'z.dialog',          '--lg-z-dialog',    '100'],
+];
+const GAUGE_CATS = ['color', 'type', 'space', 'radius', 'shadow', 'motion', 'z'];
+
+/* ---- the app's data (SIM) ---- */
+const INVOICES = [
+  { n: 'INV-1042', c: 'Halvorsen & Daughters', a: 4280,   due: '2026-08-21', s: 'overdue', days: 15 },
+  { n: 'INV-1043', c: 'Orrin Freight',         a: 1120.5, due: '2026-09-02', s: 'overdue', days: 3 },
+  { n: 'INV-1044', c: 'Marrow & Vale',         a: 860,    due: '2026-09-09', s: 'due',     days: -4 },
+  { n: 'INV-1045', c: 'Tessaly Print Co.',     a: 2390,   due: '2026-09-12', s: 'due',     days: -7 },
+  { n: 'INV-1046', c: 'Bright Hollow Café',    a: 415.25, due: '2026-09-19', s: 'due',     days: -14 },
+  { n: 'INV-1041', c: 'Kestrel Analytics',     a: 6100,   due: '2026-08-15', s: 'paid',    days: 0 },
+  { n: 'INV-1040', c: 'Dunmore Lumber',        a: 980,    due: '2026-08-10', s: 'paid',    days: 0 },
+];
+const money = (v) => '$' + v.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+/* ---- what the drafter writes for a mark (SIM). Keyed by the component under the mark. ---- */
+const DRAFTS = {
+  InvoiceListComponent: { slug: 'status-days-column', fit: 'status-days-column',
+    what: 'Add a "Days" column to the invoice list — days late (positive) or days until due (negative) — beside Status.',
+    why: 'Collections triage means opening each overdue invoice today just to see how late it is.',
+    acceptance: ['Header reads "Days"; values are tabular numerals, right-aligned', 'Paid rows show "—" and are not counted', 'Sort by Days is stable across the fixture'],
+    fixture: 'invoice-overdue · 7 rows · key 42',
+    files: ['src/app/invoices/invoice-list.component.ts', 'src/app/invoices/invoice-list.component.html', 'src/app/invoices/invoice.model.ts  (+ daysLate(today))'],
+    patterns: ['standalone component · signal inputs: input<Invoice[]>()', '@for control flow; cells via <lg-data-table [columns]>', 'colours via var(--lg-*) only — no literals (the survey found none)'],
+    tests: ['invoice-list.component.spec.ts — renders one Days cell per row; paid → "—"', 'invoice.model.spec.ts — daysLate() against fixture invoice-overdue (key 42)'] },
+  DataTableComponent: 'InvoiceListComponent',
+  InvoiceRowComponent: 'InvoiceListComponent',
+  LgPillComponent: 'PageHeaderComponent',
+  InvoicesPageComponent: 'PageHeaderComponent',
+  LgButtonComponent: 'InvoiceDetailComponent',
+  InvoiceDetailComponent: { slug: 'mark-paid-action', fit: 'mark-paid-action',
+    what: 'Add a primary "Mark paid" action to the invoice detail card, beside "Send reminder"; show "Days late" in the facts.',
+    why: 'Marking an invoice paid is three screens away; it is the most common action on an overdue invoice.',
+    acceptance: ['"Mark paid" is the primary button; "Send reminder" stays ghost', 'Paid invoices hide the action and the Days late row', 'The list row re-renders paid without a reload'],
+    fixture: 'invoice-overdue · key 42',
+    files: ['src/app/invoices/invoice-detail.component.ts', 'src/app/invoices/invoice-detail.component.html', 'src/app/invoices/invoices.service.ts  (+ markPaid(id))'],
+    patterns: ['<button lg-button variant="primary"> (LgButtonComponent)', 'output(): remind → add paid: EventEmitter<string>', 'PUT /api/invoices/{id}/paid — endpoint exists in openapi/v1.json (survey)'],
+    tests: ['invoice-detail.component.spec.ts — emits paid on hold; hides action when tone === "paid"'] },
+  InvoiceFormComponent: { slug: 'due-date-hint', fit: 'due-date-hint',
+    what: 'Under the Due field, show "Due in N days — net-30 from today" as the date is typed.',
+    why: 'Users type due dates by counting on their fingers; the form knows today.',
+    acceptance: ['Hint appears once the Due field parses as a date', 'Hint reads negative days as "N days ago"', 'No hint when the field is empty'],
+    fixture: 'invoice-basic · key 7',
+    files: ['src/app/invoices/invoice-form.component.html', 'src/app/invoices/due-hint.component.ts  (NEW, standalone)'],
+    patterns: ['reactive form: this.form.controls.due.valueChanges → computed()', 'text via var(--lg-dim), size var(--lg-text-sm) (LgFieldComponent hint slot)'],
+    tests: ['due-hint.component.spec.ts — 3 cases: empty, future, past'] },
+  LgFieldComponent: 'InvoiceFormComponent',
+  PageHeaderComponent: { slug: 'due-this-week-pill', fit: 'due-this-week-pill',
+    what: 'Show a pill in the Invoices page header counting invoices due in the next 7 days.',
+    why: 'The list shows dates; nobody adds them up.',
+    acceptance: ['Pill reads "N due this week" with tone due', 'Hidden when N is 0', 'Counts from the same Invoice[] the list renders'],
+    fixture: 'invoice-overdue · key 42',
+    files: ['src/app/invoices/invoices-page.component.html', 'src/app/invoices/invoices-page.component.ts  (+ dueThisWeek = computed())'],
+    patterns: ['<lg-pill tone="due"> (LgPillComponent)', 'computed() over the invoices signal'],
+    tests: ['invoices-page.component.spec.ts — pill count against fixture invoice-overdue'] },
+};
+function draftFor(comp) {
+  let d = DRAFTS[comp];
+  if (typeof d === 'string') d = DRAFTS[d];
+  if (d) return Object.assign({}, d);
+  return { slug: 'change-' + kebab(comp), fit: null,
+    what: 'Change ' + comp + ' — say what should change; the model drafts from your words. (SIM: no words were given, so this is the skeleton.)',
+    why: '(the reason you give)', acceptance: ['(one observable outcome per line)'], fixture: 'invoice-basic · key 7',
+    files: [(SURVEY[comp] || {}).file || 'src/app/…'], patterns: ['standalone component · var(--lg-*) only'], tests: [kebab(comp) + '.component.spec.ts — (what a passing test observes)'] };
+}
+
+/* ---- Logbook (Law II): the record of everything that happened, with provenance and ages ---- */
+const LOG = [];
+let logWho = 'all';
+function ago(t) {
+  const s = Math.max(0, Math.round((Date.now() - t) / 1000));
+  if (s < 5) return 'now'; if (s < 60) return s + 's'; if (s < 3600) return Math.floor(s / 60) + 'm'; return Math.floor(s / 3600) + 'h';
+}
+function log(who, what, prov) {
+  LOG.unshift({ t: Date.now(), who, what, prov });
+  renderLog();
+}
+function renderLog() {
+  $('#log-count').textContent = LOG.length;
+  const rows = LOG.filter((e) => logWho === 'all' || e.who === logWho);
+  $('#log-list').innerHTML = rows.length ? rows.map((e) =>
+    '<div class="log-row ' + e.who + '"><span class="age">' + ago(e.t) + '</span><div><div class="what">' + esc(e.what) + '</div><div class="who">' + esc(e.who) + ' · ' + esc(e.prov) + '</div></div></div>'
+  ).join('') : '<div class="empty">Nothing in the logbook yet' + (logWho !== 'all' ? ' from <b>' + esc(logWho) + '</b>' : '') + ' — every mark, draft, release and shop report lands here.</div>';
+  $('#log-printed').hidden = logWho === 'all';
+}
+$('#log-filter').addEventListener('click', (e) => {
+  const b = e.target.closest('button[data-who]'); if (!b) return;
+  logWho = b.dataset.who;
+  $$('#log-filter button[data-who]').forEach((x) => x.setAttribute('aria-pressed', String(x === b)));
+  renderLog();
+});
+$('#log-printed').addEventListener('click', () => { logWho = 'all'; $$('#log-filter button[data-who]').forEach((x) => x.setAttribute('aria-pressed', String(x.dataset.who === 'all'))); renderLog(); });
+setInterval(renderLog, 30000); /* ages re-read every 30s — text, not motion */
+
+/* ---- the SIM strip clock — the only clock on the page ---- */
+function tickClock() { const d = new Date(); $('#clock').textContent = String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0') + ' local · SIM'; }
+tickClock(); setInterval(tickClock, 15000);
+
+/* ---- tabs ---- */
+const TABS = { 'tab-loupe': 'pane-loupe', 'tab-gauges': 'pane-gauges', 'tab-log': 'pane-log' };
+function showTab(id) {
+  Object.keys(TABS).forEach((t) => { $('#' + t).setAttribute('aria-selected', String(t === id)); $('#' + TABS[t]).setAttribute('aria-hidden', String(t !== id)); });
+}
+Object.keys(TABS).forEach((t) => $('#' + t).addEventListener('click', () => showTab(t)));
+
+/* ---- tools: the rail, the mode line, the plain word at first encounter ---- */
+const TOOL_WORDS = { hand: 'Hand', loupe: 'Loupe', mark: 'Mark', fixture: 'Fixture', toolpath: 'Toolpath', sketch: 'Sketch' };
+const MODE_PAIR = {
+  hand: 'move the plate — drag scrolls, Ctrl+wheel zooms; the app takes your clicks',
+  loupe: 'point at anything and see what it is · click to place a mark',
+  mark: 'a highlighted spot with a request attached · click anywhere on the plate',
+  fixture: 'a reproducible set of test data · pick one on the right to fill the form',
+  toolpath: 'a recorded click sequence · record on the right, then replay',
+  sketch: 'a screen that does not exist yet · drawn with the app\'s gauges; click the sheet to add',
+};
+let tool = 'loupe';
+function setTool(t) {
+  tool = t;
+  document.documentElement.dataset.tool = t;
+  $$('.tool').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.tool === t)));
+  $('#mode-line').innerHTML = '<b>' + esc(t) + '</b> <span class="pair">— ' + esc(MODE_PAIR[t]) + '</span>';
+  $('#tab-loupe').textContent = TOOL_WORDS[t];
+  const sketch = t === 'sketch';
+  document.documentElement.dataset.plate = sketch ? 'sketch' : 'app';
+  $('#frame-sketch').hidden = !sketch;
+  $('#frame-before').hidden = sketch;
+  if (sketch) { $('#loupe-box').classList.remove('on'); hideGuides(); }
+  $('#plate').style.cursor = t === 'hand' ? 'grab' : (t === 'loupe' ? 'crosshair' : (t === 'mark' ? 'cell' : 'default'));
+  renderLoupePane();
+  showTab('tab-loupe');
+  layoutPlate();
+}
+$$('.tool').forEach((b) => b.addEventListener('click', () => { setTool(b.dataset.tool); log('human', 'tool · ' + TOOL_WORDS[b.dataset.tool], 'rail'); }));
+
+/* tooltips: word + plain word (F14) — z2 raised, no shadow */
+const tip = $('#tip');
+function showTip(el) {
+  const r = el.getBoundingClientRect();
+  tip.innerHTML = '<b>' + esc(el.dataset.word) + '</b> <span class="pair">— ' + esc(el.dataset.pair) + '</span>' + (el.dataset.key ? ' <span class="pair mono">· ' + esc(el.dataset.key) + '</span>' : '');
+  tip.style.left = (r.right + 10) + 'px'; tip.style.top = Math.max(8, r.top + r.height / 2 - 16) + 'px';
+  tip.classList.add('on');
+}
+function hideTip() { tip.classList.remove('on'); }
+$$('.tool').forEach((b) => { b.addEventListener('pointerenter', () => showTip(b)); b.addEventListener('pointerleave', hideTip); b.addEventListener('focus', () => showTip(b)); b.addEventListener('blur', hideTip); });
+
+/* ---- the app's rows (SIM) ---- */
+let selectedInv = 'INV-1042';
+let fixtureRows = null; /* null = the app's own data; [] = the empty fixture */
+function renderRows(tbody, rows, fits) {
+  tbody.innerHTML = rows.map((r) =>
+    '<tr data-n="' + r.n + '" class="' + (r.n === selectedInv ? 'on' : '') + '" data-c="InvoiceRowComponent" data-g="type.sm,space.2,space.3,color.line">' +
+    '<td>' + r.n + '</td><td>' + esc(r.c) + '</td><td class="num">' + money(r.a) + '</td><td>' + r.due + '</td>' +
+    '<td><span class="lg-pill ' + r.s + '" data-c="LgPillComponent" data-g="color.' + (r.s === 'paid' ? 'ok' : r.s === 'due' ? 'warn' : 'danger') + ',type.sm,radius.pill">' + r.s + '</span></td>' +
+    '<td class="num fit-only" data-fit="status-days-column">' + (r.s === 'paid' ? '—' : (r.days > 0 ? '+' + r.days : r.days)) + '</td></tr>'
+  ).join('') || '<tr><td colspan="6" style="text-align:center;color:var(--lg-dim);padding:24px">No invoices yet — the empty state · fixture invoice-empty · SIM</td></tr>';
+  if (fits) applyFits(tbody, fits);
+}
+SURVEY.InvoiceRowComponent = { sel: 'tr[lg-invoice-row]', file: 'src/app/invoices/invoice-row.component.ts', kind: 'standalone · attr', inputs: ['invoice: Invoice', 'selected: boolean'], outputs: [] };
+function renderDetail() {
+  const r = INVOICES.find((x) => x.n === selectedInv) || INVOICES[0];
+  $('#lg-d-num').textContent = r.n; $('#lg-d-cust').textContent = r.c; $('#lg-d-amt').textContent = money(r.a); $('#lg-d-due').textContent = r.due;
+  const p = $('#lg-d-status'); p.textContent = r.s; p.className = 'lg-pill ' + r.s; p.dataset.g = 'color.' + (r.s === 'paid' ? 'ok' : r.s === 'due' ? 'warn' : 'danger') + ',type.sm,radius.pill';
+  $('#lg-d-days').textContent = r.s === 'paid' ? '—' : (r.days > 0 ? r.days + ' late' : (-r.days) + ' until due');
+}
+function renderApp() { renderRows($('#lg-rows'), fixtureRows === null ? INVOICES : fixtureRows); renderDetail(); }
+renderApp();
+
+/* ---- plate geometry: zoom, rulers, the 4px snap ---- */
+const plate = $('#plate'), inner = $('#plate-inner'), frame = $('#frame-before');
+let zoom = 1, fitMode = false;
+function layoutPlate() {
+  const f = document.documentElement.dataset.plate === 'sketch' ? $('#frame-sketch') : frame;
+  const scale = zoom; /* the trial fit ENTERS at 50% so both frames fit the plate; the zoom row still works inside it */
+  $$('.frame', inner).forEach((fr) => { fr.style.transform = 'scale(' + scale + ')'; fr.style.setProperty('--inv', String(1 / scale)); });
+  const w = 962 * scale, h = 602 * scale;
+  inner.classList.toggle('fit', fitMode);
+  inner.style.width = (fitMode ? w * 2 + 24 : w) + 48 + 'px';
+  inner.style.height = (h + 48 + 24) + 'px';
+  $$('.frame', inner).forEach((fr) => { fr.style.width = '962px'; fr.style.height = '602px'; fr.style.marginRight = (w - 962) + 'px'; fr.style.marginBottom = (h - 602) + 'px'; });
+  $$('.zoom button').forEach((b) => b.setAttribute('aria-pressed', String(parseFloat(b.dataset.zoom) === zoom)));
+  $('#plate-printed').hidden = zoom === 1 && !fitMode && !activeFixture;
+  drawRulers();
+  void f;
+}
+function drawRulers() {
+  const scale = zoom;
+  const ox = 25 - plate.scrollLeft, oy = 24 + 25 - plate.scrollTop; /* the APP's origin on the plate, in screen px (24 pad + 24 tab room + the frame's 1px hairline) */
+  [['#ruler-top', true, ox], ['#ruler-left', false, oy]].forEach(([id, horiz, origin]) => {
+    const c = $(id), box = c.parentElement.getBoundingClientRect();
+    const W = Math.round(box.width), H = Math.round(box.height);
+    if (c.width !== W || c.height !== H) { c.width = W; c.height = H; }
+    const g = c.getContext('2d'); g.clearRect(0, 0, W, H);
+    const cs = getComputedStyle(document.documentElement);
+    g.strokeStyle = cs.getPropertyValue('--line').trim(); g.fillStyle = cs.getPropertyValue('--dim').trim();
+    g.font = '11px ' + cs.getPropertyValue('--mono').trim(); g.textBaseline = 'top';
+    const len = horiz ? W : H;
+    const step = scale >= 1 ? 8 : 16;               /* minor tick in app px: the grid's 2× (4px would be a smear) */
+    const labelEvery = scale >= 1 ? 64 : 128;
+    const start = Math.floor(-origin / scale / step) * step;
+    for (let v = start; v * scale + origin < len; v += step) {
+      const p = Math.round(v * scale + origin) + 0.5;
+      const major = v % labelEvery === 0, mid = v % 32 === 0;
+      const tl = major ? 10 : mid ? 6 : 3;
+      g.beginPath();
+      if (horiz) { g.moveTo(p, H); g.lineTo(p, H - tl); } else { g.moveTo(W, p); g.lineTo(W - tl, p); }
+      g.stroke();
+      if (major) {
+        if (horiz) g.fillText(String(v), p + 3, 2);
+        else { g.save(); g.translate(2, p + 3); g.rotate(-Math.PI / 2); g.textAlign = 'right'; g.fillText(String(v), 0, 0); g.restore(); }
+      }
+    }
+  });
+}
+plate.addEventListener('scroll', drawRulers);
+window.addEventListener('resize', layoutPlate);
+$$('.zoom button').forEach((b) => b.addEventListener('click', () => { zoom = parseFloat(b.dataset.zoom); layoutPlate(); log('human', 'plate scale ' + Math.round(zoom * 100) + '%', 'plate foot'); }));
+plate.addEventListener('wheel', (e) => { if (!e.ctrlKey) return; e.preventDefault(); const steps = [0.5, 0.75, 1, 1.25]; let i = steps.indexOf(zoom); i = Math.max(0, Math.min(steps.length - 1, i + (e.deltaY < 0 ? 1 : -1))); zoom = steps[i]; layoutPlate(); }, { passive: false });
+$('#plate-printed').addEventListener('click', () => { zoom = 1; leaveFit(); clearFixture(); layoutPlate(); renderFaces(); log('human', 'plate · printed — 100%, one frame, no fixture', 'plate foot'); });
+
+/* frame-local coordinates from a screen point */
+function frameXY(clientX, clientY) {
+  const scale = zoom; const r = frame.getBoundingClientRect();
+  return { x: (clientX - r.left) / scale, y: (clientY - r.top) / scale, scale };
+}
+function rectInFrame(el) {
+  const scale = zoom; const r = el.getBoundingClientRect(), f = frame.getBoundingClientRect();
+  return { x: (r.left - f.left) / scale, y: (r.top - f.top) / scale, w: r.width / scale, h: r.height / scale };
+}
+
+/* ---- the loupe: hover names the component, guides snap to the gauge grid ---- */
+const loupeBox = $('#loupe-box'), loupeTag = $('#loupe-tag');
+let hovered = null, pinned = null;
+function hideGuides() { ['#g-l', '#g-r', '#g-t', '#g-b'].forEach((s) => $(s).classList.remove('on')); $('#cur-x').hidden = $('#cur-y').hidden = $('#read-x').hidden = $('#read-y').hidden = true; }
+function showLoupe(el, isPinned) {
+  const b = rectInFrame(el);
+  const x = snap4(b.x - 1), y = snap4(b.y - 1), w = snap4(b.w), h = snap4(b.h); /* −1: the frame's own hairline; the app's origin is what the ruler reads */
+  loupeBox.style.left = b.x + 'px'; loupeBox.style.top = b.y + 'px'; loupeBox.style.width = b.w + 'px'; loupeBox.style.height = b.h + 'px';
+  loupeBox.classList.add('on'); loupeBox.classList.toggle('pinned', !!isPinned); loupeBox.classList.toggle('low', b.y < 26);
+  const devs = [['x', b.x - 1], ['y', b.y - 1], ['w', b.w], ['h', b.h]].map(([k, v]) => [k, Math.abs(v - snap4(v))]);
+  const worst = devs.reduce((m, d) => (d[1] > m[1] ? d : m));
+  loupeTag.textContent = el.dataset.c + '  ' + w + '×' + h + ' @ ' + x + ',' + y + (worst[1] > 0.5 ? '  · off the 4px grid by ' + worst[1].toFixed(1) + 'px (' + worst[0] + ')' : '  · on the 4px grid');
+  $('#g-l').style.left = b.x + 'px'; $('#g-r').style.left = (b.x + b.w) + 'px'; $('#g-t').style.top = b.y + 'px'; $('#g-b').style.top = (b.y + b.h) + 'px';
+  ['#g-l', '#g-r', '#g-t', '#g-b'].forEach((s) => $(s).classList.add('on'));
+}
+function pointerRulers(clientX, clientY) {
+  const p = frameXY(clientX, clientY); const sx = snap4(p.x - 1), sy = snap4(p.y - 1);
+  const top = $('#ruler-top').getBoundingClientRect(), left = $('#ruler-left').getBoundingClientRect();
+  $('#cur-x').hidden = false; $('#cur-x').style.left = (clientX - top.left) + 'px';
+  $('#read-x').hidden = false; $('#read-x').style.left = (clientX - top.left + 4) + 'px'; $('#read-x').textContent = sx;
+  $('#cur-y').hidden = false; $('#cur-y').style.top = (clientY - left.top) + 'px';
+  $('#read-y').hidden = false; $('#read-y').style.top = (clientY - left.top - 30) + 'px'; $('#read-y').textContent = sy;
+  $('#snap-read').textContent = 'snap 4px · ' + sx + ',' + sy;
+}
+frame.addEventListener('pointermove', (e) => {
+  if (tool === 'hand' || tool === 'fixture' || tool === 'toolpath') { return; }
+  pointerRulers(e.clientX, e.clientY);
+  const el = e.target.closest('[data-c]'); if (!el || !frame.contains(el)) return;
+  if (pinned) return;
+  if (el !== hovered) { hovered = el; showLoupe(el, false); renderLoupePane(); lightGaugesFor(el); }
+});
+frame.addEventListener('pointerleave', () => { if (pinned) return; hovered = null; loupeBox.classList.remove('on'); hideGuides(); renderLoupePane(); lightGaugesFor(null); $('#snap-read').textContent = 'snap 4px'; });
+
+/* the Loupe pane: component as the survey named it, its file, inputs, and the gauges it uses */
+function renderLoupePane() {
+  const pane = $('#loupe-pane');
+  if (tool === 'fixture') return renderFixturePane(pane);
+  if (tool === 'toolpath') return renderToolpathPane(pane);
+  if (tool === 'sketch') return renderSketchPane(pane);
+  if (tool === 'hand') { pane.innerHTML = '<div class="empty"><b>Hand</b> — move the plate. The app takes your clicks as its own; put the <b>loupe</b> on the plate to see what anything is.</div>'; return; }
+  const el = pinned ? pinned.el : hovered;
+  if (!el) { pane.innerHTML = '<div class="empty">Nothing under the <b>loupe</b> — move over the plate. Every component the survey found lights as you pass; <b>click to place a mark</b>.</div>' + surveySummary(); return; }
+  const name = el.dataset.c, s = SURVEY[name] || {}; const chain = []; let p = el; while (p && p !== frame) { if (p.dataset && p.dataset.c && p.dataset.c !== (chain[chain.length - 1] || '')) chain.push(p.dataset.c); p = p.parentElement; }
+  const gs = (el.dataset.g || '').split(',').filter(Boolean);
+  pane.innerHTML =
+    '<div class="block"><div class="row" style="justify-content:space-between"><span class="title">' + (pinned ? 'pinned · mark ' + pinned.no : 'under the loupe') + '</span>' + (pinned ? '<button class="btn" id="unpin" type="button" style="height:22px;font-size:11px">let go</button>' : '') + '</div>' +
+    '<div class="crumbs" style="margin-top:6px">' + chain.map((c, i) => (i ? '<span class="sep">‹</span>' : '') + (i === 0 ? '<b>' + esc(c) + '</b>' : esc(c))).join('') + '</div></div>' +
+    '<div class="block"><dl class="kv"><dt>selector</dt><dd class="mono">' + esc(s.sel || '?') + '</dd><dt>file</dt><dd class="mono">' + esc(s.file || '?') + '</dd><dt>kind</dt><dd>' + esc(s.kind || '?') + '</dd>' +
+    '<dt>inputs</dt><dd class="mono">' + ((s.inputs || []).map(esc).join('<br>') || '<span class="dim">none</span>') + '</dd>' +
+    '<dt>outputs</dt><dd class="mono">' + ((s.outputs || []).map(esc).join('<br>') || '<span class="dim">none</span>') + '</dd></dl></div>' +
+    '<div class="block"><div class="title">gauges it uses <span class="pair" style="text-transform:none;letter-spacing:0;font-weight:400">— hover lights the Gauges tab; click lights every use on the plate</span></div><div class="gauge-chips">' +
+    (gs.length ? gs.map((g) => { const G = GAUGES.find((x) => x[1] === g) || ['?', g, '', '']; return '<button class="gchip" type="button" data-g="' + g + '"><span class="sw" style="' + swStyle(G) + '"></span><span class="cat">' + G[0] + '.</span>' + g.split('.')[1] + '</button>'; }).join('') : '<span class="dim" style="font-size:12px">no gauges on this element itself — its children carry them</span>') +
+    '</div></div>' +
+    '<div class="prov">survey · .jig/survey/components.json · ' + esc(name) + ' · SIM</div>';
+  const un = $('#unpin'); if (un) un.addEventListener('click', () => { pinned = null; loupeBox.classList.remove('on'); hideGuides(); renderLoupePane(); });
+  $$('.gchip', pane).forEach((c) => {
+    c.addEventListener('pointerenter', () => lightGauge(c.dataset.g, false));
+    c.addEventListener('pointerleave', () => { if (!litGauge) $$('.gauge.lit').forEach((g) => g.classList.remove('lit')); });
+    c.addEventListener('click', () => { lightGauge(c.dataset.g, true); showTab('tab-gauges'); });
+  });
+}
+function surveySummary() {
+  const n = Object.keys(SURVEY).length;
+  return '<div class="block"><div class="title">the survey</div><dl class="kv"><dt>stack</dt><dd>Angular 20 · .NET 10</dd><dt>components</dt><dd>' + n + ' (ts-morph over @Component)</dd><dt>gauges</dt><dd>' + GAUGES.length + ' from src/styles/_tokens.scss</dd><dt>data shapes</dt><dd>Invoice · Customer · Payment (openapi/v1.json)</dd><dt>grid</dt><dd>4px — every space gauge is a multiple</dd></dl><div class="prov" style="margin-top:6px">.jig/survey/ · read 11:41 · SIM</div></div>';
+}
+function swStyle(G) {
+  if (G[0] === 'color') return 'background:' + G[3];
+  return 'background:var(--bg3)';
+}
+
+/* ---- Gauges: two-way lit with the plate ---- */
+let litGauge = null;
+function renderGauges() {
+  const uses = {}; $$('[data-g]', $('#ledger')).forEach((el) => el.dataset.g.split(',').forEach((g) => { uses[g] = (uses[g] || 0) + 1; }));
+  $('#gauges-list').innerHTML = GAUGE_CATS.map((cat) => {
+    const rows = GAUGES.filter((g) => g[0] === cat);
+    return '<div class="cat-head"><span class="title">' + cat + '</span><span class="n">' + rows.length + '</span></div>' + rows.map((G) =>
+      '<button class="gauge" type="button" data-g="' + G[1] + '" aria-pressed="false"><span class="sw" style="' + swStyle(G) + '">' + (cat === 'color' ? '' : cat === 'space' ? '⇿' : cat === 'radius' ? '◜' : cat === 'type' ? 'Aa' : cat === 'shadow' ? '▣' : cat === 'motion' ? '◔' : 'z') + '</span>' +
+      '<span><div class="name">' + G[1] + '</div><div class="val">' + esc(G[2]) + ' · ' + esc(G[3]) + '</div></span><span class="uses">' + (uses[G[1]] || 0) + '×</span></button>').join('');
+  }).join('');
+  $$('.gauge').forEach((b) => b.addEventListener('click', () => { if (litGauge === b.dataset.g) unlightGauges(); else lightGauge(b.dataset.g, true); }));
+}
+function lightGauge(g, onPlate) {
+  $$('.gauge').forEach((b) => { const on = b.dataset.g === g; b.classList.toggle('lit', on); b.setAttribute('aria-pressed', String(on && onPlate)); });
+  const row = $('.gauge[data-g="' + g + '"]'); if (row && onPlate) row.scrollIntoView({ block: 'nearest' });
+  if (!onPlate) return;
+  litGauge = g; const layer = $('#lit-layer'); layer.innerHTML = '';
+  const els = $$('[data-g]', $('#ledger')).filter((el) => el.dataset.g.split(',').includes(g));
+  els.forEach((el, i) => { const b = rectInFrame(el); const d = document.createElement('div'); d.className = 'lit-box'; d.style.cssText = 'left:' + b.x + 'px;top:' + b.y + 'px;width:' + b.w + 'px;height:' + b.h + 'px'; if (i === 0) d.innerHTML = '<span class="n">' + g + ' · ' + els.length + '×</span>'; layer.appendChild(d); });
+  $('#gauges-printed').hidden = false;
+  log('human', 'gauge lit · ' + g + ' · ' + els.length + ' uses on the plate', 'gauges tab');
+}
+function unlightGauges() { litGauge = null; $('#lit-layer').innerHTML = ''; $$('.gauge').forEach((b) => { b.classList.remove('lit'); b.setAttribute('aria-pressed', 'false'); }); $('#gauges-printed').hidden = true; }
+$('#gauges-printed').addEventListener('click', () => { unlightGauges(); log('human', 'gauges · printed — nothing lit', 'gauges tab'); });
+function lightGaugesFor(el) { if (litGauge) return; const gs = el ? (el.dataset.g || '').split(',') : []; $$('.gauge').forEach((b) => b.classList.toggle('lit', gs.includes(b.dataset.g))); }
+renderGauges();
+
+/* ---- marks → work orders ---- */
+const ORDERS = []; let currentId = null; let markSeq = 0;
+const LADDER = [['marked', 'marked'], ['drafted', 'drafted'], ['released', 'released'], ['shop', 'in the shop'], ['fit', 'trial fit']];
+const STATE_I = { marked: 0, drafted: 1, released: 2, shop: 3, fit: 4 };
+const tray = $('#tray');
+function openTray(open) { tray.classList.toggle('open', open); $('#tray-handle').setAttribute('aria-expanded', String(open)); document.documentElement.dataset.tray = open ? 'open' : 'closed'; setTimeout(layoutPlate, 420); }
+$('#tray-handle').addEventListener('click', () => openTray(!tray.classList.contains('open')));
+
+function placeMark(el, x, y) {
+  markSeq += 1;
+  const comp = el ? el.dataset.c : 'the plate';
+  const d = draftFor(comp);
+  const id = String(ORDERS.length + 1).padStart(4, '0');
+  const o = { id, no: markSeq, comp, x, y, slug: d.slug, fit: d.fit, state: 'marked', draft: null, shop: d, times: { marked: Date.now() }, scrapped: false, drafting: true, fitShown: false };
+  ORDERS.push(o); currentId = id;
+  pinned = el ? { el, no: markSeq } : null; if (el) showLoupe(el, true);
+  renderMarks(); renderOrders(); openTray(true); renderLoupePane();
+  log('human', 'mark ' + markSeq + ' placed on ' + comp + ' @ ' + snap4(x - 1) + ',' + snap4(y - 1), 'loupe · click');
+  /* the drafter: > 300ms, so it shows its charge with a stated cost (Law III.2) */
+  setTimeout(() => { o.drafting = false; o.draft = d; o.state = 'drafted'; o.times.drafted = Date.now(); renderOrders(); renderMarks(); log('model', 'work order ' + id + ' drafted · ' + d.slug, 'Qwen2.5-Coder-7B via Ollama · local · SIM'); }, 1100);
+}
+frame.addEventListener('click', (e) => {
+  if (fitMode) return;
+  if (tool === 'hand' || tool === 'fixture') { appClick(e); return; }
+  if (tool === 'toolpath') { appClick(e); recordStep(e); return; }
+  if (tool !== 'loupe' && tool !== 'mark') return;
+  if (e.target.closest('.mark')) return;
+  const el = tool === 'loupe' ? e.target.closest('[data-c]') : (e.target.closest('[data-c]') || null);
+  const p = frameXY(e.clientX, e.clientY);
+  placeMark(el && frame.contains(el) ? el : null, p.x, p.y);
+});
+function appClick(e) { /* the app behaves as itself: a row click picks the invoice */
+  const tr = e.target.closest('tr[data-n]'); if (tr) { selectedInv = tr.dataset.n; renderApp(); log('bench', 'app · row ' + selectedInv + ' picked (Ledger · SIM handled it)', 'plate · pass-through'); }
+}
+function renderMarks() {
+  const layer = $('#marks-layer'); layer.innerHTML = '';
+  ORDERS.forEach((o) => {
+    if (o.scrapped) return;
+    const m = document.createElement('button'); m.type = 'button'; m.className = 'mark' + (o.id === currentId ? ' current' : '') + (STATE_I[o.state] >= 2 ? ' released' : '');
+    m.style.left = o.x + 'px'; m.style.top = (o.y - 8) + 'px'; m.textContent = o.no; m.setAttribute('aria-label', 'mark ' + o.no + ' · ' + o.comp + ' · ' + o.state);
+    m.addEventListener('click', (e) => { e.stopPropagation(); currentId = o.id; renderMarks(); renderOrders(); openTray(true); });
+    layer.appendChild(m);
+  });
+}
+function ladderHTML(o) {
+  const i = STATE_I[o.state];
+  return '<div class="ladder" aria-label="state · ' + LADDER[i][1] + '">' + LADDER.map((r, k) =>
+    '<div class="rung ' + r[0] + (k < i ? ' done' : k === i ? ' now' : '') + (k === 2 && i >= 2 ? ' oath' : '') + (k === 3 && i === 3 ? ' live' : '') + '"><span class="pip"></span><span class="lbl">' + r[1] + '</span></div>').join('') + '</div>';
+}
+function renderOrders() {
+  const live = ORDERS.filter((o) => !o.scrapped), scrapped = ORDERS.filter((o) => o.scrapped);
+  const drafted = live.filter((o) => o.state === 'drafted').length, shop = live.filter((o) => o.state === 'shop').length, fit = live.filter((o) => o.state === 'fit').length;
+  $('#tray-sum').textContent = live.length ? live.length + ' · ' + (drafted ? drafted + ' drafted' : '') + (shop ? (drafted ? ' · ' : '') + shop + ' in the shop' : '') + (fit ? ((drafted || shop) ? ' · ' : '') + fit + ' trial fit ready' : '') || 'all released' : 'none yet — put the loupe on the plate and click to place a mark';
+  const ss = $('#scrap-sum'); ss.hidden = !scrapped.length; ss.innerHTML = scrapped.length ? '<span class="dim">scrap bin · ' + scrapped.length + '</span><button class="btn" type="button" id="unscrap" style="height:22px;font-size:11px">put back</button>' : '';
+  const un = $('#unscrap'); if (un) un.addEventListener('click', (e) => { e.stopPropagation(); const o = scrapped[scrapped.length - 1]; o.scrapped = false; currentId = o.id; renderMarks(); renderOrders(); log('human', 'mark ' + o.no + ' put back from the scrap bin', 'tray'); });
+  const list = $('#orders');
+  list.innerHTML = live.length ? live.map((o) =>
+    '<button class="order" type="button" data-id="' + o.id + '" aria-pressed="' + (o.id === currentId) + '"><div class="head"><span class="mark-no">' + o.no + '</span><span class="id">' + o.id + '</span><span class="slug">' + esc(o.slug) + '</span><span class="prov">' + ago(o.times.marked) + '</span></div>' + ladderHTML(o) + '</button>').join('')
+    : '<div class="empty" style="padding:12px"><b>work orders</b> — one change each: a human face (what · why · where · acceptance · fixture) and, once released, a shop face in the app\'s own idiom. Nothing here yet.</div>';
+  $$('.order', list).forEach((b) => b.addEventListener('click', () => { currentId = b.dataset.id; renderMarks(); renderOrders(); }));
+  renderFaces();
+}
+function renderFaces() {
+  const o = ORDERS.find((x) => x.id === currentId && !x.scrapped); const faces = $('#faces');
+  if (!o) { faces.innerHTML = '<div class="face"><div class="empty">No work order picked. Place a mark on the plate, or pick one on the left.</div></div><div class="face shop"><div class="empty">The <b>shop face</b> — the connected agents\' brief — appears here once an order is released.</div></div>'; return; }
+  const d = o.draft; const where = o.comp + ' @ ' + snap4(o.x - 1) + ',' + snap4(o.y - 1) + ' · ' + ((SURVEY[o.comp] || {}).file || 'the plate');
+  const human = '<div class="face"><div class="head"><span class="title">human face</span><span class="chip sim">' + (o.drafting ? 'drafting' : 'drafted by model') + ' · SIM</span><span class="prov">' + o.id + '-' + esc(o.slug) + '.md</span></div>' +
+    '<div class="body">' + (o.drafting ? '<div class="shop-wait"><b>drafting…</b> Qwen2.5-Coder-7B via Ollama, local · ~1s · nothing leaves the machine · SIM</div>' :
+    '<dl><dt>what</dt><dd><div class="draft"><textarea aria-label="what should change">' + esc(d.what) + '</textarea></div></dd><dt>why</dt><dd>' + esc(d.why) + '</dd><dt>where</dt><dd class="mono" style="font-size:12px">' + esc(where) + '</dd><dt>acceptance</dt><dd><ul>' + d.acceptance.map((a) => '<li>' + esc(a) + '</li>').join('') + '</ul></dd><dt>fixture</dt><dd class="mono" style="font-size:12px">' + esc(d.fixture) + '</dd></dl>') + '</div>' +
+    '<div class="face-actions">' + releaseHTML(o) + '<span class="release-say" id="release-say"></span>' + (STATE_I[o.state] < 2 ? '<button class="btn" type="button" id="scrap-btn" title="scrap bin — where removed marks go, counted and regenerable">scrap this mark</button>' : '') + '</div></div>';
+  const s = o.shop;
+  const shopFace = '<div class="face shop"><div class="head"><span class="title">shop face</span>' + (STATE_I[o.state] >= 2 ? '<span class="chip wyrd"><span class="dot" aria-hidden="true"></span>Angular idiom · SIM</span>' : '<span class="chip sim">filled on release</span>') + '</div>' +
+    '<div class="body">' + (STATE_I[o.state] < 2 ? '<div class="shop-wait">Hold <b>release</b> and the translation layer fills this face in the app\'s own stack idiom — files to touch, the patterns the survey found, the tests to write — and writes the file to <span class="mono">.jig/work-orders/</span>.</div>' :
+    '<pre>files to touch\n  ' + s.files.map(esc).join('\n  ') + '\n\npatterns the survey found\n  ' + s.patterns.map(esc).join('\n  ') + '\n\ntests to write\n  ' + s.tests.map(esc).join('\n  ') + '\n\nfixture  .jig/fixtures/' + esc(s.fixture.split(' ')[0]) + '.json → GET /api/invoices\ndone when  ng test --include invoices is green · the trial fit shows it</pre>') + '</div>' +
+    (STATE_I[o.state] < 2 ? '' : '<div class="face-actions">' + (o.state === 'released' ? '<span class="shop-wait">written · <span class="mono">.jig/work-orders/' + o.id + '-' + esc(o.slug) + '.md</span> · waiting for the shop to pick it up</span>' : '') +
+    (o.state === 'shop' ? '<span class="chip wyrd"><span class="dot" aria-hidden="true"></span>Claude Code · building · ~4s · SIM</span><span class="shop-wait">the shop reads the order over MCP and edits the app; Jig edits nothing</span>' : '') +
+    (o.state === 'fit' ? '<span class="chip ok"><span class="dot" aria-hidden="true"></span>trial fit ready</span><button class="btn" type="button" id="fit-btn" title="trial fit — the app with the change, beside the app before it">' + (fitMode && fitOrder === o.id ? 'hide the trial fit' : 'show the trial fit') + '</button>' : '') + '</div>') + '</div>';
+  faces.innerHTML = human + shopFace;
+  wireRelease(o);
+  const sb = $('#scrap-btn'); if (sb) sb.addEventListener('click', () => { o.scrapped = true; if (pinned && pinned.no === o.no) { pinned = null; loupeBox.classList.remove('on'); hideGuides(); } currentId = null; renderMarks(); renderOrders(); renderLoupePane(); log('human', 'mark ' + o.no + ' scrapped → scrap bin (kept, counted, one gesture back)', 'tray'); });
+  const fb = $('#fit-btn'); if (fb) fb.addEventListener('click', () => { if (fitMode && fitOrder === o.id) leaveFit(); else enterFit(o); layoutPlate(); renderFaces(); });
+}
+function releaseHTML(o) {
+  const ready = o.state === 'drafted';
+  if (STATE_I[o.state] >= 2) { const a = ago(o.times.released); return '<span class="chip"><span class="dot" aria-hidden="true"></span>released ' + (a === 'now' ? 'just now' : a + ' ago') + '</span>'; }
+  return '<button class="release" id="release" type="button" ' + (ready ? '' : 'disabled') + ' aria-label="release — hold to sign the order off; the shop face is filled and the file is written">' +
+    '<svg class="ring" viewBox="0 0 20 20" aria-hidden="true"><circle class="track" cx="10" cy="10" r="8"/><circle class="fill" cx="10" cy="10" r="8"/></svg>release <span class="pair">· hold</span></button>';
+}
+/* RELEASE is HELD (Law I.2): ~800ms (--t-oath) linear fill; release early = honest cancel, in words. */
+function wireRelease(o) {
+  const b = $('#release'); if (!b || b.disabled) return; const say = $('#release-say');
+  let t = null, t0 = 0;
+  const start = (e) => { if (e.button && e.button !== 0) return; e.preventDefault(); t0 = performance.now(); b.classList.add('holding'); say.innerHTML = 'holding…'; b.setPointerCapture && e.pointerId !== undefined && b.setPointerCapture(e.pointerId);
+    t = setTimeout(() => { t = null; b.classList.remove('holding'); release(o); }, oath()); };
+  const stop = () => { if (t) { clearTimeout(t); t = null; const held = Math.round(performance.now() - t0); b.classList.remove('holding'); say.innerHTML = '<b>released before the weight</b> — ' + held + 'ms of ' + oath() + '; nothing written'; log('human', 'release let go at ' + held + 'ms — nothing written', 'tray · ' + o.id); } };
+  b.addEventListener('pointerdown', start); b.addEventListener('pointerup', stop); b.addEventListener('pointercancel', stop); b.addEventListener('pointerleave', stop);
+  b.addEventListener('keydown', (e) => { if ((e.key === ' ' || e.key === 'Enter') && !t) { start(e); } });
+  b.addEventListener('keyup', (e) => { if (e.key === ' ' || e.key === 'Enter') stop(); });
+}
+function release(o) {
+  o.state = 'released'; o.times.released = Date.now(); renderOrders(); renderMarks();
+  log('human', 'work order ' + o.id + ' released · held ' + oath() + 'ms', 'tray · release');
+  log('bench', 'wrote .jig/work-orders/' + o.id + '-' + o.slug + '.md · shop face filled (Angular idiom)', 'translation layer · SIM');
+  setTimeout(() => { if (o.scrapped) return; o.state = 'shop'; o.times.shop = Date.now(); renderOrders(); log('shop', 'Claude Code picked up ' + o.id + ' over MCP (jig_work_orders/read)', 'the shop · SIM'); }, 1400);
+  setTimeout(() => { if (o.scrapped) return; o.state = 'fit'; o.times.fit = Date.now(); renderOrders(); log('shop', 'Claude Code reported ' + o.id + ' done · 3 files · ng test green (SIM)', 'the shop · jig_report_done · SIM'); log('bench', 'trial fit ready for ' + o.id + ' — plate reloaded beside the before', 'plate · SIM'); }, 5600);
+}
+setInterval(() => { if (ORDERS.length) { $$('.order .prov').forEach((p, i) => { const o = ORDERS.filter((x) => !x.scrapped)[i]; if (o) p.textContent = ago(o.times.marked); }); } }, 30000);
+
+/* ---- trial fit: before beside after (Law II's fate mirror) ---- */
+let fitOrder = null;
+function applyFits(root, fits) { $$('[data-fit]', root).forEach((el) => { if (fits.includes(el.dataset.fit)) el.classList.remove('fit-only'); }); }
+function enterFit(o) {
+  leaveFit(); fitMode = true; fitOrder = o.id; o.fitShown = true; zoom = 0.5;
+  const after = frame.cloneNode(true); after.id = 'frame-after'; after.classList.add('after');
+  $$('.loupe-box,.guide,#lit-layer,#marks-layer,#ghost', after).forEach((n) => n.remove());
+  const fits = o.fit ? [o.fit] : [];
+  const led = $('.ledger', after); led.classList.add('fitted'); applyFits(led, fits);
+  after.querySelector('.frame-tab').innerHTML = '<span class="fit-tag">AFTER</span><span>Ledger · SIM with ' + (fits.length ? fits.join(', ') : o.slug + ' — no visible change: the skeleton order had no words') + '</span><span class="faint">·</span><span>the shop\'s change, rebuilt · SIM</span>';
+  const tab = $('#frame-tab'); tab.dataset.was = tab.innerHTML; tab.innerHTML = '<span class="fit-tag">BEFORE</span>' + tab.dataset.was;
+  inner.insertBefore(after, $('#frame-sketch'));
+  log('human', 'trial fit shown · ' + o.id + ' · before | after', 'plate');
+}
+function leaveFit() {
+  if (!fitMode) return; fitMode = false; fitOrder = null; const a = $('#frame-after'); if (a) a.remove();
+  const tab = $('#frame-tab'); if (tab.dataset.was) { tab.innerHTML = tab.dataset.was; delete tab.dataset.was; }
+}
+
+/* ---- fixtures: generated from the survey's data shapes (SIM) ---- */
+const FIXTURES = [
+  { name: 'invoice-basic',   key: 7,  shape: 'Invoice · from InvoiceDto (openapi/v1.json) · 1 row', form: { cust: 'Marrow & Vale', amt: '860.00', due: '2026-10-05', notes: 'Net-30 · fixture invoice-basic · SIM' }, rows: INVOICES.slice(2, 3) },
+  { name: 'invoice-overdue', key: 42, shape: 'Invoice · 7 rows · 2 overdue · from InvoiceDto', form: { cust: 'Halvorsen & Daughters', amt: '4280.00', due: '2026-08-21', notes: 'Overdue 15 days · fixture invoice-overdue · SIM' }, rows: INVOICES },
+  { name: 'invoice-empty',   key: 1,  shape: 'Invoice[] · 0 rows · the empty state', form: { cust: '', amt: '', due: '', notes: '' }, rows: [] },
+];
+let activeFixture = null;
+function renderFixturePane(pane) {
+  pane.innerHTML = '<div class="block"><div class="title">fixtures <span class="pair" style="text-transform:none;letter-spacing:0;font-weight:400">— reproducible test data from the survey\'s data shapes</span></div>' +
+    '<div class="fx-list" style="margin-top:8px">' + FIXTURES.map((f) => '<button class="fx" type="button" data-fx="' + f.name + '" aria-pressed="' + (activeFixture === f.name) + '"><span class="name">' + f.name + '</span><span class="prov">key ' + f.key + '</span><span class="shape">' + esc(f.shape) + ' · SIM</span></button>').join('') + '</div>' +
+    '<div class="row" style="margin-top:10px;gap:8px"><button class="printed" id="fx-printed" type="button" ' + (activeFixture ? '' : 'hidden') + '><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12a8 8 0 1 1 2.3 5.7M4 18v-5h5"/></svg>printed</button><span class="dim" style="font-size:12px">' + (activeFixture ? 'the form and GET /api/invoices are served from ' + activeFixture : 'pick one: the loupe fills the form the way Angular listens (input events); the proxy answers /api/* from the file') + '</span></div></div>' +
+    '<div class="prov">.jig/fixtures/*.json · same key → same data, every run · SIM</div>';
+  $$('.fx', pane).forEach((b) => b.addEventListener('click', () => applyFixture(b.dataset.fx)));
+  const p = $('#fx-printed'); if (p) p.addEventListener('click', () => { clearFixture(); renderLoupePane(); layoutPlate(); log('human', 'fixture · printed — the app\'s own data', 'fixture pane'); });
+}
+function applyFixture(name) {
+  const f = FIXTURES.find((x) => x.name === name); if (!f) return; activeFixture = name;
+  [['#f-cust', f.form.cust], ['#f-amt', f.form.amt], ['#f-due', f.form.due], ['#f-notes', f.form.notes]].forEach(([s, v]) => { const i = $(s); i.value = v; i.dispatchEvent(new Event('input', { bubbles: true })); i.closest('.lg-field').querySelector('.sim-tag').hidden = !v; });
+  fixtureRows = f.rows; renderApp();
+  const ft = $('#frame-fixture'); ft.hidden = false; ft.textContent = 'fixture ' + name + ' · key ' + f.key + ' · SIM';
+  renderLoupePane(); layoutPlate();
+  log('human', 'fixture applied · ' + name + ' · key ' + f.key + ' → form filled, /api/invoices served', 'fixture pane · SIM');
+}
+function clearFixture() {
+  if (!activeFixture) return; activeFixture = null; fixtureRows = null;
+  ['#f-cust', '#f-amt', '#f-due', '#f-notes'].forEach((s) => { const i = $(s); i.value = ''; i.closest('.lg-field').querySelector('.sim-tag').hidden = true; });
+  $('#frame-fixture').hidden = true; renderApp();
+}
+
+/* ---- toolpath: record / replay (a live process is the only thing allowed to move) ---- */
+const TOOLPATHS = [{ name: 'open-overdue', steps: [
+  { sel: '.lg-nav a.on', label: 'click Invoices' }, { sel: '#lg-rows tr:nth-child(2)', label: 'click INV-1043' }, { sel: '.lg-detail .lg-btn', label: 'click Send reminder' }] }];
+let recording = null, replaying = false, tpNow = -1;
+function renderToolpathPane(pane) {
+  const tp = TOOLPATHS[TOOLPATHS.length - 1];
+  pane.innerHTML = '<div class="block"><div class="title">toolpaths <span class="pair" style="text-transform:none;letter-spacing:0;font-weight:400">— a recorded click sequence, replayable</span></div>' +
+    '<div class="row" style="margin-top:8px"><button class="btn rec" id="tp-rec" type="button" aria-pressed="' + !!recording + '"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="6" fill="currentColor"/></svg>' + (recording ? 'stop · ' + recording.steps.length + ' steps' : 'record') + '</button>' +
+    '<button class="btn" id="tp-play" type="button" ' + (replaying || recording ? 'disabled' : '') + '><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 5l12 7-12 7z" fill="currentColor"/></svg>' + (replaying ? 'replaying · ~' + (tp.steps.length * 0.7).toFixed(1) + 's' : 'replay') + '</button><span class="prov">' + esc(tp.name) + ' · ' + tp.steps.length + ' steps</span></div>' +
+    '<div class="tp-steps">' + tp.steps.map((s, i) => '<div class="tp-step' + (i === tpNow ? ' now' : i < tpNow ? ' done' : '') + '"><span class="i">' + (i + 1) + '</span><span>' + esc(s.label) + '</span><span class="prov">' + esc(s.sel) + '</span></div>').join('') + (recording ? '<div class="tp-step now"><span class="i">' + (tp.steps.length + 1) + '</span><span>click the plate to add a step…</span><span></span></div>' : '') + '</div></div>' +
+    '<div class="prov">.jig/toolpaths/' + esc(tp.name) + '.json · replays on both sides of a trial fit · SIM</div>';
+  $('#tp-rec').addEventListener('click', () => { if (recording) { recording = null; log('human', 'toolpath saved · ' + tp.name + ' · ' + tp.steps.length + ' steps', 'toolpath pane · SIM'); } else { recording = { name: 'untitled-' + (TOOLPATHS.length), steps: [] }; TOOLPATHS.push(recording); log('human', 'toolpath recording · ' + recording.name, 'toolpath pane'); } renderLoupePane(); });
+  $('#tp-play').addEventListener('click', () => replay(tp));
+}
+function recordStep(e) { if (!recording) return; const el = e.target.closest('[data-c]'); if (!el) return; recording.steps.push({ sel: el.dataset.c, label: 'click ' + (el.textContent.trim().slice(0, 18) || el.dataset.c) }); renderLoupePane(); }
+function replay(tp) {
+  if (replaying) return; replaying = true; tpNow = -1; renderLoupePane(); const ghost = $('#ghost');
+  log('human', 'toolpath replay · ' + tp.name + ' · ' + tp.steps.length + ' steps · ~' + (tp.steps.length * 0.7).toFixed(1) + 's', 'toolpath pane');
+  const step = (i) => {
+    if (i >= tp.steps.length) { replaying = false; tpNow = -1; ghost.classList.remove('on'); loupeBox.classList.remove('on'); renderLoupePane(); log('bench', 'replay done · ' + tp.name + ' · same end state · SIM', 'plate'); return; }
+    const el = $(tp.steps[i].sel, frame) || $$('[data-c]', frame).find((x) => x.dataset.c === tp.steps[i].sel);
+    tpNow = i; renderLoupePane();
+    if (el) { const b = rectInFrame(el); ghost.classList.add('on'); ghost.style.left = (b.x + b.w / 2) + 'px'; ghost.style.top = (b.y + b.h / 2) + 'px'; showLoupe(el, false); if (el.matches('tr[data-n]')) { selectedInv = el.dataset.n; renderApp(); } }
+    setTimeout(() => step(i + 1), 700);
+  };
+  step(0);
+}
+
+/* ---- sketch: a screen that does not exist yet, drawn with the app's gauges ---- */
+const SKETCH_SAVED = [
+  { k: 'text', x: 32, y: 32, w: 320, t: 'Payment reminders', g: 'type.lg · space.6' },
+  { k: 'box', x: 32, y: 80, w: 592, h: 400, t: 'reminder rules · list', g: 'radius.md · color.surface · space.4' },
+  { k: 'box', x: 48, y: 128, w: 560, h: 40, t: 'rule · overdue > 7 days → email · gauge space.3 rows', g: 'type.sm' },
+  { k: 'box', x: 48, y: 176, w: 560, h: 40, t: 'rule · overdue > 30 days → phone-call reminder', g: 'type.sm' },
+  { k: 'btn', x: 400, y: 32, w: 224, h: 32, t: 'New rule', g: 'color.primary · radius.sm' },
+  { k: 'box', x: 656, y: 80, w: 272, h: 224, t: 'the email as it will send · type.sm', g: 'radius.md' },
+  { k: 'hot', x: 656, y: 336, w: 272, h: 40, t: '→ hotspot · back to Invoices', g: 'InvoiceListComponent' },
+];
+let sketchAdded = [], skTool = 'box';
+function renderSheet() {
+  const sheet = $('#sheet'); sheet.innerHTML = '';
+  SKETCH_SAVED.concat(sketchAdded).forEach((s) => {
+    const d = document.createElement(s.k === 'hot' ? 'button' : 'div'); if (s.k === 'hot') d.type = 'button';
+    d.className = 'sk ' + (s.k === 'text' ? 'text' : s.k === 'btn' ? 'btn-sk' : s.k === 'hot' ? 'hot' : '');
+    d.style.cssText = 'left:' + s.x + 'px;top:' + s.y + 'px;width:' + s.w + 'px;' + (s.h ? 'height:' + s.h + 'px;' : '');
+    d.innerHTML = esc(s.t) + (s.g ? ' <span class="g">· ' + esc(s.g) + '</span>' : '');
+    if (s.k === 'hot') d.addEventListener('click', (e) => { e.stopPropagation(); setTool('loupe'); log('human', 'sketch hotspot → Invoices', 'sketch'); });
+    sheet.appendChild(d);
+  });
+}
+$('#sheet').addEventListener('click', (e) => {
+  if (e.target.closest('.sk')) return;
+  const r = $('#sheet').getBoundingClientRect(); const scale = zoom;
+  const x = Math.round(((e.clientX - r.left) / scale) / 16) * 16, y = Math.round(((e.clientY - r.top) / scale) / 16) * 16; /* snaps to space.4 */
+  const kinds = { box: { w: 160, h: 64, t: 'box' }, text: { w: 160, t: 'text' }, btn: { w: 112, h: 32, t: 'button' }, hot: { w: 192, h: 40, t: '→ hotspot' } };
+  sketchAdded.push(Object.assign({ k: skTool, x, y, g: skTool === 'box' ? 'radius.md' : skTool === 'btn' ? 'color.primary · radius.sm' : '' }, kinds[skTool]));
+  renderSheet(); renderLoupePane(); log('human', 'sketch · ' + skTool + ' added @ ' + x + ',' + y + ' (snapped to space.4)', 'sketch');
+});
+function renderSketchPane(pane) {
+  pane.innerHTML = '<div class="block"><div class="title">sketch <span class="pair" style="text-transform:none;letter-spacing:0;font-weight:400">— a screen that does not exist yet</span></div>' +
+    '<div class="sketch-bar" style="margin-top:8px"><span class="pal">' + ['box', 'text', 'btn', 'hot'].map((k) => '<button type="button" data-sk="' + k + '" aria-pressed="' + (skTool === k) + '">' + (k === 'hot' ? 'hotspot' : k === 'btn' ? 'button' : k) + '</button>').join('') + '</span>' +
+    '<button class="printed" id="sk-printed" type="button" ' + (sketchAdded.length ? '' : 'hidden') + '><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12a8 8 0 1 1 2.3 5.7M4 18v-5h5"/></svg>printed</button></div>' +
+    '<dl class="kv"><dt>sheet</dt><dd class="mono">payment-reminders</dd><dt>drawn with</dt><dd>the app\'s gauges — every box snaps to space.4 (16px) and names the gauge it borrows</dd><dt>hotspots</dt><dd>1 · links to InvoiceListComponent, a screen that exists</dd><dt>elements</dt><dd>' + SKETCH_SAVED.length + ' saved · ' + sketchAdded.length + ' unsaved</dd></dl></div>' +
+    '<div class="prov">.jig/sketches/payment-reminders.json · a mark on a sketch drafts a work order the same way · SIM</div>';
+  $$('[data-sk]', pane).forEach((b) => b.addEventListener('click', () => { skTool = b.dataset.sk; renderLoupePane(); }));
+  const p = $('#sk-printed'); if (p) p.addEventListener('click', () => { sketchAdded = []; renderSheet(); renderLoupePane(); log('human', 'sketch · printed — back to the saved sheet', 'sketch'); });
+}
+renderSheet();
+
+/* ---- the Halls (Ctrl/⌘+K): one move to invoke, one to name ---- */
+const halls = $('#halls'), veil = $('#veil'), hin = $('#halls-in'), hlist = $('#halls-list'); let hsel = 0;
+function hallsItems() {
+  const items = [];
+  Object.keys(TOOL_WORDS).forEach((t) => items.push({ k: 'tool', label: TOOL_WORDS[t], pair: MODE_PAIR[t].split(' · ')[0], run: () => setTool(t) }));
+  items.push({ k: 'plate', label: 'printed — the plate at 100%, one frame', pair: 'restoration', run: () => $('#plate-printed').click() });
+  items.push({ k: 'tray', label: 'work-order tray', pair: tray.classList.contains('open') ? 'close' : 'open', run: () => openTray(!tray.classList.contains('open')) });
+  items.push({ k: 'tab', label: 'Logbook', pair: LOG.length + ' entries', run: () => showTab('tab-log') });
+  items.push({ k: 'tab', label: 'Gauges', pair: GAUGES.length + ' measured', run: () => showTab('tab-gauges') });
+  ORDERS.filter((o) => !o.scrapped).forEach((o) => items.push({ k: 'order', label: 'work order ' + o.id + ' · ' + o.slug, pair: LADDER[STATE_I[o.state]][1], run: () => { currentId = o.id; renderMarks(); renderOrders(); openTray(true); } }));
+  ORDERS.filter((o) => !o.scrapped && o.state === 'fit').forEach((o) => items.push({ k: 'fit', label: 'trial fit · ' + o.id, pair: 'before | after', run: () => { currentId = o.id; enterFit(o); layoutPlate(); renderOrders(); } }));
+  FIXTURES.forEach((f) => items.push({ k: 'fixture', label: 'fixture · ' + f.name, pair: 'key ' + f.key, run: () => { setTool('fixture'); applyFixture(f.name); } }));
+  GAUGES.forEach((G) => items.push({ k: 'gauge', label: 'gauge · ' + G[1], pair: G[3], run: () => { showTab('tab-gauges'); lightGauge(G[1], true); } }));
+  Object.keys(SURVEY).forEach((c) => items.push({ k: 'component', label: 'component · ' + c, pair: SURVEY[c].file, run: () => { setTool('loupe'); const el = $$('[data-c]', frame).find((x) => x.dataset.c === c); if (el) { pinned = { el, no: '—' }; hovered = el; showLoupe(el, true); renderLoupePane(); } } }));
+  return items;
+}
+function openHalls() { halls.classList.add('on'); veil.classList.add('on'); hin.value = ''; hsel = 0; renderHalls(); hin.focus(); log('human', 'the Halls opened', 'Ctrl+K'); }
+function closeHalls() { halls.classList.remove('on'); veil.classList.remove('on'); }
+function renderHalls() {
+  const q = hin.value.trim().toLowerCase(); const words = q.split(/\s+/).filter(Boolean);
+  const items = hallsItems().filter((i) => { const hay = (i.label + ' ' + i.pair + ' ' + i.k).toLowerCase(); return words.every((w) => hay.includes(w)); }).slice(0, 12);
+  hsel = Math.max(0, Math.min(hsel, items.length - 1));
+  hlist.innerHTML = items.length ? items.map((i, k) => '<li role="option" aria-selected="' + (k === hsel) + '" data-i="' + k + '"><span>' + esc(i.label) + '<span class="pair">' + esc(i.pair) + '</span></span><span class="k">' + esc(i.k) + '</span></li>').join('') : '<li><span class="dim">nothing on the shelves for "' + esc(q) + '" — the Halls hold tools, orders, gauges, fixtures, components</span></li>';
+  hlist._items = items;
+  $$('li[data-i]', hlist).forEach((li) => li.addEventListener('click', () => { closeHalls(); items[+li.dataset.i].run(); }));
+}
+hin.addEventListener('input', () => { hsel = 0; renderHalls(); });
+hin.addEventListener('keydown', (e) => {
+  const items = hlist._items || [];
+  if (e.key === 'ArrowDown') { e.preventDefault(); hsel = Math.min(items.length - 1, hsel + 1); renderHalls(); }
+  else if (e.key === 'ArrowUp') { e.preventDefault(); hsel = Math.max(0, hsel - 1); renderHalls(); }
+  else if (e.key === 'Enter') { e.preventDefault(); if (items[hsel]) { closeHalls(); items[hsel].run(); } }
+  else if (e.key === 'Escape') { closeHalls(); }
+});
+veil.addEventListener('click', closeHalls);
+$('#halls-open').addEventListener('click', openHalls);
+document.addEventListener('keydown', (e) => {
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); halls.classList.contains('on') ? closeHalls() : openHalls(); return; }
+  if (e.key === 'Escape') { if (halls.classList.contains('on')) { closeHalls(); return; } if (pinned) { pinned = null; loupeBox.classList.remove('on'); hideGuides(); renderLoupePane(); } return; }
+  if (e.target.matches('input,textarea')) return;
+  const map = { h: 'hand', l: 'loupe', m: 'mark', f: 'fixture', t: 'toolpath', s: 'sketch' };
+  if (!e.ctrlKey && !e.metaKey && !e.altKey && map[e.key.toLowerCase()]) setTool(map[e.key.toLowerCase()]);
+});
+
+/* hand: drag pans the plate */
+let pan = null;
+plate.addEventListener('pointerdown', (e) => { if (tool !== 'hand' || e.button !== 0) return; pan = { x: e.clientX, y: e.clientY, sl: plate.scrollLeft, st: plate.scrollTop }; plate.style.cursor = 'grabbing'; });
+plate.addEventListener('pointermove', (e) => { if (!pan) return; plate.scrollLeft = pan.sl - (e.clientX - pan.x); plate.scrollTop = pan.st - (e.clientY - pan.y); });
+plate.addEventListener('pointerup', () => { pan = null; if (tool === 'hand') plate.style.cursor = 'grab'; });
+
+/* ---- init ---- */
+setTool('loupe');
+renderOrders();
+renderLog();
+log('bench', 'bench opened · ledger-sim clamped · survey read (' + Object.keys(SURVEY).length + ' components, ' + GAUGES.length + ' gauges) · Claude Code connected', 'npx jigbench · SIM');
+layoutPlate();
+</script>
+</body>
+</html>

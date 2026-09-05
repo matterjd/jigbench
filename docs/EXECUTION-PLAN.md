@@ -63,10 +63,12 @@
 
 ## 3. Design spec reference
 
-- **Design spec:** the commission (`COMMISSION.md` §2 product, §3 tongue, §4 slices, §5 architecture)
-  + `FEASIBILITY.md` §B layout and boundaries. The **bench chassis** (which panels, where) is ruled
-  tonight from concepts A/B/C in `design-book/10-jig/` — S1 builds chassis-neutral primitives; S4/S5's
-  UI takes the verdict.
+- **Design spec:** `docs/design/COMMISSION.md` (canonical since graduation 2026-09-05; §2 product,
+  §3 tongue, §4 slices, §5 architecture) + `docs/design/FEASIBILITY.md` §B layout and boundaries.
+  **The bench chassis is RULED (Matter, 2026-09-05): concept A · The Surface Plate**, with B's
+  work-order spine and shop lane and C's two-plate mirror + scrubber stolen in — translated into
+  regions and slices in `docs/team/v0.1/CHASSIS.md`; the built specs are `docs/design/concepts/`.
+  S4 builds the chassis + gauges, S5 the tray/spine/shop lane, S8 the trial-fit mirror.
 - **Module / structure impact:** new repo. Boundary rules (feasibility §B.1) are law: `core` has no
   I/O and imports nothing else; `bench` imports core *types* only and talks to `server` over HTTP/WS;
   adapters import core interfaces only; `cli` wires `server`. `examples/` is a fixture, imported by nothing.

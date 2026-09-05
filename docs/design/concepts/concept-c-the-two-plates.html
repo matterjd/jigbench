@@ -1,0 +1,1463 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="dark">
+<title>Concept C · The Two Plates — Jig (sim)</title>
+<style>
+/* ==========================================================================
+   Concept C · The Two Plates — Jig, round 1 (COMMISSION.md F1–F22)
+
+   A SIM. Nothing here writes. The approval moment is the product, so the bench
+   is TWO PLATES: the app AS-IS on the left, the TRIAL FIT on the right, and the
+   work order in hand standing between them as the hinge. One toolpath scrubber
+   drives both plates at once. Gauges, Fixture, Sketch and the Logbook are
+   drawers rising from the bottom edge.
+
+   The app on the plates is "Ledger · SIM" — a made-up third-party Angular app
+   (invoices: list, detail, form). It is the SUBJECT, never Jig's chrome, and
+   it renders from ITS OWN surveyed gauge block (the second :root below), which
+   is what the Gauges drawer displays. Jig's chrome renders from the first
+   :root block — design-book/tokens/starter.css, VERBATIM (floor items 8–9).
+   Every colour after the two blocks is a var(); zero literals at call sites.
+
+   Depth ladder used (design-book/03): z0 floor · z1 rest (plates, hinge,
+   scrubber, handles — hairlines, no shadow) · z3 held (a RAISED drawer —
+   --shadow-held) · z4 veil (the scrim under the palette) · z5 overlay (the
+   palette — --shadow-overlay). Motion mass: feather for hovers and acks, stone
+   for the drawers of record, oath for RELEASE (hold-gated, --t-oath).
+   ========================================================================== */
+
+/* ==========================================================================
+   Matter Design Book · starter tokens — v0.1 (2026-08-03)
+
+   FOR NEW SURFACES ONLY. This file seeds a brand-new app; it is NOT a mirror
+   of any existing app's tokens and no existing app should import it. Each
+   app's own token file (cc styles.scss, sage theme.ts, wyrdglass _tokens.scss,
+   gravitas palette.ts) remains that app's truth — the book's drift rule
+   (design-book/00-the-claim.md) governs disagreements.
+
+   Provenance: ground/ink/status from command-center styles.scss:5-27
+   ("Obsidian & Ember", ideas/command-center/BRIEF.md D12); gold law from
+   axis-grim ADR 0001; storm from wyrdglass electros accent, promoted by the
+   book; motion scale from wyrdglass _tokens.scss.
+   ========================================================================== */
+
+:root {
+  /* Ground — the depth ladder's material (design-book/03) */
+  --bg0: #0a0c0f;            /* z0 the floor */
+  --bg1: #10141a;            /* z1 rest — panels, hairline, no shadow */
+  --bg2: #171d26;            /* z2 raised — in-flight, inner blocks */
+  --bg3: #1f2733;            /* z3 held — active/selected ground */
+  --line: #232b37;           /* primary hairline */
+  --line-soft: #1a212b;      /* internal divider */
+  --scrim: rgba(4, 6, 9, 0.6);  /* z4 the veil */
+
+  /* Ink */
+  --ink: #e8e6e1;            /* primary text */
+  --dim: #9aa3ad;            /* secondary text */
+  --faint: #5c6672;          /* provenance only — never load-bearing (a11y floor) */
+
+  /* Status voices — semantics are law (design-book/01): never decorative */
+  --ember: #f2762e;          /* a HUMAN is the next actor — the only demand color */
+  --ember-soft: rgba(242, 118, 46, 0.14);
+  --ember-dark: #a34d1e;     /* gradient stop / pressed */
+  --wyrd: #9d8cff;           /* agent-side identity & memory */
+  --wyrd-soft: rgba(157, 140, 255, 0.12);
+  --ok: #7fb069;             /* verified good */
+  --ok-soft: rgba(127, 176, 105, 0.12);
+  --warn: #d9a441;           /* in flight / aging */
+  --warn-soft: rgba(217, 164, 65, 0.14);
+  --alert: #e0483e;          /* a flow is STOPPED */
+  --alert-soft: rgba(224, 72, 62, 0.12);
+  --on-accent: #0a0c0f;      /* dark text on filled accent chips */
+
+  /* Lore accents — the Triune channels (design-book/01) */
+  --gold: #e0b55b;           /* sacred: hairline/ring/stroke ONLY — never a fill */
+  --storm: #5fc9e0;          /* live/right-now signals — must not compete with ember */
+  --storm-soft: rgba(95, 201, 224, 0.12);
+
+  /* Type */
+  --sans: 'Segoe UI Variable', 'Segoe UI', Inter, system-ui, sans-serif;
+  --mono: 'Cascadia Code', 'JetBrains Mono', Consolas, ui-monospace, monospace;
+  /* Ramp: body 14/1.45 · display 20-22/650 (one per screen) · panel title
+     11/600 uppercase +0.14em · secondary 12.5 · provenance 10.5 mono ·
+     chips 9-10.5/700 uppercase (sub-11px must pair with a non-text signal) */
+
+  /* Shape — 4px grid */
+  --r: 10px;                 /* panels */
+  --r-inner: 6px;            /* inner blocks, inputs */
+  --r-micro: 4px;            /* micro chips */
+  --r-pill: 999px;           /* pills */
+
+  /* Earned shadows — lift only, never at rest (design-book/03) */
+  --shadow-held: 0 6px 24px rgba(0, 0, 0, 0.45);    /* z3 held */
+  --shadow-overlay: 0 18px 48px rgba(0, 0, 0, 0.55); /* z5 overlay */
+
+  /* Motion mass (design-book/03): feather / slab / stone / oath */
+  --t-feather: 120ms;
+  --t-slab: 280ms;
+  --t-stone: 400ms;
+  --t-oath: 800ms;           /* hold-gated fill — time IS the affordance */
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --ease-settle: cubic-bezier(0.05, 0.7, 0.1, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1); /* feather-class acks only */
+}
+
+/* Reduced motion is mandatory: depth stays, travel goes. */
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --t-feather: 0ms;
+    --t-slab: 0ms;
+    --t-stone: 0ms;
+    /* --t-oath stays: the hold IS the safety, not an animation */
+  }
+}
+
+/* ==========================================================================
+   Ledger · SIM — the SURVEYED APP'S OWN gauges (NOT Jig's tokens)
+
+   This is what Jig's survey would emit to .jig/survey/gauges.json for the
+   clamped app: an Angular 20 + Angular Material app in the indigo default.
+   The plates render the app from THESE, so it looks like someone else's app;
+   the Gauges drawer lists exactly this block. Made up for the sim (F12, F13).
+   ========================================================================== */
+:root {
+  --lg-primary: #3f51b5;
+  --lg-primary-dark: #303f9f;
+  --lg-primary-soft: rgba(63, 81, 181, 0.08);
+  --lg-accent: #c2185b;
+  --lg-on-primary: #ffffff;
+  --lg-bg: #f5f5f7;
+  --lg-surface: #ffffff;
+  --lg-text: #212121;
+  --lg-text-2: #5f6368;
+  --lg-line: #e0e0e0;
+  --lg-ok: #2e7d32;
+  --lg-ok-soft: #e8f5e9;
+  --lg-warn: #9a5a00;
+  --lg-warn-soft: #fff3e0;
+  --lg-danger: #c62828;
+  --lg-danger-soft: #ffebee;
+  --lg-font: Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --lg-size-body: 13px;
+  --lg-size-small: 12px;
+  --lg-size-title: 20px;
+  --lg-space: 8px;
+  --lg-radius: 4px;
+  --lg-motion: 200ms;
+  --lg-z-nav: 3;
+  --lg-z-app-bar: 4;
+  --lg-z-dialog: 10;
+}
+
+/* ------------------------------------------------------------------------
+   Jig chrome — z1 rest everywhere; hairlines, no shadows
+   ------------------------------------------------------------------------ */
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html, body { height: 100%; }
+body {
+  margin: 0; background: var(--bg0); color: var(--ink);
+  font: 14px/1.45 var(--sans); overflow: hidden;
+  display: flex; flex-direction: column;
+}
+button, input, textarea, select { font: inherit; color: inherit; }
+button { background: none; border: 0; padding: 0; cursor: pointer; }
+button:focus-visible, input:focus-visible, textarea:focus-visible, [tabindex]:focus-visible {
+  outline: 1px solid var(--storm); outline-offset: 2px;
+}
+.mono { font-family: var(--mono); }
+.pt { font: 600 11px/1 var(--sans); text-transform: uppercase; letter-spacing: .14em; color: var(--dim); }
+.prov { font: 11px/1.4 var(--mono); color: var(--faint); }
+.dimt { color: var(--dim); }
+.small { font-size: 12.5px; }
+.chip {
+  display: inline-flex; align-items: center; gap: 6px; height: 24px; padding: 0 9px;
+  border: 1px solid var(--line); border-radius: var(--r-pill);
+  font: 11px/1 var(--mono); color: var(--dim); background: var(--bg1); white-space: nowrap;
+}
+.chip .dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; flex: none; }
+.chip.storm { border-color: var(--storm); color: var(--storm); }
+.chip.wyrd { border-color: var(--wyrd); color: var(--wyrd); }
+.chip.warn { border-color: var(--warn); color: var(--warn); }
+.chip.ok { border-color: var(--ok); color: var(--ok); }
+.btn {
+  display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 10px;
+  border: 1px solid var(--line); border-radius: var(--r-inner); background: var(--bg2);
+  color: var(--ink); font: 12.5px/1 var(--sans); white-space: nowrap;
+  transition: background var(--t-feather) var(--ease-standard), border-color var(--t-feather) var(--ease-standard);
+}
+.btn:hover { background: var(--bg3); }
+.btn[disabled] { color: var(--dim); background: var(--bg1); cursor: not-allowed; }
+.btn.quiet { background: none; }
+.btn.on { background: var(--bg3); border-color: var(--ink); }
+.btn.ember { border-color: var(--ember); color: var(--ember); background: var(--ember-soft); }
+.btn.ember:hover { background: var(--ember-soft); border-color: var(--ember); }
+.tag {
+  display: inline-flex; align-items: center; height: 18px; padding: 0 6px;
+  border-radius: var(--r-micro); font: 700 11px/1 var(--mono); letter-spacing: .06em;
+  text-transform: uppercase; background: var(--bg3); color: var(--ink); white-space: nowrap;
+}
+.tag.warn { color: var(--warn); }
+.tag.wyrd { color: var(--wyrd); }
+.tag.storm { color: var(--storm); }
+.tag.ok { color: var(--ok); }
+kbd {
+  font: 700 11px/1 var(--mono); padding: 3px 5px; border: 1px solid var(--line);
+  border-bottom-width: 2px; border-radius: var(--r-micro); color: var(--dim); background: var(--bg2);
+}
+
+/* SIM strip — the harness, not the bench; the ONLY clock on the page */
+.sim {
+  flex: none; display: flex; align-items: center; gap: 14px; height: 30px; padding: 0 12px;
+  background: var(--bg1); border-bottom: 1px solid var(--line);
+  font: 11px/1 var(--mono); color: var(--dim);
+}
+.sim-tag {
+  font-weight: 700; text-transform: uppercase; letter-spacing: .14em; color: var(--ink);
+  background: var(--bg3); border-radius: var(--r-micro); padding: 4px 6px;
+}
+.sim .sim-btn {
+  height: 22px; padding: 0 8px; border: 1px solid var(--line); border-radius: var(--r-micro);
+  background: var(--bg2); color: var(--ink); font: 11px/1 var(--mono);
+}
+.sim .sim-btn[disabled] { color: var(--dim); background: none; cursor: not-allowed; }
+.sim .sim-btn.armed { border-color: var(--wyrd); color: var(--wyrd); }
+.sim-clock { margin-left: auto; color: var(--ink); }
+
+/* bench bar */
+.bar {
+  flex: none; display: flex; align-items: center; gap: 12px; height: 44px; padding: 0 12px;
+  border-bottom: 1px solid var(--line);
+}
+.wordmark { font: 700 12px/1 var(--mono); letter-spacing: .18em; text-transform: uppercase; color: var(--ink); }
+.bar .sep { width: 1px; height: 18px; background: var(--line); flex: none; }
+.bar .blk { display: flex; flex-direction: column; gap: 3px; white-space: nowrap; }
+.bar .blk .l1 { display: inline-flex; align-items: center; gap: 8px; font: 13px/1 var(--sans); color: var(--ink); }
+.bar .blk .l1 .dimt { font-size: 12.5px; }
+.bar .blk .l1 .chip { height: 20px; }
+.bar .right { margin-left: auto; display: flex; align-items: center; gap: 10px; color: var(--dim); font-size: 12.5px; white-space: nowrap; }
+
+/* the bench: two plates and the hinge */
+.bench {
+  flex: 1; min-height: 0; display: grid; grid-template-columns: 1fr 240px 1fr; gap: 12px;
+  padding: 12px 12px 0;
+}
+.plate {
+  display: flex; flex-direction: column; min-height: 0; min-width: 0;
+  border: 1px solid var(--line); border-radius: var(--r); background: var(--bg1); overflow: hidden;
+}
+.plate-head {
+  flex: none; display: flex; align-items: center; gap: 8px; height: 32px; padding: 0 10px;
+  border-bottom: 1px solid var(--line); font: 11px/1 var(--mono); color: var(--dim); white-space: nowrap;
+}
+.plate-head .name { color: var(--ink); font-weight: 700; letter-spacing: .12em; text-transform: uppercase; }
+.plate-head .route { color: var(--ink); }
+.plate-head .pair { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.plate-head .grow { flex: 1; }
+.plate-head .fx { height: 20px; flex: none; }
+.plate-foot .msg { flex: 1; min-width: 0; }
+.plate-body { position: relative; flex: 1; min-height: 0; overflow: hidden; background: var(--bg0); }
+.plate-foot {
+  flex: none; height: 28px; display: flex; align-items: center; gap: 10px; padding: 0 10px;
+  border-top: 1px solid var(--line); font: 11px/1.2 var(--mono); color: var(--dim); white-space: nowrap; overflow: hidden;
+}
+.plate-foot .msg { color: var(--ink); overflow: hidden; text-overflow: ellipsis; }
+.tool-toggle { display: inline-flex; border: 1px solid var(--line); border-radius: var(--r-micro); overflow: hidden; }
+.tool-toggle button { height: 22px; padding: 0 8px; font: 11px/1 var(--mono); color: var(--dim); background: var(--bg1); }
+.tool-toggle button.on { background: var(--bg3); color: var(--ink); }
+.tool-toggle button + button { border-left: 1px solid var(--line); }
+
+/* the app root on a plate (the subject) */
+.app { position: absolute; inset: 0; overflow: auto; }
+.plate[data-tool="loupe"] .app { cursor: crosshair; }
+.plate[data-tool="hand"] .app { cursor: default; }
+.plate[data-tool="hand"] .app [data-nav], .plate[data-tool="hand"] .app [data-row], .plate[data-tool="hand"] .app [data-act] { cursor: pointer; }
+
+/* the honest void — the right plate before a trial fit exists */
+.void {
+  position: absolute; inset: 12px; display: flex; flex-direction: column; align-items: center;
+  justify-content: center; gap: 10px; padding: 24px; text-align: center; color: var(--dim);
+  outline: 1px dashed var(--line); outline-offset: -1px; border-radius: var(--r-inner);
+}
+.void .h { color: var(--ink); font-size: 14px; }
+.void p { margin: 0; max-width: 360px; font-size: 12.5px; }
+
+/* overlay: loupe lens, marks, change tags — never intercepts the pointer */
+.overlay { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
+.lens {
+  position: absolute; outline: 1px solid var(--bg0); outline-offset: 1px; border-radius: 2px;
+  transition: left var(--t-feather) var(--ease-standard), top var(--t-feather) var(--ease-standard),
+              width var(--t-feather) var(--ease-standard), height var(--t-feather) var(--ease-standard);
+}
+.lens[hidden] { display: none; }
+.lens-tag {
+  position: absolute; left: 0; transform: translateY(-100%); margin-top: -3px;
+  display: inline-flex; align-items: center; gap: 6px; height: 20px; padding: 0 7px;
+  background: var(--bg3); color: var(--ink); border: 1px solid var(--line); border-radius: var(--r-micro);
+  font: 11px/1 var(--mono); white-space: nowrap;
+}
+.lens-tag .f { color: var(--dim); }
+.lens.low .lens-tag { transform: none; margin-top: 0; top: 100%; margin-top: 3px; }
+.mark {
+  position: absolute; width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center;
+  background: var(--bg3); color: var(--ink); border: 1px solid var(--line);
+  font: 700 11px/1 var(--mono);
+}
+.mark.on { border-color: var(--ink); outline: 1px solid var(--ink); outline-offset: 2px; }
+.mark.done { color: var(--dim); }
+.mark-label {
+  position: absolute; transform: translateX(26px); top: 2px; height: 18px; padding: 0 6px; display: inline-flex; align-items: center;
+  background: var(--bg3); color: var(--ink); border: 1px solid var(--line); border-radius: var(--r-micro);
+  font: 11px/1 var(--mono); white-space: nowrap;
+}
+.change-tag {
+  position: absolute; transform: translateY(-50%); height: 18px; padding: 0 6px;
+  display: inline-flex; align-items: center; gap: 5px;
+  background: var(--bg1); color: var(--storm); border: 1px solid var(--storm); border-radius: var(--r-micro);
+  font: 700 11px/1 var(--mono); letter-spacing: .06em; text-transform: uppercase; white-space: nowrap;
+}
+/* the change itself: a storm hairline on the right plate */
+.plate[data-side="right"] .app [data-change] { outline: 1px solid var(--storm); outline-offset: 2px; }
+/* gauge lighting (Law III.4 poles and arcs) — dashed storm, so it never reads as a change */
+.app .lit { outline: 1px dashed var(--storm); outline-offset: 1px; }
+
+/* the hinge — the work order in hand standing between the plates */
+.hinge {
+  display: flex; flex-direction: column; min-height: 0; border: 1px solid var(--line);
+  border-radius: var(--r); background: var(--bg1); overflow: hidden;
+}
+.hinge-head {
+  flex: none; padding: 9px 10px 8px; border-bottom: 1px solid var(--line); display: flex; flex-direction: column; gap: 6px;
+}
+.hinge-head .row { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.order-tab {
+  height: 22px; padding: 0 7px; border: 1px solid var(--line); border-radius: var(--r-micro);
+  font: 700 11px/1 var(--mono); color: var(--dim); background: var(--bg1);
+}
+.order-tab.on { background: var(--bg3); color: var(--ink); border-color: var(--ink); }
+.order-tab.done { color: var(--dim); text-decoration: line-through; }
+.hinge-body { flex: 1; min-height: 0; overflow: auto; display: flex; flex-direction: column; }
+.hinge-empty { padding: 14px 12px; color: var(--dim); font-size: 12.5px; display: flex; flex-direction: column; gap: 10px; }
+.hinge-empty .h { color: var(--ink); font-size: 14px; }
+
+/* the state ladder, drawn vertically */
+.ladder { flex: none; padding: 8px 10px 6px; border-bottom: 1px solid var(--line-soft); position: relative; }
+.rung { position: relative; display: flex; align-items: center; gap: 8px; height: 20px; font: 11px/1 var(--mono); color: var(--dim); }
+.rung .d { width: 8px; height: 8px; border-radius: 50%; border: 1px solid var(--dim); background: var(--bg1); flex: none; position: relative; z-index: 1; }
+.rung.reached .d { background: var(--ink); border-color: var(--ink); }
+.rung.reached.shopside .d { background: var(--wyrd); border-color: var(--wyrd); }
+.rung.reached { color: var(--ink); }
+.rung.now { font-weight: 700; }
+.rung .age { margin-left: auto; color: var(--faint); }
+.rung + .rung::before {
+  content: ""; position: absolute; left: 3.5px; top: -12px; height: 12px; width: 1px; background: var(--line);
+}
+.rung.reached + .rung.reached::before { background: var(--ink); }
+.rung.reached.shopside + .rung.reached.shopside::before { background: var(--wyrd); }
+.ladder .pt { margin-bottom: 4px; }
+
+/* faces */
+.face { padding: 10px 10px 12px; display: flex; flex-direction: column; gap: 8px; }
+.face + .face { border-top: 1px solid var(--line); }
+.face.human { border-left: 3px solid var(--ink); }
+.face.shop { border-left: 3px solid var(--wyrd); }
+.face .ft { display: flex; align-items: center; gap: 8px; }
+.face .ft .pt { flex: 1; }
+.field { display: flex; flex-direction: column; gap: 3px; }
+.field .k { font: 700 11px/1 var(--mono); letter-spacing: .06em; text-transform: uppercase; color: var(--dim); }
+.field .v { font-size: 12.5px; line-height: 1.4; color: var(--ink); }
+.field .v.mono { font-size: 11.5px; word-break: break-all; }
+.field ul { margin: 0; padding-left: 14px; }
+.field li { font-size: 12.5px; line-height: 1.4; }
+.field textarea {
+  width: 100%; min-height: 64px; resize: vertical; background: var(--bg2); border: 1px solid var(--line);
+  border-radius: var(--r-inner); padding: 6px 8px; font: 12.5px/1.4 var(--sans); color: var(--ink);
+}
+.face.shop .field .k { color: var(--wyrd); }
+.face.shop .empty { color: var(--dim); font-size: 12.5px; line-height: 1.45; }
+
+/* RELEASE — a held control (Law I.2). The one ember on the screen while it is live. */
+/* sticky at the hinge's bottom edge: the one demand is always at hand while the human face scrolls above it */
+.release-row { position: sticky; bottom: 0; z-index: 1; background: var(--bg1); padding: 10px; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); display: flex; flex-direction: column; gap: 6px; }
+.hold {
+  display: flex; align-items: center; gap: 10px; width: 100%; height: 44px; padding: 0 10px;
+  border: 1px solid var(--ember); border-radius: var(--r-inner); background: var(--ember-soft); color: var(--ember);
+  font: 600 13px/1 var(--sans); text-align: left; user-select: none; touch-action: none;
+}
+.hold small { font: 11px/1 var(--mono); color: var(--ember); opacity: .9; margin-left: auto; }
+.hold[disabled] { border-color: var(--line); background: none; color: var(--dim); cursor: not-allowed; }
+.hold[disabled] small { color: var(--dim); }
+.ring { width: 26px; height: 26px; flex: none; transform: rotate(-90deg); }
+.ring circle { fill: none; stroke-width: 3; }
+.ring .bgc { stroke: var(--line); }
+.ring .fill { stroke: currentColor; stroke-dasharray: 100; stroke-dashoffset: 100; stroke-linecap: butt; }
+.hold.holding .ring .fill { stroke-dashoffset: 0; transition: stroke-dashoffset var(--t-oath) linear; }
+.hold-hint { font: 11px/1.4 var(--mono); color: var(--dim); min-height: 15px; }
+.hold-hint.cancel { color: var(--ink); }
+.verdict-row { display: flex; gap: 6px; }
+.verdict-row .btn { flex: 1; justify-content: center; height: 34px; }
+
+/* the toolpath scrubber — runs under both plates */
+.scrubber {
+  flex: none; margin: 12px 12px 0; height: 66px; border: 1px solid var(--line); border-radius: var(--r);
+  background: var(--bg1); display: grid; grid-template-columns: 250px 1fr 420px; align-items: center; gap: 14px; padding: 0 14px;
+}
+.scrubber .lbl { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.scrubber .lbl .h { font-size: 12.5px; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.track { position: relative; height: 46px; }
+.track input[type="range"] {
+  position: absolute; left: 0; right: 0; bottom: 4px; width: 100%; height: 16px; margin: 0;
+  -webkit-appearance: none; appearance: none; background: transparent;
+}
+.track input[type="range"]::-webkit-slider-runnable-track { height: 2px; background: var(--line); border-radius: 1px; }
+.track input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none; appearance: none; width: 14px; height: 14px; border-radius: 50%; background: var(--ink); border: 0; margin-top: -6px;
+}
+.track input[type="range"]::-moz-range-track { height: 2px; background: var(--line); }
+.track input[type="range"]::-moz-range-thumb { width: 14px; height: 14px; border-radius: 50%; background: var(--ink); border: 0; }
+.stops { position: absolute; left: 7px; right: 7px; top: 0; height: 24px; }
+.stop {
+  position: absolute; top: 0; transform: translateX(-50%); width: 24px; height: 24px; border-radius: 50%;
+  border: 1px solid var(--line); background: var(--bg2); color: var(--dim); font: 700 11px/1 var(--mono);
+  display: grid; place-items: center;
+  transition: background var(--t-feather) var(--ease-standard), color var(--t-feather) var(--ease-standard);
+}
+.stop:hover { background: var(--bg3); }
+.stop.on { background: var(--bg3); color: var(--ink); border-color: var(--ink); }
+.stop.rec { border-style: dashed; }
+.scrubber .ctl { display: flex; align-items: center; gap: 8px; justify-content: flex-end; }
+.scrubber .ctl .read { font: 11px/1.3 var(--mono); color: var(--dim); text-align: right; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.scrubber .ctl .read b { color: var(--ink); font-weight: 400; }
+
+/* drawer handles row + printed */
+.handles { flex: none; display: flex; align-items: center; gap: 8px; height: 56px; padding: 0 12px; }
+.handle {
+  display: inline-flex; flex-direction: column; align-items: flex-start; justify-content: center; gap: 3px; height: 44px; padding: 0 12px;
+  border: 1px solid var(--line); border-radius: var(--r-inner); background: var(--bg1); color: var(--dim);
+  font: 12.5px/1 var(--sans); white-space: nowrap; text-align: left;
+  transition: background var(--t-feather) var(--ease-standard);
+}
+.handle:hover { background: var(--bg2); }
+.handle .l1 { display: inline-flex; align-items: center; gap: 8px; }
+.handle .l2 { font-size: 11px; color: var(--dim); }
+.handle b { color: var(--ink); font-weight: 600; }
+.handle .cnt { font: 11px/1 var(--mono); }
+.handle .up-glyph { font: 11px/1 var(--mono); color: var(--dim); }
+.handle.on { background: var(--bg3); color: var(--ink); border-color: var(--ink); }
+.handles .right { margin-left: auto; display: flex; align-items: center; gap: 10px; }
+
+/* a drawer of record — z3 HELD while raised: it is above the plates, so it earns --shadow-held */
+.drawer {
+  position: fixed; left: 12px; right: 12px; bottom: 56px; height: 330px; z-index: 3;
+  background: var(--bg1); border: 1px solid var(--line); border-radius: var(--r);
+  display: flex; flex-direction: column; overflow: hidden;
+  transform: translateY(calc(100% + 60px)); visibility: hidden;
+}
+.drawer.up { transform: none; visibility: visible; box-shadow: var(--shadow-held); }
+@media (prefers-reduced-motion: no-preference) {
+  .drawer { transition: transform var(--t-stone) var(--ease-settle), visibility 0s linear var(--t-stone); }
+  .drawer.up { transition: transform var(--t-stone) var(--ease-settle), visibility 0s; }
+}
+.drawer-head { flex: none; display: flex; align-items: center; gap: 12px; height: 40px; padding: 0 14px; border-bottom: 1px solid var(--line); }
+.drawer-head .h { font-size: 14px; color: var(--ink); font-weight: 600; }
+.drawer-head .plain { font-size: 12.5px; color: var(--dim); }
+.drawer-head .right { margin-left: auto; display: flex; gap: 8px; align-items: center; }
+.drawer-body { flex: 1; min-height: 0; overflow: auto; padding: 12px 14px; display: grid; gap: 14px; }
+.drawer-body.cols-3 { grid-template-columns: 1.2fr 1fr 1fr; }
+.drawer-body.cols-2 { grid-template-columns: 1fr 1fr; }
+.drawer-body.cols-g { grid-template-columns: 2fr 1fr 1fr 1fr 1.4fr; }
+.dsec { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.dsec .pt { margin-bottom: 2px; }
+.swatches { display: flex; flex-wrap: wrap; gap: 6px; }
+.sw {
+  display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 8px 0 4px; border: 1px solid var(--line);
+  border-radius: var(--r-inner); background: var(--bg2); font: 11px/1 var(--mono); color: var(--ink);
+}
+.sw i { width: 18px; height: 18px; border-radius: var(--r-micro); border: 1px solid var(--line); display: block; }
+.sw .val { color: var(--dim); }
+.sw.on { border-color: var(--storm); outline: 1px dashed var(--storm); outline-offset: 1px; }
+.kv { display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; font: 11.5px/1.4 var(--mono); }
+.kv .k { color: var(--dim); }
+.kv .v { color: var(--ink); }
+.list { display: flex; flex-direction: column; gap: 4px; }
+.list .li {
+  display: flex; align-items: center; gap: 10px; min-height: 34px; padding: 6px 10px; border: 1px solid var(--line);
+  border-radius: var(--r-inner); background: var(--bg2); font-size: 12.5px; text-align: left; width: 100%;
+}
+.list .li .m { font: 11px/1.3 var(--mono); color: var(--dim); }
+.list .li .grow { flex: 1; min-width: 0; }
+.list .li.on { background: var(--bg3); border-color: var(--ink); }
+.list .li.dead { color: var(--dim); cursor: not-allowed; }
+.log { display: flex; flex-direction: column; gap: 2px; }
+.log .e { display: grid; grid-template-columns: 58px 70px 1fr auto; gap: 10px; align-items: baseline; padding: 6px 8px; border-bottom: 1px solid var(--line-soft); font-size: 12.5px; }
+.log .e .age { font: 11px/1.3 var(--mono); color: var(--faint); }
+.log .e .who { font: 700 11px/1.3 var(--mono); letter-spacing: .06em; text-transform: uppercase; }
+.log .e .who.you { color: var(--ink); }
+.log .e .who.shop { color: var(--wyrd); }
+.log .e .who.jig { color: var(--dim); }
+.log .e .who.sim { color: var(--warn); }
+.log .e .prov { text-align: right; }
+.log .e.aged { opacity: .7; }
+.scrapbin { display: flex; flex-direction: column; gap: 6px; }
+.scrapbin .li .m { text-decoration: line-through; }
+
+/* the palette — z4 veil + z5 overlay, the only shadowed overlay */
+.veil { position: fixed; inset: 0; background: var(--scrim); z-index: 4; }
+.palette {
+  position: fixed; left: 50%; top: 110px; transform: translateX(-50%); width: 560px; z-index: 5;
+  background: var(--bg1); border: 1px solid var(--line); border-radius: var(--r); box-shadow: var(--shadow-overlay);
+  display: flex; flex-direction: column; overflow: hidden;
+}
+.palette input {
+  height: 44px; border: 0; border-bottom: 1px solid var(--line); background: var(--bg1); padding: 0 14px; font-size: 14px; color: var(--ink); outline: none;
+}
+.palette input::placeholder { color: var(--dim); }
+.palette .cmds { max-height: 360px; overflow: auto; padding: 6px; display: flex; flex-direction: column; gap: 2px; }
+.palette .cmd {
+  display: flex; align-items: center; gap: 10px; height: 34px; padding: 0 10px; border-radius: var(--r-inner);
+  font-size: 13px; color: var(--ink); text-align: left; width: 100%;
+}
+.palette .cmd .m { font: 11px/1 var(--mono); color: var(--dim); margin-left: auto; }
+.palette .cmd.on { background: var(--bg3); }
+.palette .foot { display: flex; gap: 12px; padding: 8px 14px; border-top: 1px solid var(--line); font: 11px/1.3 var(--mono); color: var(--dim); }
+.palette .none { padding: 12px 14px; color: var(--dim); font-size: 12.5px; }
+
+/* ------------------------------------------------------------------------
+   Ledger · SIM — the SUBJECT app's own look, from ITS gauges only (.lg-*)
+   ------------------------------------------------------------------------ */
+.lg {
+  display: grid; grid-template-rows: 44px 1fr; grid-template-columns: 140px 1fr; min-height: 100%;
+  font: var(--lg-size-body)/1.4 var(--lg-font); color: var(--lg-text); background: var(--lg-bg);
+}
+.lg-top {
+  grid-column: 1 / -1; display: flex; align-items: center; gap: 12px; padding: 0 12px;
+  background: var(--lg-primary); color: var(--lg-on-primary); position: relative; z-index: var(--lg-z-app-bar);
+}
+.lg-logo { font-size: var(--lg-size-title); font-weight: 500; letter-spacing: .01em; }
+.lg-org { font-size: var(--lg-size-small); opacity: .85; }
+.lg-spacer { flex: 1; }
+.lg-avatar {
+  width: 28px; height: 28px; border-radius: 50%; background: var(--lg-accent); color: var(--lg-on-primary);
+  display: grid; place-items: center; font-size: var(--lg-size-small); font-weight: 500;
+}
+.lg-nav { background: var(--lg-surface); border-right: 1px solid var(--lg-line); padding: 8px 0; position: relative; z-index: var(--lg-z-nav); }
+.lg-nav a {
+  display: flex; align-items: center; gap: 8px; height: 36px; padding: 0 12px 0 13px; color: var(--lg-text-2);
+  border-left: 3px solid transparent; text-decoration: none; font-size: var(--lg-size-body);
+}
+.lg-nav a.on { color: var(--lg-primary); border-left-color: var(--lg-primary); background: var(--lg-primary-soft); }
+.lg-nav a.sub { padding-left: 28px; height: 32px; font-size: var(--lg-size-small); }
+.lg-nav a i { width: 14px; height: 14px; border-radius: 3px; border: 1.5px solid currentColor; opacity: .7; display: block; }
+.lg-main { padding: calc(var(--lg-space) * 1.5); min-width: 0; }
+.lg-toolbar { display: flex; align-items: center; gap: var(--lg-space); margin-bottom: calc(var(--lg-space) * 1.5); }
+.lg-h1 { font-size: var(--lg-size-title); font-weight: 400; margin: 0; }
+.lg-search {
+  height: 32px; padding: 0 10px; border: 1px solid var(--lg-line); border-radius: var(--lg-radius); background: var(--lg-surface);
+  color: var(--lg-text-2); font-size: var(--lg-size-body); display: flex; align-items: center; width: 150px;
+}
+.lg-btn {
+  height: 32px; padding: 0 12px; border-radius: var(--lg-radius); border: 1px solid var(--lg-line); background: var(--lg-surface);
+  color: var(--lg-primary); font: 500 var(--lg-size-body) var(--lg-font); text-transform: uppercase; letter-spacing: .04em;
+  display: inline-flex; align-items: center; gap: 6px; white-space: nowrap;
+}
+.lg-btn.raised { background: var(--lg-primary); color: var(--lg-on-primary); border-color: var(--lg-primary); }
+.lg-btn.flat { border-color: transparent; }
+.lg-card { background: var(--lg-surface); border: 1px solid var(--lg-line); border-radius: var(--lg-radius); }
+.lg-table { width: 100%; border-collapse: collapse; }
+.lg-table th {
+  text-align: left; padding: 10px 12px; font-size: var(--lg-size-small); font-weight: 500; color: var(--lg-text-2);
+  border-bottom: 1px solid var(--lg-line); white-space: nowrap;
+}
+.lg-table td { padding: 9px 12px; border-bottom: 1px solid var(--lg-line); white-space: nowrap; }
+.lg-table tr:last-child td { border-bottom: 0; }
+.lg-table td.num, .lg-table th.num { text-align: right; font-variant-numeric: tabular-nums; }
+.lg-table td.inv { color: var(--lg-primary); font-weight: 500; }
+.lg-table td.cust { max-width: 150px; overflow: hidden; text-overflow: ellipsis; }
+.lg-table td.warnv { color: var(--lg-warn); font-weight: 500; }
+.lg-chip {
+  display: inline-flex; align-items: center; gap: 5px; height: 22px; padding: 0 9px; border-radius: 11px;
+  font-size: var(--lg-size-small); font-weight: 500; white-space: nowrap;
+}
+.lg-chip.paid { background: var(--lg-ok-soft); color: var(--lg-ok); }
+.lg-chip.sent { background: var(--lg-primary-soft); color: var(--lg-primary); }
+.lg-chip.draft { background: var(--lg-bg); color: var(--lg-text-2); border: 1px solid var(--lg-line); }
+.lg-chip.overdue { background: var(--lg-danger-soft); color: var(--lg-danger); }
+.lg-chip .gl { font-weight: 700; }
+.lg-empty { padding: 40px 16px; text-align: center; color: var(--lg-text-2); }
+.lg-empty .b { color: var(--lg-text); font-size: 15px; margin-bottom: 6px; }
+.lg-back { color: var(--lg-primary); font-size: var(--lg-size-small); display: inline-flex; gap: 6px; align-items: center; margin-bottom: var(--lg-space); }
+.lg-detail-head { display: flex; align-items: flex-start; gap: 16px; padding: 16px; border-bottom: 1px solid var(--lg-line); }
+.lg-detail-head .who { flex: 1; min-width: 0; }
+.lg-detail-head .who .n { font-size: 15px; font-weight: 500; }
+.lg-detail-head .who .e { font-size: var(--lg-size-small); color: var(--lg-text-2); margin-top: 2px; }
+.lg-detail-head .amt { font-size: 22px; font-weight: 400; font-variant-numeric: tabular-nums; }
+.lg-actions { display: flex; gap: var(--lg-space); padding: 12px 16px; border-bottom: 1px solid var(--lg-line); flex-wrap: wrap; }
+.lg-meta { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; padding: 12px 16px; }
+.lg-meta .k { font-size: var(--lg-size-small); color: var(--lg-text-2); }
+.lg-meta .v { font-size: var(--lg-size-body); }
+.lg-form { padding: 16px; display: grid; grid-template-columns: 1fr 1fr; gap: 14px 16px; }
+.lg-form .fld { display: flex; flex-direction: column; gap: 4px; }
+.lg-form .fld.wide { grid-column: 1 / -1; }
+.lg-form label { font-size: var(--lg-size-small); color: var(--lg-text-2); }
+.lg-form .in {
+  height: 36px; border: 1px solid var(--lg-line); border-radius: var(--lg-radius); background: var(--lg-surface);
+  padding: 0 10px; display: flex; align-items: center; color: var(--lg-text); font-size: var(--lg-size-body);
+}
+.lg-form .in.sel::after { content: "▾"; margin-left: auto; color: var(--lg-text-2); }
+.lg-form .acts { grid-column: 1 / -1; display: flex; gap: var(--lg-space); justify-content: flex-end; padding-top: 4px; }
+/* sketch: the sheet drawn with the app's gauges — a screen that does not exist yet */
+.sk { padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+.sk .bx {
+  border: 1px dashed var(--lg-text-2); border-radius: var(--lg-radius); padding: 10px 12px; color: var(--lg-text-2);
+  font-size: var(--lg-size-small); background: var(--lg-surface); display: flex; flex-direction: column; gap: 8px;
+}
+.sk .bx .t { color: var(--lg-text); font-size: var(--lg-size-body); font-weight: 500; }
+.sk .bars { display: flex; align-items: flex-end; gap: 10px; height: 70px; }
+.sk .bars i { display: block; flex: 1; border: 1px dashed var(--lg-text-2); border-bottom: 2px solid var(--lg-text-2); }
+.sk .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.sk .hot { align-self: flex-start; border-bottom: 1px dashed var(--lg-primary); color: var(--lg-primary); }
+.ag { padding: 0; }
+.ag .bars { display: flex; align-items: flex-end; gap: 10px; height: 90px; padding: 16px 16px 6px; border-bottom: 1px solid var(--lg-line); }
+.ag .bars .b { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; height: 100%; justify-content: flex-end; font-size: var(--lg-size-small); color: var(--lg-text-2); }
+.ag .bars .b i { display: block; width: 100%; background: var(--lg-primary); border-radius: 2px 2px 0 0; }
+.ag .bars .b.late i { background: var(--lg-danger); }
+</style>
+</head>
+<body>
+
+<!-- SIM strip — the harness; the only clock on the page -->
+<div class="sim" role="group" aria-label="sim controls">
+  <span class="sim-tag">sim</span>
+  <span>concept C · the two plates · nothing written</span>
+  <span>the app on the plates is <b class="mono" style="color:var(--ink);font-weight:400">Ledger · SIM</b>, a made-up Angular app</span>
+  <button class="sim-btn" id="sim-return" type="button" disabled>sim · nothing in the shop</button>
+  <button class="sim-btn" id="sim-reload" type="button" title="proves nothing persisted">reload</button>
+  <span id="sim-motion">motion · —</span>
+  <span class="sim-clock" id="sim-clock">—</span>
+</div>
+
+<!-- bench bar -->
+<header class="bar">
+  <span class="wordmark">Jig</span>
+  <span class="sep"></span>
+  <span class="blk"><span class="l1">bench <span class="dimt">(one per clamped repo)</span> · <span class="mono">ledger-sim</span></span><span class="l2 prov">C:/repos/ledger-sim · surveyed 11 min ago · SIM</span></span>
+  <span class="sep"></span>
+  <span class="blk"><span class="l1">the shop <span class="dimt">(the connected agents)</span> <span class="chip storm" id="shop-chip"><span class="dot"></span>Claude Code · connected · SIM</span></span><span class="l2 mono" style="font-size:11px;color:var(--dim)">Claude Desktop · not connected · jigbench mcp install --claude-desktop · MCP over stdio</span></span>
+  <span class="right">
+    <button class="btn quiet" id="palette-btn" type="button"><kbd>Ctrl</kbd>/<kbd>⌘</kbd> <kbd>K</kbd> <span class="dimt">find anything on the bench</span></button>
+  </span>
+</header>
+
+<!-- the bench -->
+<main class="bench">
+  <section class="plate" id="plate-left" data-side="left" data-tool="loupe" aria-label="left plate — the app as-is">
+    <div class="plate-head">
+      <span class="name">plate</span><span>as-is</span><span class="dimt pair">(the app, rendered and clickable)</span>
+      <span class="grow"></span>
+      <span class="route" id="route-left">/invoices</span>
+      <span class="chip fx" id="fx-left">fixture · acme-12 · SIM</span>
+    </div>
+    <div class="plate-body" id="body-left">
+      <div class="app lg-host" id="app-left"></div>
+      <div class="overlay" id="ov-left">
+        <div class="lens" id="lens-left" hidden><span class="lens-tag" id="lenstag-left"></span></div>
+      </div>
+    </div>
+    <div class="plate-foot">
+      <span class="tool-toggle" role="group" aria-label="tool">
+        <button type="button" class="on" data-tool-btn="loupe" data-plate="left">loupe</button>
+        <button type="button" data-tool-btn="hand" data-plate="left">hand</button>
+      </span>
+      <span class="msg" id="msg-left">loupe (point at anything and see what it is) · click places a mark</span>
+    </div>
+  </section>
+
+  <aside class="hinge" id="hinge" aria-label="the work order in hand">
+    <div class="hinge-head">
+      <div class="row"><span class="pt">work order</span><span class="dimt" style="font-size:11px">one change · human face + shop face</span></div>
+      <div class="row" id="order-tabs"></div>
+    </div>
+    <div class="hinge-body" id="hinge-body"></div>
+  </aside>
+
+  <section class="plate" id="plate-right" data-side="right" data-tool="loupe" aria-label="right plate — the trial fit">
+    <div class="plate-head">
+      <span class="name">plate</span><span>trial fit</span><span class="dimt pair">(the app with the change)</span>
+      <span class="grow"></span>
+      <span class="route" id="route-right">—</span>
+      <span class="chip fx" id="fx-right">fixture · acme-12 · SIM</span>
+    </div>
+    <div class="plate-body" id="body-right">
+      <div class="app lg-host" id="app-right" hidden></div>
+      <div class="void" id="void-right"></div>
+      <div class="overlay" id="ov-right">
+        <div class="lens" id="lens-right" hidden><span class="lens-tag" id="lenstag-right"></span></div>
+      </div>
+    </div>
+    <div class="plate-foot">
+      <span class="tool-toggle" role="group" aria-label="tool">
+        <button type="button" class="on" data-tool-btn="loupe" data-plate="right">loupe</button>
+        <button type="button" data-tool-btn="hand" data-plate="right">hand</button>
+      </span>
+      <span class="msg" id="msg-right">the change, when it lands, is outlined in storm</span>
+    </div>
+  </section>
+</main>
+
+<!-- the toolpath scrubber -->
+<section class="scrubber" aria-label="toolpath scrubber">
+  <div class="lbl">
+    <span class="pt">toolpath <span style="text-transform:none;letter-spacing:0;font-weight:400">(a recorded click sequence, replayable)</span></span>
+    <span class="h mono" id="tp-name">0001-open-and-edit · 5 stops · SIM</span>
+    <span class="prov" id="tp-file">.jig/toolpaths/0001-open-and-edit.json</span>
+  </div>
+  <div class="track">
+    <div class="stops" id="stops"></div>
+    <input type="range" id="scrub" min="0" max="4" step="1" value="0" aria-label="scrub the toolpath — both plates move">
+  </div>
+  <div class="ctl">
+    <span class="read" id="tp-read"></span>
+    <button class="btn" id="tp-prev" type="button" aria-label="previous stop">‹</button>
+    <button class="btn" id="tp-next" type="button" aria-label="next stop">›</button>
+    <button class="btn" id="tp-replay" type="button">▷ replay both plates</button>
+  </div>
+</section>
+
+<!-- drawer handles -->
+<nav class="handles" aria-label="drawers">
+  <button class="handle" type="button" data-drawer="gauges"><span class="l1"><span class="up-glyph">▲</span><b>Gauges</b><span class="cnt" id="cnt-gauges"></span></span><span class="l2">the app's design system, measured</span></button>
+  <button class="handle" type="button" data-drawer="fixture"><span class="l1"><span class="up-glyph">▲</span><b>Fixture</b><span class="cnt" id="cnt-fixture"></span></span><span class="l2">a reproducible set of test data</span></button>
+  <button class="handle" type="button" data-drawer="sketch"><span class="l1"><span class="up-glyph">▲</span><b>Sketch</b><span class="cnt" id="cnt-sketch"></span></span><span class="l2">a screen that does not exist yet</span></button>
+  <button class="handle" type="button" data-drawer="logbook"><span class="l1"><span class="up-glyph">▲</span><b>Logbook</b><span class="cnt" id="cnt-log"></span></span><span class="l2">everything that happened on the bench</span></button>
+  <span class="right">
+    <span class="prov" id="printed-read"></span>
+    <button class="btn quiet" id="printed" type="button" title="return the scrubber, the drawers and the plates to their printed state">↺ printed</button>
+  </span>
+</nav>
+
+<!-- the drawer (z3 held while raised) -->
+<div class="drawer" id="drawer" role="region" aria-label="drawer">
+  <div class="drawer-head">
+    <span class="h" id="drawer-h"></span><span class="plain" id="drawer-plain"></span>
+    <span class="right"><span class="prov" id="drawer-prov"></span><button class="btn quiet" id="drawer-close" type="button">lower <kbd>Esc</kbd></button></span>
+  </div>
+  <div class="drawer-body" id="drawer-body"></div>
+</div>
+
+<!-- the palette (z4 veil + z5 overlay) -->
+<div class="veil" id="veil" hidden></div>
+<div class="palette" id="palette" role="dialog" aria-label="find anything on the bench" hidden>
+  <input id="pal-in" type="text" placeholder="find anything on the bench — a drawer, a fixture, a stop, a work order…" autocomplete="off" spellcheck="false">
+  <div class="cmds" id="pal-cmds"></div>
+  <div class="foot"><span>↑↓ move</span><span>↵ do it</span><span>Esc lower</span><span style="margin-left:auto">two moves: <kbd>Ctrl</kbd> <kbd>K</kbd>, then its name</span></div>
+</div>
+
+<script>
+/* ==========================================================================
+   Concept C · The Two Plates — behaviour. Plain JS, no libraries, nothing written.
+   ========================================================================== */
+'use strict';
+const $ = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const pad = n => String(n).padStart(2, '0');
+
+/* ---- the SIM clock: the only clock on the page ---- */
+const SIM_START = new Date(2026, 8, 5, 18, 42, 0).getTime();
+const T0 = Date.now();
+const now = () => SIM_START + (Date.now() - T0);
+const simDay = () => new Date(2026, 8, 5).getTime();
+const clockText = ms => { const d = new Date(ms); return pad(d.getHours()) + ':' + pad(d.getMinutes()) + ':' + pad(d.getSeconds()); };
+const age = ms => { const s = Math.max(0, Math.round((now() - ms) / 1000)); return s < 60 ? s + 's' : Math.floor(s / 60) + 'm ' + (s % 60) + 's'; };
+const fmtDate = ms => { const d = new Date(ms); return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()); };
+const money = n => '€ ' + n.toLocaleString('en-IE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+/* ---- fixtures (F10): Invoice DTO → JSON Schema → data from a key; same key, same data ---- */
+function mulberry32(a) { return function () { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+const CUSTOMERS = ['Acme Tooling GmbH', 'Birchwood Joinery', 'Cobalt Freight', 'Delta Signworks', 'Ember & Vale Ltd', 'Fenwick Marine', 'Granite Row Bakery', 'Halden Optics', 'Ivory Coast Café', 'Juniper Studio', 'Kestrel Aero', 'Larkspur Farms'];
+const FIXTURES = {
+  'acme-12':       { key: 7,  n: 12, late: 0.3,  plain: '12 invoices, a normal month' },
+  'quiet-3':       { key: 3,  n: 3,  late: 0,    plain: '3 invoices, nothing late' },
+  'overdue-heavy': { key: 21, n: 9,  late: 0.65, plain: '9 invoices, most of them late' },
+  'empty':         { key: 0,  n: 0,  late: 0,    plain: '0 invoices — the app\u2019s own empty state' },
+};
+const fxCache = {};
+function invoices(name) {
+  if (fxCache[name]) return fxCache[name];
+  const fx = FIXTURES[name]; const r = mulberry32(fx.key + 1); const rows = [];
+  for (let i = 0; i < fx.n; i++) {
+    const customer = CUSTOMERS[Math.floor(r() * CUSTOMERS.length)];
+    const issued = simDay() - Math.floor(r() * 75) * 86400000;
+    const due = issued + (r() < 0.5 ? 14 : 30) * 86400000;
+    const amount = Math.round((r() * 7800 + 120) * 100) / 100;
+    let status = ['Draft', 'Sent', 'Paid', 'Sent'][Math.floor(r() * 4)];
+    if (due < simDay() && status !== 'Paid' && r() < fx.late + 0.2) status = 'Overdue';
+    if (due >= simDay() && status === 'Overdue') status = 'Sent';
+    const email = 'accounts@' + customer.toLowerCase().replace(/[^a-z]+/g, '-').replace(/-$/, '') + '.example';
+    const items = 1 + Math.floor(r() * 3);
+    rows.push({ number: 'INV-' + (1040 + i), customer, email, amount, issued, due, status, items });
+  }
+  return (fxCache[name] = rows);
+}
+
+/* ---- the toolpath: a recorded click sequence, replayed on both plates ---- */
+const TOOLPATH_FILE = '.jig/toolpaths/0001-open-and-edit.json';
+const RECORDED = [
+  { label: 'the list',        route: { name: 'list' } },
+  { label: 'click INV-1042',  route: { name: 'detail', id: 'INV-1042' } },
+  { label: 'click Edit',      route: { name: 'form',   id: 'INV-1042' } },
+  { label: 'click Save',      route: { name: 'detail', id: 'INV-1042' } },
+  { label: 'click Invoices',  route: { name: 'list' } },
+];
+
+/* ---- what the loupe resolves a click to, and what the drafter writes for it (all SIM) ---- */
+const RECIPES = {
+  'app-invoice-list': {
+    slug: 'add-due-column', title: 'Add a Due column to the invoice list',
+    request: 'Add a Due column after Amount. Show the due date the way the detail screen shows dates; when the invoice is overdue, show it in the app\u2019s warn colour.',
+    why: 'Bookkeepers scan the list for what is due this week; today they open every row.',
+    acceptance: ['The list shows a Due column between Amount and Status, on every fixture including empty.', 'Overdue rows show the due date in the warn colour AND keep the Overdue chip \u2014 never colour alone.'],
+    files: ['src/app/invoices/invoice-list/invoice-list.component.html', 'src/app/invoices/invoice-list/invoice-list.component.ts', 'src/app/invoices/invoice-list/invoice-list.component.spec.ts'],
+    patterns: ['MatTable with a displayedColumns[] array (survey: 4 columns today)', 'DatePipe \u2018mediumDate\u2019 already used by app-invoice-detail', 'Invoice.due exists on the DTO (Ledger.Api/Invoices/Invoice.cs) \u2014 no API change'],
+    tests: ['renders 5 columns with Due after Amount', 'an Overdue row\u2019s due cell carries the warn class', 'the empty fixture renders the header and the empty state'],
+  },
+  'app-status-chip': {
+    slug: 'overdue-glyph', title: 'Give the Overdue chip a glyph',
+    request: 'Add a small glyph in front of \u201cOverdue\u201d on the status chip so the late state reads at a glance and not by colour alone.',
+    why: 'Two of five bookkeepers have some red\u2013green weakness; the chip today differs from Sent only in tint.',
+    acceptance: ['Overdue chips show a glyph before the word on every screen that shows a chip.', 'Other statuses are unchanged.'],
+    files: ['src/app/shared/status-chip/status-chip.component.html', 'src/app/shared/status-chip/status-chip.component.spec.ts'],
+    patterns: ['app-status-chip is one component used in 3 places (survey)', 'Material icons are already loaded by the shell'],
+    tests: ['an Overdue chip renders the glyph', 'a Paid chip renders no glyph'],
+  },
+  'app-shell': {
+    slug: 'add-drafts-nav', title: 'Add a Drafts entry under Invoices',
+    request: 'Add a \u201cDrafts\u201d entry under Invoices in the side navigation that shows only invoices in status Draft.',
+    why: 'Drafts get lost among sent invoices; the team keeps a spreadsheet of them.',
+    acceptance: ['A Drafts entry sits directly under Invoices, indented as a child.', 'Choosing it routes to /invoices?status=Draft and the list filters accordingly.'],
+    files: ['src/app/shell/shell.component.html', 'src/app/app.routes.ts', 'src/app/invoices/invoice-list/invoice-list.component.ts'],
+    patterns: ['the nav is a flat list of routerLink anchors (survey)', 'the list already reads query params for sort'],
+    tests: ['the nav renders Drafts under Invoices', '/invoices?status=Draft shows only drafts on the acme-12 fixture (SIM count: see Fixture)'],
+  },
+  'app-invoice-detail': {
+    slug: 'show-customer-email', title: 'Show the customer\u2019s email on the detail screen',
+    request: 'Under the customer\u2019s name on the invoice detail, show the customer\u2019s billing email.',
+    why: 'Sending a reminder means opening Customers in another tab to find the address.',
+    acceptance: ['The detail header shows the email under the name, in the secondary text colour.', 'When the customer has no email the line reads \u201cno billing email\u201d, in words.'],
+    files: ['src/app/invoices/invoice-detail/invoice-detail.component.html', 'src/app/invoices/invoice-detail/invoice-detail.component.spec.ts'],
+    patterns: ['Invoice.customer is an object with email on the DTO (survey: CustomerRef)', 'the header already renders name + amount in a flex row'],
+    tests: ['renders the email under the name', 'renders \u201cno billing email\u201d when absent'],
+  },
+  'send-button': {
+    slug: 'rename-send', title: 'Rename \u201cSend\u201d to \u201cSend invoice\u201d',
+    request: 'Rename the \u201cSend\u201d action on the invoice detail to \u201cSend invoice\u201d so the action names its object.',
+    why: 'Two users pressed Send thinking it sent the reminder, not the invoice.',
+    acceptance: ['The button reads \u201cSend invoice\u201d on the detail screen.', 'No other label changes.'],
+    files: ['src/app/invoices/invoice-detail/invoice-detail.component.html', 'src/app/invoices/invoice-detail/invoice-detail.component.spec.ts'],
+    patterns: ['mat-stroked-button with a text node (survey)', 'labels are inline, no i18n file yet'],
+    tests: ['the actions row contains a button labelled \u201cSend invoice\u201d'],
+  },
+  'app-invoice-form': {
+    slug: 'add-due-field', title: 'Add a Due date field to the invoice form',
+    request: 'Add a Due date field after Issued on the invoice form, pre-filled with Issued + 30 days.',
+    why: 'Due is set by hand in the API today; the form never shows it.',
+    acceptance: ['The form has a Due field after Issued, pre-filled with Issued + 30 days.', 'Saving sends due to the API; the detail screen shows it.'],
+    files: ['src/app/invoices/invoice-form/invoice-form.component.html', 'src/app/invoices/invoice-form/invoice-form.component.ts', 'src/app/invoices/invoice-form/invoice-form.component.spec.ts'],
+    patterns: ['ReactiveForms FormGroup with 4 controls (survey)', 'MatDatepicker used for Issued'],
+    tests: ['the form renders a Due control after Issued', 'Due defaults to Issued + 30 days'],
+  },
+  'sketch-ageing': {
+    slug: 'build-ageing-report', title: 'Build the Ageing report from sketch 0001',
+    request: 'Build the Ageing report screen from sketch 0001: five buckets (current, 1\u201330, 31\u201360, 61\u201390, 90+) as bars, and a table of open invoices by bucket.',
+    why: 'Month-end ageing is done in a spreadsheet exported from the list.',
+    acceptance: ['Reports \u203a Ageing renders five bars and a table from the open invoices.', 'Paid invoices are excluded; totals reconcile with the list on every fixture.'],
+    files: ['src/app/reports/ageing/ageing.component.html', 'src/app/reports/ageing/ageing.component.ts', 'src/app/app.routes.ts', 'Ledger.Api/Reports/AgeingController.cs'],
+    patterns: ['a Reports route exists with no children (survey)', 'the API has no ageing endpoint \u2014 one GET, grouped in SQL, per the DTO conventions'],
+    tests: ['five buckets sum to the open total on acme-12', 'the empty fixture renders \u201cnothing open\u201d in words'],
+  },
+};
+const FILES = {
+  'app-shell': 'src/app/shell/shell.component.html',
+  'app-invoice-list': 'src/app/invoices/invoice-list/invoice-list.component.html',
+  'app-invoice-detail': 'src/app/invoices/invoice-detail/invoice-detail.component.html',
+  'app-invoice-form': 'src/app/invoices/invoice-form/invoice-form.component.html',
+  'app-status-chip': 'src/app/shared/status-chip/status-chip.component.html',
+  'app-ageing-sketch': '.jig/sketches/0001-ageing-report.json',
+  'app-ageing-report': 'src/app/reports/ageing/ageing.component.html',
+};
+
+/* ---- state ---- */
+const S = {
+  stops: RECORDED.map(s => ({ ...s, rec: false })),
+  stop: 0,
+  fixture: 'acme-12',
+  tool: { left: 'loupe', right: 'loupe' },
+  orders: [],
+  selected: null,
+  scrap: [],
+  log: [],
+  drawer: null,
+  sketch: false,
+  lit: null,
+  replaying: null,
+  nextN: 1,
+};
+const RUNGS = ['marked', 'drafted', 'released', 'in the shop', 'trial fit'];
+const RUNG_OF = { marked: 0, drafted: 1, released: 2, shop: 3, fit: 4, accepted: 4 };
+
+function log(who, text, prov) { S.log.unshift({ t: now(), who, text, prov: prov || '' }); }
+function route() { return S.sketch ? { name: 'sketch' } : S.stops[S.stop].route; }
+function routePath(rt) {
+  if (rt.name === 'sketch') return 'sketch · 0001-ageing-report';
+  if (rt.name === 'list') return '/invoices';
+  if (rt.name === 'detail') return '/invoices/' + (rt.id || '').replace('INV-', '');
+  if (rt.name === 'form') return '/invoices/' + (rt.id ? rt.id.replace('INV-', '') + '/edit' : 'new');
+  return '/';
+}
+function changesLanded() { return new Set(S.orders.filter(o => o.state === 'fit' || o.state === 'accepted').map(o => o.slug)); }
+function orderBySlug(slug) { return S.orders.find(o => o.slug === slug && (o.state === 'fit' || o.state === 'accepted')); }
+
+/* ==========================================================================
+   Ledger · SIM — render the subject app from its own gauges
+   ========================================================================== */
+function shellHTML(main, rt, ch) {
+  const invOn = rt.name === 'list' || rt.name === 'detail' || rt.name === 'form';
+  return `<div class="lg" data-cmp="app-shell" data-anchor="shell" data-g="primary on-primary surface line text-2 size-title size-body z-app-bar z-nav">
+    <div class="lg-top" data-anchor="top" data-g="primary on-primary size-title"><span class="lg-logo">Ledger</span><span class="lg-org">Acme Tooling GmbH · SIM</span><span class="lg-spacer"></span><span class="lg-avatar" data-g="accent on-primary">MJ</span></div>
+    <nav class="lg-nav" data-anchor="nav" data-g="surface line text-2 primary primary-soft">
+      <a data-nav="dashboard"><i></i>Dashboard</a>
+      <a data-nav="list" class="${invOn ? 'on' : ''}"><i></i>Invoices</a>
+      ${ch.has('add-drafts-nav') ? '<a data-nav="drafts" class="sub" data-change="add-drafts-nav" data-anchor="nav-drafts">Drafts</a>' : ''}
+      <a data-nav="customers"><i></i>Customers</a>
+      <a data-nav="reports" class="${rt.name === 'sketch' ? 'on' : ''}"><i></i>Reports</a>
+      <a data-nav="settings"><i></i>Settings</a>
+    </nav>
+    <main class="lg-main">${main}</main>
+  </div>`;
+}
+function chipHTML(status, ch) {
+  const cls = status.toLowerCase();
+  const gl = status === 'Overdue' && ch.has('overdue-glyph') ? '<span class="gl" data-change="overdue-glyph">!</span>' : '';
+  return `<span class="lg-chip ${cls}" data-cmp="app-status-chip" data-anchor="chip-${cls}" data-g="ok ok-soft primary primary-soft danger danger-soft size-small">${gl}${esc(status)}</span>`;
+}
+function listHTML(rows, ch) {
+  const due = ch.has('add-due-column');
+  const body = rows.length ? `<table class="lg-table" data-g="line text-2 size-small">
+    <thead><tr><th>#</th><th>Customer</th><th class="num">Amount</th>${due ? '<th data-change="add-due-column" data-anchor="th-due">Due</th>' : ''}<th>Status</th></tr></thead>
+    <tbody>${rows.map((r, i) => `<tr data-row="${r.number}">
+      <td class="inv" data-anchor="cell-inv-${i}" data-g="primary">${r.number}</td>
+      <td class="cust" data-anchor="cell-cust-${i}" title="${esc(r.customer)}">${esc(r.customer)}</td>
+      <td class="num" data-anchor="cell-amt-${i}">${money(r.amount)}</td>
+      ${due ? `<td class="${r.status === 'Overdue' ? 'warnv' : ''}" data-change="add-due-column">${fmtDate(r.due)}</td>` : ''}
+      <td data-anchor="cell-status-${i}">${chipHTML(r.status, ch)}</td></tr>`).join('')}</tbody></table>`
+    : `<div class="lg-empty"><div class="b">No invoices yet</div>Create the first one to see it here.${due ? '<div style="margin-top:10px"><span data-change="add-due-column" style="font-size:12px">Due will show here once there is a row.</span></div>' : ''}</div>`;
+  return `<section data-cmp="app-invoice-list" data-anchor="list" data-g="surface line size-title">
+    <div class="lg-toolbar"><h1 class="lg-h1" data-anchor="list-title">Invoices</h1><span class="lg-spacer"></span><span class="lg-search" data-anchor="list-search">Search invoices</span><button class="lg-btn raised" data-act="new" data-anchor="list-new">+ New invoice</button></div>
+    <div class="lg-card">${body}</div></section>`;
+}
+function findInv(rows, id) { return rows.find(r => r.number === id); }
+function detailHTML(rows, id, ch) {
+  const r = findInv(rows, id);
+  if (!r) return `<section data-cmp="app-invoice-detail" data-anchor="detail"><a class="lg-back" data-nav="list">‹ Invoices</a><div class="lg-card"><div class="lg-empty"><div class="b">${esc(id)} is not in this fixture</div>The toolpath was recorded on acme-12; this fixture has ${rows.length} invoice${rows.length === 1 ? '' : 's'}.</div></div></section>`;
+  const email = ch.has('show-customer-email') ? `<div class="e" data-change="show-customer-email" data-anchor="detail-email">${esc(r.email)}</div>` : '';
+  const send = ch.has('rename-send') ? '<button class="lg-btn" data-recipe="send-button" data-anchor="detail-send" data-change="rename-send">Send invoice</button>' : '<button class="lg-btn" data-recipe="send-button" data-anchor="detail-send">Send</button>';
+  const lines = Array.from({ length: r.items }, (_, i) => `<tr><td>Line ${i + 1} · ${['tooling hours', 'fixture plates', 'freight', 'calibration'][i % 4]}</td><td class="num">${money(Math.round(r.amount / r.items * 100) / 100)}</td></tr>`).join('');
+  return `<section data-cmp="app-invoice-detail" data-anchor="detail" data-g="surface line text-2 size-title">
+    <a class="lg-back" data-nav="list" data-anchor="detail-back">‹ Invoices</a>
+    <div class="lg-card">
+      <div class="lg-detail-head" data-anchor="detail-head"><div class="who"><div class="n" data-anchor="detail-cust">${esc(r.customer)}</div>${email}<div class="e" style="margin-top:6px">${r.number} · issued ${fmtDate(r.issued)}</div></div><div class="amt" data-anchor="detail-amt">${money(r.amount)}</div></div>
+      <div class="lg-actions" data-anchor="detail-actions"><button class="lg-btn raised" data-act="edit" data-anchor="detail-edit">Edit</button>${send}<button class="lg-btn flat" data-anchor="detail-pdf">Download PDF</button><span class="lg-spacer"></span>${chipHTML(r.status, ch)}</div>
+      <div class="lg-meta"><div><div class="k">Due</div><div class="v" data-anchor="detail-due">${fmtDate(r.due)}</div></div><div><div class="k">Terms</div><div class="v">${Math.round((r.due - r.issued) / 86400000)} days</div></div><div><div class="k">Items</div><div class="v">${r.items}</div></div></div>
+      <table class="lg-table" style="border-top:1px solid var(--lg-line)"><tbody>${lines}</tbody></table>
+    </div></section>`;
+}
+function formHTML(rows, id, ch) {
+  const r = findInv(rows, id) || { number: 'new', customer: '', amount: 0, issued: simDay(), due: simDay() + 30 * 86400000, status: 'Draft' };
+  const due = ch.has('add-due-field') ? `<div class="fld" data-change="add-due-field" data-anchor="form-due"><label>Due date</label><div class="in">${fmtDate(r.due)}</div></div>` : '';
+  return `<section data-cmp="app-invoice-form" data-anchor="form" data-g="surface line text-2 size-title radius">
+    <a class="lg-back" data-nav="detail" data-anchor="form-back">‹ ${r.number === 'new' ? 'Invoices' : r.number}</a>
+    <div class="lg-toolbar"><h1 class="lg-h1" data-anchor="form-title">${r.number === 'new' ? 'New invoice' : 'Edit ' + r.number}</h1></div>
+    <div class="lg-card"><div class="lg-form">
+      <div class="fld wide" data-anchor="form-cust"><label>Customer</label><div class="in sel">${esc(r.customer || 'Choose a customer')}</div></div>
+      <div class="fld" data-anchor="form-amt"><label>Amount</label><div class="in">${r.amount ? money(r.amount) : '€ 0.00'}</div></div>
+      <div class="fld" data-anchor="form-issued"><label>Issued</label><div class="in">${fmtDate(r.issued)}</div></div>
+      ${due}
+      <div class="fld" data-anchor="form-status"><label>Status</label><div class="in sel">${esc(r.status)}</div></div>
+      <div class="acts"><button class="lg-btn flat" data-act="cancel" data-anchor="form-cancel">Cancel</button><button class="lg-btn raised" data-act="save" data-anchor="form-save">Save</button></div>
+    </div></div></section>`;
+}
+/* the sketch sheet: a screen that does not exist yet, drawn with the app's own gauges */
+function sketchHTML() {
+  return `<section class="sk" data-cmp="app-ageing-sketch" data-recipe="sketch-ageing" data-anchor="sketch" data-g="text-2 primary surface radius">
+    <div class="bx" data-anchor="sk-title"><span class="t">Reports › Ageing</span><span>sketch 0001 · not built · drawn with Ledger\u2019s gauges · SIM</span></div>
+    <div class="bx" data-anchor="sk-bars"><span class="t">Open amount by bucket</span><div class="bars"><i></i><i style="height:70%"></i><i style="height:45%"></i><i style="height:30%"></i><i style="height:20%"></i></div><span>current · 1–30 · 31–60 · 61–90 · 90+</span></div>
+    <div class="bx" data-anchor="sk-table"><span class="t">Open invoices by bucket</span><span>customer · bucket · due · amount — sorted oldest first</span><span class="hot">hotspot: a row goes to the invoice detail</span></div>
+  </section>`;
+}
+function bucketsOf(rows) {
+  const b = [{ k: 'current', v: 0, rows: [] }, { k: '1–30', v: 0, rows: [] }, { k: '31–60', v: 0, rows: [] }, { k: '61–90', v: 0, rows: [] }, { k: '90+', v: 0, rows: [] }];
+  rows.filter(r => r.status !== 'Paid').forEach(r => {
+    const d = Math.floor((simDay() - r.due) / 86400000);
+    const i = d <= 0 ? 0 : d <= 30 ? 1 : d <= 60 ? 2 : d <= 90 ? 3 : 4;
+    b[i].v += r.amount; b[i].rows.push({ ...r, bucket: b[i].k, days: d });
+  });
+  return b;
+}
+function ageingHTML(rows) {
+  const b = bucketsOf(rows); const max = Math.max(1, ...b.map(x => x.v));
+  const open = b.flatMap(x => x.rows).sort((a, c) => c.days - a.days);
+  const bars = b.map((x, i) => `<div class="b ${i >= 2 ? 'late' : ''}"><i style="height:${Math.max(3, Math.round(x.v / max * 56))}px"></i><span>${x.k}</span></div>`).join('');
+  const table = open.length ? `<table class="lg-table"><thead><tr><th>Customer</th><th>Bucket</th><th>Due</th><th class="num">Amount</th></tr></thead><tbody>${open.map(r => `<tr data-row="${r.number}"><td>${esc(r.customer)}</td><td>${r.bucket}</td><td class="${r.days > 0 ? 'warnv' : ''}">${fmtDate(r.due)}</td><td class="num">${money(r.amount)}</td></tr>`).join('')}</tbody></table>` : '<div class="lg-empty"><div class="b">Nothing open</div>Every invoice in this fixture is paid.</div>';
+  return `<section data-cmp="app-ageing-report" data-anchor="ageing" data-change="build-ageing-report" data-g="surface line primary danger size-title">
+    <div class="lg-toolbar"><h1 class="lg-h1">Ageing</h1><span class="lg-spacer"></span><span class="lg-search" style="width:auto">Open total ${money(b.reduce((s, x) => s + x.v, 0))}</span></div>
+    <div class="lg-card ag"><div class="bars">${bars}</div>${table}</div></section>`;
+}
+function renderApp(root, side) {
+  const rt = route(); const rows = invoices(S.fixture);
+  const ch = side === 'right' ? changesLanded() : new Set();
+  let main;
+  if (rt.name === 'sketch') main = side === 'right' ? ageingHTML(rows) : sketchHTML();
+  else if (rt.name === 'list') main = listHTML(rows, ch);
+  else if (rt.name === 'detail') main = detailHTML(rows, rt.id, ch);
+  else main = formHTML(rows, rt.id, ch);
+  root.innerHTML = shellHTML(main, rt, ch);
+  if (S.lit) $$('[data-g]', root).forEach(el => { if (el.dataset.g.split(' ').includes(S.lit)) el.classList.add('lit'); });
+}
+
+/* ==========================================================================
+   the plates
+   ========================================================================== */
+function renderPlates() {
+  const rt = route();
+  $('#route-left').textContent = routePath(rt);
+  $('#fx-left').textContent = $('#fx-right').textContent = 'fixture · ' + S.fixture + ' · SIM';
+  renderApp($('#app-left'), 'left');
+  const landed = S.orders.filter(o => o.state === 'fit' || o.state === 'accepted');
+  const rightHas = landed.length > 0 && !(rt.name === 'sketch' && !changesLanded().has('build-ageing-report'));
+  const appR = $('#app-right'), voidR = $('#void-right');
+  if (rightHas) {
+    appR.hidden = false; voidR.hidden = true; renderApp(appR, 'right');
+    $('#route-right').textContent = routePath(rt);
+    const visibleHere = $$('[data-change]', appR).length > 0;
+    const elsewhere = landed.filter(o => !appR.querySelector('[data-change="' + o.slug + '"]'));
+    $('#msg-right').textContent = visibleHere
+      ? 'trial fit · #' + landed.filter(o => appR.querySelector('[data-change="' + o.slug + '"]')).map(o => o.n).join(' #') + ' · the change is outlined in storm · returned by Claude Code · SIM'
+      : 'trial fit · #' + elsewhere.map(o => o.n).join(' #') + ' · the change is not on this screen — it lives at ' + elsewhere.map(o => routePath(o.route)).join(', ');
+  } else {
+    appR.hidden = true; voidR.hidden = false; appR.innerHTML = '';
+    $('#route-right').textContent = '—';
+    const pending = S.orders.filter(o => o.state !== 'accepted' && o.state !== 'fit');
+    const inShop = pending.filter(o => o.state === 'shop');
+    const who = inShop.length ? '#' + inShop.map(o => o.n).join(', #') : pending.length ? '#' + pending.map(o => o.n).join(', #') : null;
+    let line1, line2;
+    if (rt.name === 'sketch') {
+      line1 = 'trial fit · not yet — the sketch is not built';
+      line2 = 'put the loupe on the sketch and click; release the work order; the shop builds it and this plate shows it built.';
+    } else if (!S.orders.length) {
+      line1 = 'trial fit · not yet — no work order released';
+      line2 = 'put the loupe on the left plate and click anything. The trial fit (the app with the change, beside the app before it) fills this plate when the shop returns it.';
+    } else if (inShop.length) {
+      line1 = 'trial fit · not yet — the shop has not returned ' + who;
+      line2 = 'nothing is loading here: Claude Code reports done over MCP, then the plate fills. In the sim, the SIM strip\u2019s \u201cshop returns\u201d stands in for that report.';
+    } else {
+      line1 = 'trial fit · not yet — the shop has not returned ' + who;
+      line2 = 'the work order in hand is not released yet. Hold RELEASE in the hinge; the shop takes it from .jig/work-orders/.';
+    }
+    voidR.innerHTML = `<div class="h">${esc(line1)}</div><p>${esc(line2)}</p>`;
+    $('#msg-right').textContent = 'the change, when it lands, is outlined in storm';
+  }
+  ['left', 'right'].forEach(side => {
+    $('#plate-' + side).dataset.tool = S.tool[side];
+    $$('[data-tool-btn][data-plate="' + side + '"]').forEach(b => b.classList.toggle('on', b.dataset.toolBtn === S.tool[side]));
+  });
+  placeOverlays();
+}
+function rel(el, body) { const a = el.getBoundingClientRect(), b = body.getBoundingClientRect(); return { x: a.left - b.left, y: a.top - b.top, w: a.width, h: a.height }; }
+function placeOverlays() {
+  ['left', 'right'].forEach(side => {
+    const ov = $('#ov-' + side), body = $('#body-' + side), root = $('#app-' + side);
+    $$('.mark, .mark-label, .change-tag', ov).forEach(n => n.remove());
+    if (root.hidden) return;
+    // marks: the numbered spots on the plate they were placed on
+    S.orders.filter(o => o.plate === side).forEach(o => {
+      const el = root.querySelector('[data-anchor="' + o.anchor + '"]'); if (!el) return;
+      const r = rel(el, body);
+      const m = document.createElement('div'); m.className = 'mark' + (o.n === S.selected ? ' on' : '') + (o.state === 'accepted' ? ' done' : '');
+      m.textContent = o.n; m.style.left = (r.x + r.w - 12) + 'px'; m.style.top = (r.y - 10) + 'px'; m.setAttribute('aria-hidden', 'true'); ov.appendChild(m);
+      if (o.n === S.selected) { const l = document.createElement('span'); l.className = 'mark-label'; l.textContent = '#' + o.n + ' · ' + stateWord(o); l.style.left = (r.x + r.w - 12) + 'px'; l.style.top = (r.y - 8) + 'px'; ov.appendChild(l); }
+    });
+    // change tags on the right plate: one per landed order
+    if (side === 'right') {
+      const seen = new Set();
+      $$('[data-change]', root).forEach(el => {
+        const slug = el.dataset.change; if (seen.has(slug)) return; seen.add(slug);
+        const o = orderBySlug(slug); if (!o) return;
+        const r = rel(el, body);
+        const t = document.createElement('span'); t.className = 'change-tag'; t.textContent = '#' + o.n + ' · trial fit';
+        // pinned on the change's lower edge, so it never covers the app's own controls above it
+        t.style.left = Math.max(2, r.x + 2) + 'px'; t.style.top = (r.y + r.h) + 'px'; ov.appendChild(t);
+      });
+    }
+  });
+}
+function stateWord(o) { return o.state === 'shop' ? 'in the shop' : o.state === 'fit' ? 'trial fit' : o.state; }
+
+/* ---- the loupe: outline and name whatever the pointer is over ---- */
+function cmpOf(el, root) {
+  const c = el.closest('[data-cmp]'); if (!c || !root.contains(c)) return null;
+  const anchorEl = el.closest('[data-anchor]') || c;
+  const tag = el.tagName.toLowerCase(); const cls = (el.className && typeof el.className === 'string') ? el.className.trim().split(/\s+/).filter(x => x && !x.startsWith('lit'))[0] : '';
+  const recipeEl = el.closest('[data-recipe]');
+  return { cmp: c.dataset.cmp, file: FILES[c.dataset.cmp] || '', anchor: anchorEl.dataset.anchor, anchorEl, sel: tag + (cls ? '.' + cls : ''), recipe: recipeEl && root.contains(recipeEl) ? recipeEl.dataset.recipe : c.dataset.cmp };
+}
+['left', 'right'].forEach(side => {
+  const body = $('#body-' + side), root = $('#app-' + side), lens = $('#lens-' + side), tag = $('#lenstag-' + side);
+  body.addEventListener('pointermove', e => {
+    if (S.tool[side] !== 'loupe' || root.hidden) { lens.hidden = true; return; }
+    const hit = cmpOf(e.target, root); if (!hit) { lens.hidden = true; return; }
+    const r = rel(hit.anchorEl, body);
+    lens.hidden = false; lens.style.left = r.x + 'px'; lens.style.top = r.y + 'px'; lens.style.width = r.w + 'px'; lens.style.height = r.h + 'px';
+    lens.classList.toggle('low', r.y < 26);
+    tag.innerHTML = '<b style="font-weight:700">' + esc(hit.cmp) + '</b> › ' + esc(hit.sel) + ' <span class="f">· ' + esc(hit.file.split('/').pop()) + '</span>';
+  });
+  body.addEventListener('pointerleave', () => { lens.hidden = true; });
+  body.addEventListener('click', e => {
+    if (root.hidden) return;
+    const hit = cmpOf(e.target, root);
+    if (S.tool[side] === 'loupe') { if (hit) placeMark(side, hit); return; }
+    // the hand: click through the app; every click is recorded as a stop
+    const nav = e.target.closest('[data-nav]'), row = e.target.closest('[data-row]'), act = e.target.closest('[data-act]');
+    const rt = route();
+    if (S.sketch) { setMsg(side, 'a sketch has no clicks yet — release its work order and the shop builds the real screen'); return; }
+    if (row) return addStop('click ' + row.dataset.row, { name: 'detail', id: row.dataset.row });
+    if (nav) {
+      const n = nav.dataset.nav;
+      if (n === 'list') return addStop('click Invoices', { name: 'list' });
+      if (n === 'detail') return addStop('back to ' + (rt.id || 'the list'), rt.id ? { name: 'detail', id: rt.id } : { name: 'list' });
+      if (n === 'drafts') return setMsg(side, 'Drafts · the trial fit routes here in the built app; the sim has no filtered list');
+      return setMsg(side, 'Ledger · SIM has only the invoice screens — ' + n.charAt(0).toUpperCase() + n.slice(1) + ' is not in the sim');
+    }
+    if (act) {
+      const a = act.dataset.act;
+      if (a === 'edit') return addStop('click Edit', { name: 'form', id: rt.id });
+      if (a === 'new') return addStop('click New invoice', { name: 'form' });
+      if (a === 'save') return addStop('click Save', rt.id ? { name: 'detail', id: rt.id } : { name: 'list' });
+      if (a === 'cancel') return addStop('click Cancel', rt.id ? { name: 'detail', id: rt.id } : { name: 'list' });
+    }
+    setMsg(side, 'the hand found nothing to click here' + (hit ? ' — ' + hit.cmp + ' › ' + hit.sel + ' has no action' : ''));
+  });
+  root.addEventListener('scroll', placeOverlays);
+});
+function setMsg(side, text) { $('#msg-' + side).textContent = text; }
+$$('[data-tool-btn]').forEach(b => b.addEventListener('click', () => {
+  const side = b.dataset.plate; S.tool[side] = b.dataset.toolBtn;
+  setMsg(side, S.tool[side] === 'loupe' ? 'loupe (point at anything and see what it is) · click places a mark' : 'hand · click through the app · every click is recorded as a stop on the toolpath');
+  renderPlates();
+}));
+
+/* ==========================================================================
+   marks → work orders (the hinge)
+   ========================================================================== */
+function placeMark(side, hit) {
+  const recipe = RECIPES[hit.recipe] || RECIPES[hit.cmp];
+  if (!recipe) { setMsg(side, 'the loupe found ' + hit.cmp + ', but the sim has no drafter recipe for it'); return; }
+  const dupe = S.orders.find(o => o.slug === recipe.slug && o.state !== 'accepted');
+  if (dupe) { S.selected = dupe.n; setMsg(side, '#' + dupe.n + ' already asks for this — it is in hand'); renderAll(); return; }
+  const o = {
+    n: S.nextN++, plate: side, anchor: hit.anchor, cmp: hit.cmp, sel: hit.sel, file: hit.file, route: route(),
+    slug: recipe.slug, title: recipe.title, request: '', recipe, fixture: S.fixture,
+    state: 'marked', times: { marked: now() }, drafting: true,
+  };
+  S.orders.push(o); S.selected = o.n;
+  log('you', 'mark #' + o.n + ' placed on ' + hit.cmp + ' › ' + hit.sel + ' (' + side + ' plate)', hit.file);
+  setMsg(side, 'mark #' + o.n + ' placed · the drafter is writing the work order');
+  renderAll();
+  // the drafter (F7): a local model, pulled — the cost is stated while it runs
+  setTimeout(() => {
+    if (!S.orders.includes(o) || o.state !== 'marked') return;
+    o.drafting = false; o.request = recipe.request; o.state = 'drafted'; o.times.drafted = now();
+    log('jig', 'work order #' + o.n + ' drafted · ' + recipe.title, 'Drafter · Ollama · qwen2.5-coder:7b · SIM · 1.2 s');
+    renderAll();
+  }, 1200);
+}
+function selectOrder(n) { S.selected = n; renderAll(); }
+function scrapOrder(o) {
+  S.orders = S.orders.filter(x => x !== o); S.scrap.push({ ...o, scrappedAt: now() });
+  if (S.selected === o.n) S.selected = S.orders.length ? S.orders[S.orders.length - 1].n : null;
+  log('you', 'work order #' + o.n + ' to the scrap bin (regenerable from the Logbook)', '.jig/work-orders/' + pad4(o.n) + '-' + o.slug + '.md');
+  renderAll();
+}
+function regenerate(sc) {
+  S.scrap = S.scrap.filter(x => x !== sc); const o = { ...sc }; delete o.scrappedAt; S.orders.push(o); S.orders.sort((a, b) => a.n - b.n); S.selected = o.n;
+  log('you', 'work order #' + o.n + ' regenerated from the scrap bin', '');
+  renderAll();
+}
+const pad4 = n => String(n).padStart(4, '0');
+
+function renderHinge() {
+  const tabs = $('#order-tabs');
+  tabs.innerHTML = S.orders.length ? S.orders.map(o => `<button type="button" class="order-tab ${o.n === S.selected ? 'on' : ''} ${o.state === 'accepted' ? 'done' : ''}" data-sel="${o.n}" aria-pressed="${o.n === S.selected}">#${o.n}</button>`).join('') + (S.scrap.length ? `<span class="prov">· scrap bin ${S.scrap.length}</span>` : '') : '<span class="prov">none yet</span>';
+  $$('[data-sel]', tabs).forEach(b => b.addEventListener('click', () => selectOrder(+b.dataset.sel)));
+  const body = $('#hinge-body');
+  const o = S.orders.find(x => x.n === S.selected);
+  if (!o) {
+    body.innerHTML = `<div class="hinge-empty"><div class="h">nothing in hand</div>
+      <p style="margin:0">Put the <b style="color:var(--ink);font-weight:600">loupe</b> on the left plate and click a thing. A numbered <b style="color:var(--ink);font-weight:600">mark</b> (a highlighted spot with a request attached) lands there and the drafter writes a work order into this hinge.</p>
+      <p style="margin:0">The ladder a work order climbs:</p>
+      <div class="ladder" style="padding:0;border:0">${RUNGS.map((r, i) => `<div class="rung ${i >= 3 ? 'shopside' : ''}"><span class="d"></span>${r}</div>`).join('')}</div>
+      <p class="prov" style="margin:0">files: .jig/work-orders/NNNN-&lt;slug&gt;.md · SIM · nothing written</p></div>`;
+    return;
+  }
+  const idx = RUNG_OF[o.state];
+  const ladder = RUNGS.map((r, i) => {
+    const reached = i <= idx; const key = ['marked', 'drafted', 'released', 'shop', 'fit'][i];
+    const t = o.times[key]; const isNow = i === idx;
+    return `<div class="rung ${reached ? 'reached' : ''} ${i >= 3 ? 'shopside' : ''} ${isNow ? 'now' : ''}"><span class="d"></span>${r}${isNow && o.state === 'accepted' ? ' · accepted' : ''}<span class="age">${t ? age(t) : ''}</span></div>`;
+  }).join('');
+  const rc = o.recipe;
+  const human = `<div class="face human">
+    <div class="ft"><span class="pt">human face</span><span class="tag">#${o.n}</span><span class="tag ${o.state === 'accepted' ? 'ok' : idx >= 2 ? 'wyrd' : ''}">${stateWord(o)}</span></div>
+    <div class="field"><span class="k">what</span>${o.drafting
+      ? `<span class="v dimt">drafting · <span class="tag warn">Ollama · SIM</span> qwen2.5-coder:7b · about 2 s · nothing leaves this machine</span>`
+      : idx <= 1 ? `<textarea id="req" aria-label="what should change">${esc(o.request)}</textarea>` : `<span class="v">${esc(o.request)}</span>`}</div>
+    <div class="field"><span class="k">why · SIM</span><span class="v">${esc(rc.why)}</span></div>
+    <div class="field"><span class="k">where</span><span class="v mono">${esc(o.cmp)} › ${esc(o.sel)}<br>${esc(o.file)}<br>${esc(routePath(o.route))} · ${o.plate} plate</span></div>
+    <div class="field"><span class="k">acceptance · SIM</span><ul>${rc.acceptance.map(a => `<li>${esc(a)}</li>`).join('')}</ul></div>
+    <div class="field"><span class="k">fixture</span><span class="v mono">${esc(o.fixture)} · ${FIXTURES[o.fixture].plain}</span></div>
+    ${idx <= 1 && !o.drafting ? `<div><button class="btn quiet" id="scrap" type="button">→ scrap bin</button></div>` : ''}
+    <span class="prov">drafted by Ollama · qwen2.5-coder:7b · SIM · ${o.times.drafted ? age(o.times.drafted) + ' ago' : 'in progress'}</span>
+  </div>`;
+  let seam = '';
+  if (o.state === 'marked' || o.state === 'drafted') {
+    const empty = !o.request.trim();
+    seam = `<div class="release-row">
+      <button class="hold" id="release" type="button" ${o.drafting || empty ? 'disabled' : ''} aria-describedby="hold-hint">
+        <svg class="ring" viewBox="0 0 30 30" aria-hidden="true"><circle class="bgc" cx="15" cy="15" r="12"/><circle class="fill" cx="15" cy="15" r="12" pathLength="100"/></svg>
+        <span>release <span class="dimt" style="font-weight:400;font-size:12px">(approve it)</span></span><small>hold · 0.8 s</small></button>
+      <span class="hold-hint" id="hold-hint">${o.drafting ? 'wait for the draft' : empty ? 'say what should change first' : 'hold to release: the shop face is filled and the file is written'}</span>
+    </div>`;
+  } else if (o.state === 'fit') {
+    seam = `<div class="release-row"><span class="pt" style="margin-bottom:2px">the trial fit is back · your call</span><div class="verdict-row"><button class="btn ember" id="accept" type="button">accept the fit</button><button class="btn quiet" id="rework" type="button">rework</button></div><span class="hold-hint">rework returns #${o.n} to drafted with your words kept; the fit leaves the right plate</span></div>`;
+  } else if (o.state === 'accepted') {
+    seam = `<div class="release-row"><span class="hold-hint">accepted ${age(o.times.accepted)} ago · the trial fit stays on the right plate · the file\u2019s frontmatter reads state: accepted · SIM</span></div>`;
+  } else {
+    seam = `<div class="release-row"><span class="hold-hint">${o.state === 'released' ? 'released · waiting for the shop to take it · Claude Code polls .jig/work-orders/ over MCP · SIM' : 'in the shop · Claude Code · SIM · cost: the agent\u2019s tokens and 1–3 min · ' + age(o.times.shop) + ' so far'}</span></div>`;
+  }
+  const shop = idx >= 2 ? `<div class="face shop">
+    <div class="ft"><span class="pt" style="color:var(--wyrd)">shop face</span><span class="tag wyrd">Angular 20 · .NET 10</span></div>
+    <div class="field"><span class="k">files to touch</span><span class="v mono">${rc.files.map(esc).join('<br>')}</span></div>
+    <div class="field"><span class="k">patterns the survey found</span><ul>${rc.patterns.map(p => `<li>${esc(p)}</li>`).join('')}</ul></div>
+    <div class="field"><span class="k">tests to write</span><ul>${rc.tests.map(t => `<li>${esc(t)}</li>`).join('')}</ul></div>
+    <div class="field"><span class="k">written</span><span class="v mono">.jig/work-orders/${pad4(o.n)}-${o.slug}.md</span><span class="prov">SIM · nothing written to disk · frontmatter state: ${esc(stateWord(o))}</span></div>
+  </div>` : `<div class="face shop"><div class="ft"><span class="pt" style="color:var(--wyrd)">shop face</span></div><div class="empty">empty until released — the translation layer fills it in the app\u2019s own stack idiom (files to touch, the patterns the survey found, the tests to write), and the file lands in <span class="mono">.jig/work-orders/</span> for the shop to take.</div></div>`;
+  body.innerHTML = `<div class="ladder"><span class="pt">the ladder</span>${ladder}</div>${human}${seam}${shop}`;
+  const req = $('#req', body);
+  if (req) req.addEventListener('input', () => { o.request = req.value; const h = $('#release'); const hint = $('#hold-hint'); if (h) { h.disabled = !req.value.trim(); if (hint) hint.textContent = req.value.trim() ? 'hold to release: the shop face is filled and the file is written' : 'say what should change first'; } });
+  const sc = $('#scrap', body); if (sc) sc.addEventListener('click', () => scrapOrder(o));
+  const acc = $('#accept', body); if (acc) acc.addEventListener('click', () => { o.state = 'accepted'; o.times.accepted = now(); log('you', 'trial fit #' + o.n + ' accepted', '.jig/work-orders/' + pad4(o.n) + '-' + o.slug + '.md · state: accepted'); renderAll(); });
+  const rw = $('#rework', body); if (rw) rw.addEventListener('click', () => { o.state = 'drafted'; delete o.times.released; delete o.times.shop; delete o.times.fit; log('you', 'work order #' + o.n + ' sent back to drafted for rework', ''); renderAll(); });
+  wireHold(o);
+}
+
+/* ---- RELEASE: press-and-hold ~800 ms (--t-oath). Release early = honest cancel. ---- */
+function wireHold(o) {
+  const h = $('#release'); if (!h) return;
+  const hint = $('#hold-hint'); let timer = null; let via = null;
+  const start = (how) => {
+    if (h.disabled || timer) return; via = how;
+    h.classList.add('holding'); hint.classList.remove('cancel'); hint.textContent = 'holding · the ring fills · let go to cancel';
+    timer = setTimeout(() => { timer = null; commit(); }, 800);
+  };
+  const cancel = () => {
+    if (!timer) return; clearTimeout(timer); timer = null;
+    h.classList.remove('holding'); hint.classList.add('cancel'); hint.textContent = 'released before the weight — nothing written';
+    log('you', 'RELEASE on #' + o.n + ' let go before the weight · nothing written', '');
+    renderLogbookIfUp();
+  };
+  const commit = () => {
+    h.classList.remove('holding');
+    o.state = 'released'; o.times.released = now();
+    log('you', 'work order #' + o.n + ' RELEASED (held 0.8 s) · shop face filled', '.jig/work-orders/' + pad4(o.n) + '-' + o.slug + '.md · SIM');
+    renderAll();
+    setTimeout(() => { if (o.state !== 'released') return; o.state = 'shop'; o.times.shop = now(); log('shop', 'Claude Code took #' + o.n + ' · reading the shop face', 'MCP · jig_work_orders · SIM'); renderAll(); }, 1500);
+  };
+  h.addEventListener('pointerdown', e => { if (e.button !== 0) return; h.setPointerCapture(e.pointerId); start('pointer'); });
+  h.addEventListener('pointerup', cancel); h.addEventListener('pointercancel', cancel); h.addEventListener('lostpointercapture', cancel);
+  h.addEventListener('keydown', e => { if ((e.key === ' ' || e.key === 'Enter') && !e.repeat) { e.preventDefault(); start('key'); } });
+  h.addEventListener('keyup', e => { if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); cancel(); } });
+  h.addEventListener('click', e => e.preventDefault());
+}
+/* the shop returns the trial fit — in the sim, the SIM strip stands in for the MCP report-done */
+$('#sim-return').addEventListener('click', () => {
+  const o = S.orders.find(x => x.state === 'shop'); if (!o) return;
+  o.state = 'fit'; o.times.fit = now();
+  log('shop', 'Claude Code reports #' + o.n + ' done · the trial fit is on the right plate', 'MCP · jig_report_done · ' + o.recipe.files.length + ' files · SIM');
+  renderAll();
+});
+$('#sim-reload').addEventListener('click', () => location.reload());
+
+/* ==========================================================================
+   the toolpath scrubber — both plates move
+   ========================================================================== */
+function renderScrubber() {
+  const n = S.stops.length; const range = $('#scrub'); range.max = n - 1; range.value = S.stop;
+  const stops = $('#stops'); stops.innerHTML = S.stops.map((s, i) => `<button type="button" class="stop ${i === S.stop ? 'on' : ''} ${s.rec ? 'rec' : ''}" data-stop="${i}" style="left:${n > 1 ? (i / (n - 1) * 100) : 0}%" title="${esc(s.label)}" aria-label="stop ${i + 1} · ${esc(s.label)}" aria-pressed="${i === S.stop}">${i + 1}</button>`).join('');
+  $$('[data-stop]', stops).forEach(b => b.addEventListener('click', () => seek(+b.dataset.stop)));
+  const recd = S.stops.filter(s => s.rec).length;
+  $('#tp-name').textContent = '0001-open-and-edit · ' + n + ' stops' + (recd ? ' · ' + recd + ' recorded by the hand this session' : '') + ' · SIM';
+  $('#tp-file').textContent = TOOLPATH_FILE + (recd ? ' · +' + recd + ' unsaved' : '');
+  const s = S.stops[S.stop];
+  $('#tp-read').innerHTML = S.sketch ? 'sketch on the left plate · <b>no toolpath for a sketch</b><br>record one with the hand once it is built' : (S.replaying ? 'replaying · ' : '') + 'stop <b>' + (S.stop + 1) + ' of ' + n + '</b> · <b>' + esc(s.label) + '</b><br>' + esc(routePath(s.route)) + ' · both plates';
+  range.disabled = !!S.sketch; $('#tp-prev').disabled = !!S.sketch || S.stop === 0; $('#tp-next').disabled = !!S.sketch || S.stop === n - 1;
+  $('#tp-replay').disabled = !!S.sketch; $('#tp-replay').textContent = S.replaying ? '■ stop replay' : '▷ replay both plates';
+}
+function seek(i) { S.stop = Math.max(0, Math.min(S.stops.length - 1, i)); if (S.sketch) S.sketch = false; renderAll(); }
+function addStop(label, rt) { S.stops.push({ label, route: rt, rec: true }); S.stop = S.stops.length - 1; log('you', 'hand · ' + label + ' → ' + routePath(rt) + ' (stop ' + S.stops.length + ' recorded)', TOOLPATH_FILE + ' · unsaved'); renderAll(); }
+$('#scrub').addEventListener('input', e => seek(+e.target.value));
+$('#tp-prev').addEventListener('click', () => seek(S.stop - 1));
+$('#tp-next').addEventListener('click', () => seek(S.stop + 1));
+$('#tp-replay').addEventListener('click', () => {
+  if (S.replaying) { clearInterval(S.replaying); S.replaying = null; renderScrubber(); return; }
+  S.stop = 0; S.sketch = false; renderAll();
+  log('you', 'toolpath replayed on both plates', TOOLPATH_FILE);
+  S.replaying = setInterval(() => { if (S.stop >= S.stops.length - 1) { clearInterval(S.replaying); S.replaying = null; renderAll(); return; } S.stop++; renderAll(); }, 900);
+  renderScrubber();
+});
+
+/* ==========================================================================
+   drawers: Gauges · Fixture · Sketch · Logbook — rising from the bottom edge
+   ========================================================================== */
+const GAUGE_COLOURS = [['primary', '#3f51b5'], ['primary-dark', '#303f9f'], ['primary-soft', 'rgba(63,81,181,.08)'], ['accent', '#c2185b'], ['on-primary', '#ffffff'], ['bg', '#f5f5f7'], ['surface', '#ffffff'], ['text', '#212121'], ['text-2', '#5f6368'], ['line', '#e0e0e0'], ['ok', '#2e7d32'], ['ok-soft', '#e8f5e9'], ['warn', '#9a5a00'], ['warn-soft', '#fff3e0'], ['danger', '#c62828'], ['danger-soft', '#ffebee']];
+const GAUGE_OTHER = { type: [['font', 'Roboto, Helvetica Neue, Arial'], ['size-body', '13px'], ['size-small', '12px'], ['size-title', '20px / 400']], space: [['space', '8px grid'], ['gutter', '12px (1.5 × space)']], radius: [['radius', '4px']], shadow: [['elevation', 'none used at rest · SIM survey']], motion: [['motion', '200ms · ease-in-out']], z: [['z-nav', '3'], ['z-app-bar', '4'], ['z-dialog', '10']] };
+function toggleDrawer(name) { S.drawer = S.drawer === name ? null : name; renderDrawer(); }
+function renderHandles() {
+  $$('.handle').forEach(h => h.classList.toggle('on', h.dataset.drawer === S.drawer));
+  $('#cnt-gauges').textContent = (GAUGE_COLOURS.length + Object.values(GAUGE_OTHER).flat().length) + ' gauges · 7 groups';
+  $('#cnt-fixture').textContent = S.fixture;
+  $('#cnt-sketch').textContent = '1 sketch' + (S.sketch ? ' · on the plate' : '');
+  $('#cnt-log').textContent = S.log.length + ' entries · scrap bin ' + S.scrap.length;
+  const fiddled = S.stop !== 0 || S.drawer || S.sketch || S.lit || S.tool.left !== 'loupe' || S.tool.right !== 'loupe';
+  $('#printed-read').textContent = fiddled ? 'the bench is off its printed state' : 'at printed state';
+}
+function renderDrawer() {
+  const d = $('#drawer'); const body = $('#drawer-body'); d.classList.toggle('up', !!S.drawer);
+  renderHandles();
+  if (!S.drawer) return;
+  const H = { gauges: ['Gauges', 'the app\u2019s design system, measured and categorized — click a gauge and every place it is used lights on the plate', '.jig/survey/gauges.json · surveyed 11 min ago · SIM'], fixture: ['Fixture', 'a reproducible set of test data — applied to both plates without touching the app\u2019s code', '.jig/fixtures/ · Invoice DTO → JSON Schema → data · SIM'], sketch: ['Sketch', 'a screen that does not exist yet, drawn with the app\u2019s own gauges — the left plate becomes the sheet', '.jig/sketches/ · SIM'], logbook: ['Logbook', 'the record of everything that happened on the bench — and the scrap bin, counted and regenerable', '.jig/logbook.jsonl · SIM · nothing written'] }[S.drawer];
+  $('#drawer-h').textContent = H[0]; $('#drawer-plain').textContent = H[1]; $('#drawer-prov').textContent = H[2];
+  body.className = 'drawer-body ' + (S.drawer === 'gauges' ? 'cols-g' : S.drawer === 'logbook' ? 'cols-3' : 'cols-2');
+  if (S.drawer === 'gauges') {
+    const root = $('#app-left'); const cmpCount = {}; $$('[data-cmp]', root).forEach(el => { cmpCount[el.dataset.cmp] = (cmpCount[el.dataset.cmp] || 0) + 1; });
+    body.innerHTML = `<div class="dsec"><span class="pt">colour · ${GAUGE_COLOURS.length}</span><div class="swatches">${GAUGE_COLOURS.map(([k, v]) => `<button type="button" class="sw ${S.lit === k ? 'on' : ''}" data-g-k="${k}" aria-pressed="${S.lit === k}"><i style="background:var(--lg-${k})"></i>${k}<span class="val">${v}</span></button>`).join('')}</div><span class="prov">${S.lit ? 'lit on the plates: ' + S.lit + ' · click again to unlight' : 'nothing lit · click a gauge'}</span></div>
+      ${['type', 'space', 'radius'].map(g => `<div class="dsec"><span class="pt">${g} · ${GAUGE_OTHER[g].length}</span><div class="kv">${GAUGE_OTHER[g].map(([k, v]) => `<span class="k">${k}</span><span class="v">${v}</span>`).join('')}</div></div>`).join('')}
+      <div class="dsec"><span class="pt">shadow · motion · z</span><div class="kv">${['shadow', 'motion', 'z'].flatMap(g => GAUGE_OTHER[g]).map(([k, v]) => `<span class="k">${k}</span><span class="v">${v}</span>`).join('')}</div>
+        <span class="pt" style="margin-top:6px">components · on the left plate now</span><div class="kv">${Object.entries(cmpCount).map(([k, v]) => `<span class="k">${k}</span><span class="v">× ${v}</span>`).join('')}</div>
+        <span class="prov">counts are live from the plate; inputs/outputs from the survey (ts-morph on @Component) · SIM</span></div>`;
+    $$('[data-g-k]', body).forEach(b => b.addEventListener('click', () => { S.lit = S.lit === b.dataset.gK ? null : b.dataset.gK; log('you', S.lit ? 'gauge ' + S.lit + ' lit on the plates' : 'gauges unlit', '.jig/survey/gauges.json'); renderAll(); }));
+  } else if (S.drawer === 'fixture') {
+    body.innerHTML = `<div class="dsec"><span class="pt">fixtures · ${Object.keys(FIXTURES).length}</span><div class="list">${Object.entries(FIXTURES).map(([k, f]) => `<button type="button" class="li ${S.fixture === k ? 'on' : ''}" data-fx="${k}" aria-pressed="${S.fixture === k}"><span class="m" style="min-width:110px;color:var(--ink)">${k}</span><span class="grow">${f.plain}</span><span class="m">same key, same data · ${f.key}</span>${S.fixture === k ? '<span class="tag">on both plates</span>' : ''}</button>`).join('')}</div><span class="prov">applied two ways without touching the app: the proxy answers /api/* from the fixture; the loupe fills forms with the input events Angular honours (F10) · SIM</span></div>
+      <div class="dsec"><span class="pt">where the shape comes from</span><div class="kv"><span class="k">DTO</span><span class="v">Ledger.Api/Invoices/Invoice.cs · record Invoice</span><span class="k">schema</span><span class="v">.jig/survey/schemas/Invoice.schema.json</span><span class="k">fields</span><span class="v">number · customer{name,email} · amount · issued · due · status ∈ Draft|Sent|Paid|Overdue</span><span class="k">on the plates now</span><span class="v">${invoices(S.fixture).length} invoices · ${invoices(S.fixture).filter(r => r.status === 'Overdue').length} overdue · ${invoices(S.fixture).filter(r => r.status === 'Draft').length} drafts</span></div></div>`;
+    $$('[data-fx]', body).forEach(b => b.addEventListener('click', () => applyFixture(b.dataset.fx)));
+  } else if (S.drawer === 'sketch') {
+    body.innerHTML = `<div class="dsec"><span class="pt">sketches · 1</span><div class="list">
+        <button type="button" class="li ${S.sketch ? 'on' : ''}" id="sk-on" aria-pressed="${S.sketch}"><span class="m" style="min-width:60px;color:var(--ink)">0001</span><span class="grow">Ageing report · Reports › Ageing · five buckets and a table</span><span class="m">.jig/sketches/0001-ageing-report.json</span>${S.sketch ? '<span class="tag">on the left plate</span>' : ''}</button>
+        <span class="li dead" aria-disabled="true"><span class="m" style="min-width:60px">new</span><span class="grow">new sketch — not in this sim (F9: Tuesday stretch; the chassis is here, the drawing tools are not)</span></span></div>
+        ${S.sketch ? '<button type="button" class="btn" id="sk-off">back to the app on the left plate</button>' : ''}</div>
+      <div class="dsec"><span class="pt">how a sketch becomes a screen</span><div class="kv"><span class="k">1</span><span class="v">the sheet replaces the left plate, drawn with Ledger\u2019s own gauges</span><span class="k">2</span><span class="v">the loupe on a block places a mark; the drafter writes “build this screen”</span><span class="k">3</span><span class="v">release · the shop builds it · the right plate shows it built from the same fixture</span></div></div>`;
+    $('#sk-on').addEventListener('click', () => { S.sketch = !S.sketch; log('you', S.sketch ? 'sketch 0001 put on the left plate' : 'left plate back to the app', '.jig/sketches/0001-ageing-report.json'); renderAll(); });
+    const off = $('#sk-off'); if (off) off.addEventListener('click', () => { S.sketch = false; log('you', 'left plate back to the app', ''); renderAll(); });
+  } else if (S.drawer === 'logbook') {
+    renderLogbookBody();
+  }
+}
+function renderLogbookBody() {
+  const body = $('#drawer-body');
+  const entries = S.log.map((e, i) => `<div class="e ${i > 14 ? 'aged' : ''}"><span class="age">${age(e.t)} ago</span><span class="who ${e.who}">${e.who === 'shop' ? 'the shop' : e.who}</span><span>${esc(e.text)}</span><span class="prov">${esc(e.prov)}</span></div>`).join('');
+  body.innerHTML = `<div class="dsec" style="grid-column:1 / span 2"><span class="pt">entries · ${S.log.length} · newest first</span><div class="log">${entries || '<span class="dimt small">nothing yet</span>'}</div></div>
+    <div class="dsec"><span class="pt">scrap bin · ${S.scrap.length}</span><div class="scrapbin list">${S.scrap.length ? S.scrap.map(sc => `<div class="li"><span class="m">#${sc.n} · ${sc.slug}</span><span class="grow"></span><span class="m">${age(sc.scrappedAt)} ago</span><button type="button" class="btn" data-regen="${sc.n}">regenerate</button></div>`).join('') : '<span class="dimt small">empty · anything removed lands here, counted and regenerable — nothing on the bench is deleted</span>'}</div></div>`;
+  $$('[data-regen]', body).forEach(b => b.addEventListener('click', () => regenerate(S.scrap.find(x => x.n === +b.dataset.regen))));
+}
+function renderLogbookIfUp() { renderHandles(); if (S.drawer === 'logbook') renderLogbookBody(); }
+function applyFixture(name) { if (!FIXTURES[name]) return; S.fixture = name; log('you', 'fixture ' + name + ' applied to both plates', '.jig/fixtures/' + name + '.json · key ' + FIXTURES[name].key); renderAll(); }
+$$('.handle').forEach(h => h.addEventListener('click', () => toggleDrawer(h.dataset.drawer)));
+$('#drawer-close').addEventListener('click', () => { S.drawer = null; renderDrawer(); });
+
+/* ---- printed: return the scrubber, the drawers and the plates to their printed state (Law III.7) — heals, never destroys ---- */
+function printed() {
+  if (S.replaying) { clearInterval(S.replaying); S.replaying = null; }
+  S.stop = 0; S.drawer = null; S.sketch = false; S.lit = null; S.tool = { left: 'loupe', right: 'loupe' };
+  setMsg('left', 'loupe (point at anything and see what it is) · click places a mark');
+  log('jig', 'printed · stop 1, drawers lowered, loupe on both plates, nothing lit · marks, work orders, fixture and recorded stops kept', '');
+  renderAll();
+}
+$('#printed').addEventListener('click', printed);
+
+/* ==========================================================================
+   the palette — Ctrl/⌘ K: one move to invoke, one to name the thing (Law II.2)
+   ========================================================================== */
+let palIdx = 0;
+function commands() {
+  const c = [];
+  ['gauges', 'fixture', 'sketch', 'logbook'].forEach(d => c.push({ k: 'raise the ' + d.charAt(0).toUpperCase() + d.slice(1) + ' drawer', m: 'drawer', run: () => { S.drawer = d; renderDrawer(); } }));
+  Object.keys(FIXTURES).forEach(f => c.push({ k: 'fixture · apply ' + f + ' to both plates', m: FIXTURES[f].plain, run: () => applyFixture(f) }));
+  c.push({ k: 'sketch · 0001 ageing report on the left plate', m: 'sketch', run: () => { S.sketch = true; renderAll(); } });
+  c.push({ k: 'sketch · back to the app', m: 'sketch', run: () => { S.sketch = false; renderAll(); } });
+  S.stops.forEach((s, i) => c.push({ k: 'toolpath · stop ' + (i + 1) + ' · ' + s.label, m: routePath(s.route), run: () => seek(i) }));
+  c.push({ k: 'toolpath · replay on both plates', m: 'toolpath', run: () => $('#tp-replay').click() });
+  ['left', 'right'].forEach(side => { c.push({ k: 'tool · loupe on the ' + side + ' plate', m: 'point at anything and see what it is', run: () => { S.tool[side] = 'loupe'; renderPlates(); } }); c.push({ k: 'tool · hand on the ' + side + ' plate', m: 'click through the app; records the toolpath', run: () => { S.tool[side] = 'hand'; renderPlates(); } }); });
+  S.orders.forEach(o => c.push({ k: 'work order #' + o.n + ' · ' + o.title, m: stateWord(o), run: () => selectOrder(o.n) }));
+  c.push({ k: 'release the work order in hand', m: 'the palette cannot hold — it takes you to the control', run: () => { const h = $('#release'); if (h) h.focus(); else setMsg('left', 'nothing in hand to release'); } });
+  c.push({ k: 'printed · return the bench to its printed state', m: 'scrubber, drawers, plates', run: printed });
+  return c;
+}
+function openPalette() { $('#veil').hidden = false; $('#palette').hidden = false; const i = $('#pal-in'); i.value = ''; palIdx = 0; renderPalette(); i.focus(); }
+function closePalette() { $('#veil').hidden = true; $('#palette').hidden = true; }
+function renderPalette() {
+  const q = $('#pal-in').value.trim().toLowerCase(); const all = commands();
+  const list = q ? all.filter(c => (c.k + ' ' + c.m).toLowerCase().includes(q)) : all;
+  palIdx = Math.max(0, Math.min(palIdx, list.length - 1));
+  $('#pal-cmds').innerHTML = list.length ? list.slice(0, 40).map((c, i) => `<button type="button" class="cmd ${i === palIdx ? 'on' : ''}" data-i="${i}">${esc(c.k)}<span class="m">${esc(c.m)}</span></button>`).join('') : `<div class="none">nothing on the bench matches “${esc(q)}” — the halls hold drawers, fixtures, stops, tools and work orders</div>`;
+  $$('[data-i]', $('#pal-cmds')).forEach(b => b.addEventListener('click', () => { list[+b.dataset.i].run(); closePalette(); }));
+  const on = $('.cmd.on'); if (on) on.scrollIntoView({ block: 'nearest' });
+  $('#pal-cmds').dataset.n = list.length; $('#pal-cmds')._list = list;
+}
+$('#pal-in').addEventListener('input', () => { palIdx = 0; renderPalette(); });
+$('#pal-in').addEventListener('keydown', e => {
+  const list = $('#pal-cmds')._list || [];
+  if (e.key === 'ArrowDown') { e.preventDefault(); palIdx = Math.min(list.length - 1, palIdx + 1); renderPalette(); }
+  else if (e.key === 'ArrowUp') { e.preventDefault(); palIdx = Math.max(0, palIdx - 1); renderPalette(); }
+  else if (e.key === 'Enter') { e.preventDefault(); if (list[palIdx]) { list[palIdx].run(); closePalette(); } }
+});
+$('#veil').addEventListener('click', closePalette);
+$('#palette-btn').addEventListener('click', openPalette);
+document.addEventListener('keydown', e => {
+  if ((e.ctrlKey || e.metaKey) && (e.key === 'k' || e.key === 'K')) { e.preventDefault(); if ($('#palette').hidden) openPalette(); else closePalette(); return; }
+  if (e.key === 'Escape') { if (!$('#palette').hidden) { closePalette(); return; } if (S.drawer) { S.drawer = null; renderDrawer(); } }
+});
+
+/* ==========================================================================
+   the SIM strip, the whole render, the clock
+   ========================================================================== */
+function renderSim() {
+  const inShop = S.orders.filter(o => o.state === 'shop');
+  const b = $('#sim-return'); b.disabled = !inShop.length; b.classList.toggle('armed', !!inShop.length);
+  b.textContent = inShop.length ? 'sim · shop returns #' + inShop[0].n + ' (stands in for the MCP report-done)' : 'sim · nothing in the shop';
+  $('#sim-motion').textContent = 'motion · ' + (matchMedia('(prefers-reduced-motion: reduce)').matches ? 'reduced (travel off, the hold stays)' : 'full');
+}
+function renderAll() { renderPlates(); renderHinge(); renderScrubber(); renderDrawer(); renderSim(); }
+setInterval(() => {
+  $('#sim-clock').textContent = clockText(now()) + ' · SIM';
+  $$('.rung .age').forEach(() => {}); // ages re-render with the hinge; the clock is the only ticking text
+}, 1000);
+$('#sim-clock').textContent = clockText(now()) + ' · SIM';
+window.addEventListener('resize', placeOverlays);
+
+log('jig', 'bench ledger-sim clamped · survey read Angular 20 + .NET 10 · 6 components · ' + (GAUGE_COLOURS.length + Object.values(GAUGE_OTHER).flat().length) + ' gauges · 1 toolpath · 4 fixtures · 1 sketch', '.jig/survey/ · SIM · surveyed 11 min ago');
+log('shop', 'Claude Code connected over MCP (stdio) · SIM', '.mcp.json');
+renderAll();
+</script>
+</body>
+</html>
