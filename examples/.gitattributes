@@ -1,0 +1,4 @@
+# Shell scripts must keep LF endings regardless of core.autocrlf — a CRLF shebang breaks on the
+# Ubuntu leg of CI (docs/EXECUTION-PLAN.md S10) even though this repo's day-to-day dev is
+# Windows-first (AGENTS.md).
+*.sh text eol=lf
