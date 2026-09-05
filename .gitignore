@@ -1,0 +1,27 @@
+# Node
+node_modules/
+dist/
+coverage/
+*.log
+.env*
+
+# Jig
+.jig/cache/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+
+# Angular
+.angular/
+
+# .NET
+bin/
+obj/
+
+# Vite
+.vite/
