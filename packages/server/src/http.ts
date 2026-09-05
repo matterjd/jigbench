@@ -7,6 +7,8 @@ import { MarkTargetSchema } from '@jigbench/core';
 import { JigStore } from './store.js';
 import { attachBenchServing, type BenchServeMode } from './bench-serve.js';
 import { createDocsRoute } from './docs/route.js';
+import { attachPlateRoute } from './plate/route.js';
+import type { PlateProxyHandle } from './plate/proxy.js';
 import { logger } from './logger.js';
 
 export interface CreateJigServerOptions {
@@ -19,6 +21,9 @@ export interface CreateJigServerOptions {
   /** Test/override hook — defaults to the sibling `packages/bench/dist`. */
   benchDistDir?: string;
   benchDevServerUrl?: string;
+  /** S3's plate proxy, when the CLI has one running. Wires `GET /api/plate` and flips
+   * `wiring.proxy` to `'wired'`. Absent (S1's default): neither happens. */
+  plate?: PlateProxyHandle;
 }
 
 /** True when `origin` is absent (a non-browser client — curl, an MCP client, the CLI itself
@@ -109,6 +114,8 @@ function buildApp(
     }
   });
 
+  if (options.plate) attachPlateRoute(app, options.plate);
+
   const benchServeMode = attachBenchServing(app, {
     benchDistDir: options.benchDistDir ?? defaultBenchDistDir(),
     benchDevServerUrl: options.benchDevServerUrl,
@@ -130,6 +137,7 @@ export async function createJigServer(options: CreateJigServerOptions): Promise<
 
   const store = new JigStore(repoRoot);
   await store.init();
+  if (options.plate) store.setProxyWired(true);
 
   const wss = new WebSocketServer({ noServer: true });
   const { app, benchServeMode } = buildApp(store, wss, options);

@@ -1,0 +1,77 @@
+import { createServer as createHttpServer, type Server as HttpServer } from 'node:http';
+import { WebSocketServer, WebSocket } from 'ws';
+import { afterEach, describe, expect, it } from 'vitest';
+import { createPlateProxy, type PlateProxyHandle } from './proxy.js';
+
+const BENCH_ORIGIN = 'http://localhost:4600';
+
+let fakeUpstream: HttpServer | undefined;
+let wss: WebSocketServer | undefined;
+let plate: PlateProxyHandle | undefined;
+
+afterEach(async () => {
+  if (plate) {
+    await plate.close();
+    plate = undefined;
+  }
+  if (wss) {
+    for (const client of wss.clients) client.terminate();
+    wss.close();
+    wss = undefined;
+  }
+  if (fakeUpstream) {
+    await new Promise<void>((resolve) => fakeUpstream!.close(() => resolve()));
+    fakeUpstream = undefined;
+  }
+});
+
+async function listen(server: HttpServer): Promise<number> {
+  await new Promise<void>((resolve) => server.listen(0, resolve));
+  const address = server.address();
+  if (typeof address !== 'object' || !address) throw new Error('no address');
+  return address.port;
+}
+
+describe('createPlateProxy — WebSocket pass-through (HMR / ng-cli-ws)', () => {
+  it('proxies an upgrade request through to the target and relays messages both ways', async () => {
+    fakeUpstream = createHttpServer();
+    const port = await listen(fakeUpstream);
+    wss = new WebSocketServer({ server: fakeUpstream, path: '/ng-cli-ws' });
+
+    wss.on('connection', (ws) => {
+      ws.on('message', (data) => ws.send(`echo:${data.toString()}`));
+      ws.send('hello-from-upstream');
+    });
+
+    plate = createPlateProxy({ benchOrigin: BENCH_ORIGIN, target: `http://localhost:${port}`, port: 0 });
+
+    const client = new WebSocket(`${plate.url.replace('http', 'ws')}ng-cli-ws`);
+    const messages: string[] = [];
+
+    // Attach the message listener BEFORE awaiting 'open' — the upstream sends its greeting
+    // as soon as it sees the connection, which can land before a listener registered only
+    // after 'open' resolves would ever be attached.
+    const done = new Promise<void>((resolve, reject) => {
+      client.on('message', (data) => {
+        messages.push(data.toString());
+        if (messages.length === 1) {
+          client.send('ping');
+        } else if (messages.length === 2) {
+          resolve();
+        }
+      });
+      client.on('error', reject);
+      setTimeout(() => reject(new Error('timed out waiting for ws messages')), 8000);
+    });
+
+    await new Promise<void>((resolve, reject) => {
+      client.on('open', resolve);
+      client.on('error', reject);
+    });
+
+    await done;
+
+    expect(messages).toEqual(['hello-from-upstream', 'echo:ping']);
+    client.close();
+  }, 10000);
+});

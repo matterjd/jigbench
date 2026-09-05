@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import { mkdtemp, stat } from 'node:fs/promises';
+import { mkdtemp, stat, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { runServeCommand, type ServeCommandResult } from './serve.js';
@@ -25,5 +25,64 @@ describe('runServeCommand', () => {
 
     const jigDir = await stat(join(repoRoot, '.jig'));
     expect(jigDir.isDirectory()).toBe(true);
+  });
+
+  it('says plainly that no target is set when none is given and no angular.json is found', async () => {
+    const repoRoot = await mkdtemp(join(tmpdir(), 'jig-serve-'));
+    result = await runServeCommand({ repo: repoRoot, port: 0, open: false });
+    expect(result.message).toContain('no target set');
+  });
+
+  it('starts the plate proxy pointed at an explicit --target and reports its URL', async () => {
+    const repoRoot = await mkdtemp(join(tmpdir(), 'jig-serve-'));
+    result = await runServeCommand({
+      repo: repoRoot,
+      port: 0,
+      open: false,
+      target: 'http://localhost:4200',
+      platePort: 0,
+    });
+    expect(result.message).toContain('http://localhost:4200');
+    expect(result.message).toMatch(/Plate: http:\/\/localhost:\d+\//);
+  });
+
+  it('auto-detects an Angular target from angular.json when --target is not given', async () => {
+    const repoRoot = await mkdtemp(join(tmpdir(), 'jig-serve-'));
+    await writeFile(
+      join(repoRoot, 'angular.json'),
+      JSON.stringify({
+        defaultProject: 'demo',
+        projects: { demo: { architect: { serve: { options: { port: 4300 } } } } },
+      }),
+    );
+    result = await runServeCommand({ repo: repoRoot, port: 0, open: false, platePort: 0 });
+    expect(result.message).toContain('http://localhost:4300');
+  });
+
+  it('falls back to port 4200 when angular.json has no explicit serve port', async () => {
+    const repoRoot = await mkdtemp(join(tmpdir(), 'jig-serve-'));
+    await writeFile(
+      join(repoRoot, 'angular.json'),
+      JSON.stringify({ projects: { demo: { architect: { serve: {} } } } }),
+    );
+    result = await runServeCommand({ repo: repoRoot, port: 0, open: false, platePort: 0 });
+    expect(result.message).toContain('http://localhost:4200');
+  });
+
+  it('an explicit --target always wins over angular.json auto-detection', async () => {
+    const repoRoot = await mkdtemp(join(tmpdir(), 'jig-serve-'));
+    await writeFile(
+      join(repoRoot, 'angular.json'),
+      JSON.stringify({ projects: { demo: { architect: { serve: { options: { port: 4300 } } } } } }),
+    );
+    result = await runServeCommand({
+      repo: repoRoot,
+      port: 0,
+      open: false,
+      target: 'http://localhost:9999',
+      platePort: 0,
+    });
+    expect(result.message).toContain('http://localhost:9999');
+    expect(result.message).not.toContain('4300');
   });
 });

@@ -13,7 +13,7 @@
     }
   },
   "scripts": {
-    "build": "tsc -p tsconfig.json",
+    "build": "tsc -p tsconfig.json && node scripts/copy-loupe.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "dev": "tsx watch src/dev.ts",
     "test": "vitest run --project server"
@@ -21,14 +21,17 @@
   "dependencies": {
     "@jigbench/core": "*",
     "express": "^5.2.1",
+    "http-proxy": "^1.18.1",
     "open": "^11.0.1",
     "pdf-parse": "^2.4.5",
     "ws": "^8.21.3"
   },
   "devDependencies": {
     "@types/express": "^5.0.6",
+    "@types/http-proxy": "^1.17.17",
     "@types/node": "^24.13.3",
     "@types/ws": "^8.18.1",
+    "jsdom": "^30.0.1",
     "pdf-lib": "^1.17.1"
   }
 }

@@ -52,7 +52,11 @@ describe('App', () => {
     render(<App />);
 
     expect(screen.getByText('JIG')).toBeTruthy(); // rail
-    expect(screen.getByText(/Plate — where the app renders and is clicked/)).toBeTruthy(); // plate
+    // Plate: PlateBench (S3) is wired in now — this fixture's fetch mock has no /api/plate
+    // shape (no `ok`), so usePlatePoll degrades to its 'none' status and PlateFrame renders
+    // the honest "no target" message rather than an iframe.
+    expect(screen.getByText(/Plate — where the app renders/)).toBeTruthy(); // plate
+    expect(screen.getByText(/No target is set/)).toBeTruthy(); // plate: honest no-target state
     expect(screen.getByLabelText('sim: what is wired')).toBeTruthy(); // side: SimStrip
     expect(screen.getByText(/bench socket:/)).toBeTruthy(); // side: connection line
     expect(screen.getByText(/No marks yet/)).toBeTruthy(); // tray (no work orders yet)

@@ -41,6 +41,17 @@ describe('JigStore.init', () => {
     expect(state.marks).toEqual([]);
     expect(state.workOrders).toEqual([]);
   });
+
+  it('reports wiring.proxy as wired once the plate proxy is marked wired (S3)', async () => {
+    const repoRoot = await freshRepo();
+    const store = new JigStore(repoRoot);
+    await store.init();
+
+    expect(store.getWiring().proxy).toBe('none');
+    store.setProxyWired(true);
+    expect(store.getWiring().proxy).toBe('wired');
+    expect(store.getState().wiring.proxy).toBe('wired');
+  });
 });
 
 describe('JigStore.createMarkAndWorkOrder', () => {

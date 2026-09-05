@@ -24,20 +24,26 @@ program
   .option('--port <port>', 'port to serve the bench on', '4600')
   .option('--host <host>', 'interface to bind to (default: loopback-only, 127.0.0.1)')
   .option('--no-open', 'do not open the browser automatically')
-  .action(async (opts: { repo?: string; port: string; host?: string; open: boolean }) => {
-    try {
-      const result = await runServeCommand({
-        repo: opts.repo,
-        port: Number.parseInt(opts.port, 10),
-        host: opts.host,
-        open: opts.open,
-      });
-      printHuman(result.message);
-    } catch (err) {
-      logger.error('jigbench serve failed', String(err));
-      process.exitCode = 1;
-    }
-  });
+  .option('--target <url>', 'the target app\'s own dev server, e.g. http://localhost:4200 (S3 plate)')
+  .option('--plate-port <port>', 'port the plate proxy listens on (S3)', '4601')
+  .action(
+    async (opts: { repo?: string; port: string; host?: string; open: boolean; target?: string; platePort: string }) => {
+      try {
+        const result = await runServeCommand({
+          repo: opts.repo,
+          port: Number.parseInt(opts.port, 10),
+          host: opts.host,
+          open: opts.open,
+          target: opts.target,
+          platePort: Number.parseInt(opts.platePort, 10),
+        });
+        printHuman(result.message);
+      } catch (err) {
+        logger.error('jigbench serve failed', String(err));
+        process.exitCode = 1;
+      }
+    },
+  );
 
 program
   .command('init')
