@@ -1,12 +1,27 @@
 import { z } from 'zod';
 import { JIG_FORMAT } from './jig-format.js';
 
+/** One `@Input()`/`input()`/`model()` (or `@Output()`/`output()`) property on a component,
+ * as S2's adapter-angular reads it from both the decorator and Angular 20 signal forms. Not
+ * every property kind has a meaningful "required" (plain `@Output()` never does) — the
+ * adapter records `false` rather than omitting the field, so a consumer never has to treat
+ * absence and `false` differently. */
+export const ComponentPropertySchema = z.object({
+  name: z.string(),
+  required: z.boolean(),
+});
+export type ComponentProperty = z.infer<typeof ComponentPropertySchema>;
+
 export const ComponentSchema = z.object({
   name: z.string(),
   selector: z.string(),
   file: z.string(),
-  inputs: z.array(z.string()),
-  outputs: z.array(z.string()),
+  /** `@Component({ standalone: ... })` — Angular 20 defaults to `true` when omitted. */
+  standalone: z.boolean(),
+  /** `true` when the component has an inline `template:` instead of `templateUrl`. */
+  inline: z.boolean(),
+  inputs: z.array(ComponentPropertySchema),
+  outputs: z.array(ComponentPropertySchema),
   templateUrl: z.string().optional(),
   styleUrls: z.array(z.string()),
 });
@@ -22,11 +37,36 @@ export type Route = z.infer<typeof RouteSchema>;
 export const EndpointSchema = z.object({
   method: z.string(),
   path: z.string(),
+  operationId: z.string().optional(),
   requestSchema: z.record(z.string(), z.unknown()).optional(),
   responseSchema: z.record(z.string(), z.unknown()).optional(),
   file: z.string().optional(),
+  /** Set by adapter-dotnet's regex-lite fallback tier — never guessed silently elsewhere. */
+  stub: z.boolean().optional(),
 });
 export type Endpoint = z.infer<typeof EndpointSchema>;
+
+/** One JSON Schema extracted from the target's own data shapes (a TS interface, a C# DTO
+ * record, or an OpenAPI `components.schemas` entry). `schemaRef` is namespaced by adapter
+ * (`"dotnet.InvoiceDto"`) only when two adapters would otherwise collide on the same name —
+ * see `mergeSchemas` in `@jigbench/server`'s `survey/merge.ts`. */
+export const NamedSchemaSchema = z.object({
+  schemaRef: z.string(),
+  schema: z.record(z.string(), z.unknown()),
+});
+export type NamedSchema = z.infer<typeof NamedSchemaSchema>;
+
+/** Provenance for one adapter's contribution to a merged Survey — the honest badge the
+ * commission requires ("never guess silently"): which adapter ran, where it found the app
+ * root, which tier it read from (e.g. dotnet's `'openapi-file' | 'openapi-live' |
+ * 'regex-stub'`), and whether its output counts as a stub. */
+export const SurveyAdapterMetaSchema = z.object({
+  adapter: z.string(),
+  appRoot: z.string().optional(),
+  source: z.string().optional(),
+  stub: z.boolean(),
+});
+export type SurveyAdapterMeta = z.infer<typeof SurveyAdapterMetaSchema>;
 
 export const SurveySchema = z.object({
   jigFormat: z.literal(JIG_FORMAT),
@@ -34,10 +74,12 @@ export const SurveySchema = z.object({
   components: z.array(ComponentSchema),
   routes: z.array(RouteSchema),
   endpoints: z.array(EndpointSchema),
-  schemas: z.array(z.unknown()),
+  schemas: z.array(NamedSchemaSchema),
   docs: z.array(z.unknown()),
   generatedAt: z.string(),
   stub: z.boolean().optional(),
+  /** Present once at least one SurveyAdapter has run (S2 on). Absent on the S1 stub. */
+  adapters: z.array(SurveyAdapterMetaSchema).optional(),
 });
 export type Survey = z.infer<typeof SurveySchema>;
 

@@ -18,6 +18,15 @@ export const GaugeSourceSchema = z.object({
 });
 export type GaugeSource = z.infer<typeof GaugeSourceSchema>;
 
+/** One file that references a gauge (`var(--name)` or `$name`), and how many times. Powers
+ * the gauges panel's swatch → lit-instances interaction (S4): click a gauge, light every
+ * file/count pair here. */
+export const GaugeUsageSchema = z.object({
+  file: z.string(),
+  count: z.number().int().nonnegative(),
+});
+export type GaugeUsage = z.infer<typeof GaugeUsageSchema>;
+
 /** DTCG-shaped (Design Tokens Community Group): $type / $value are the token's own words. */
 export const GaugeSchema = z.object({
   name: z.string(),
@@ -25,6 +34,9 @@ export const GaugeSchema = z.object({
   $value: z.union([z.string(), z.number()]),
   category: GaugeCategorySchema,
   source: GaugeSourceSchema,
+  /** Optional so a gauge produced before S2 (or by a future adapter that doesn't compute
+   * usages) still parses. adapter-angular always fills this in. */
+  usages: z.array(GaugeUsageSchema).optional(),
 });
 export type Gauge = z.infer<typeof GaugeSchema>;
 
