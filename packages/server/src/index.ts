@@ -22,5 +22,9 @@ export {
 } from './seams.js';
 export type { Drafter, DrafterContext, PlateHost, SurveyAdapter } from './seams.js';
 
+export { createPlateProxy } from './plate/proxy.js';
+export type { CreatePlateProxyOptions, PlateInterceptor, PlateProxyHandle, PlateStatus } from './plate/proxy.js';
+export type { PlateHeaderChange } from './plate/rewrite.js';
+
 export { logger } from './logger.js';
 export type { Logger, LogLevel } from './logger.js';

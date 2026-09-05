@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import WebSocket from 'ws';
 import { createJigServer, type JigServerHandle } from './http.js';
+import type { PlateProxyHandle, PlateStatus } from './plate/proxy.js';
 
 let handle: JigServerHandle | undefined;
 
@@ -52,6 +53,53 @@ describe('GET /api/state', () => {
       toolpath: 'none',
       sketch: 'none',
     });
+  });
+});
+
+describe('GET /api/plate (S3)', () => {
+  function fakePlate(status: PlateStatus): PlateProxyHandle {
+    return {
+      url: `http://localhost:${status.port}/`,
+      port: status.port,
+      start: async (target: string) => {
+        void target;
+        return `http://localhost:${status.port}/`;
+      },
+      getStatus: async () => status,
+      close: async () => {},
+    };
+  }
+
+  it('is absent (404) when no plate proxy is configured, and wiring.proxy stays none', async () => {
+    const { url } = await freshServer();
+    const res = await fetch(`${url}/api/plate`);
+    expect(res.status).toBe(404);
+
+    const state = await (await fetch(`${url}/api/state`)).json();
+    expect(state.wiring.proxy).toBe('none');
+  });
+
+  it('reports the plate status and mirrors wiring.proxy as wired once a plate is configured', async () => {
+    const repoRoot = await mkdtemp(join(tmpdir(), 'jig-http-plate-'));
+    handle = await createJigServer({
+      repoRoot,
+      port: 0,
+      openBrowser: false,
+      benchDistDir: join(tmpdir(), 'jig-no-such-bench-dist'),
+      plate: fakePlate({ target: 'http://localhost:4200', port: 4601, status: 'up', changes: [] }),
+    });
+
+    const plateRes = await fetch(`${handle.url}/api/plate`);
+    expect(plateRes.status).toBe(200);
+    expect(await plateRes.json()).toEqual({
+      target: 'http://localhost:4200',
+      port: 4601,
+      status: 'up',
+      changes: [],
+    });
+
+    const state = await (await fetch(`${handle.url}/api/state`)).json();
+    expect(state.wiring.proxy).toBe('wired');
   });
 });
 

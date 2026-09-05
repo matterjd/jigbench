@@ -46,6 +46,7 @@ export class JigStore {
   private gauges: GaugeSet = emptyGaugeSet();
   private marks: Mark[] = [];
   private workOrders: WorkOrder[] = [];
+  private proxyWired = false;
 
   constructor(repoRoot: string) {
     this.repoRoot = repoRoot;
@@ -131,10 +132,18 @@ export class JigStore {
     await atomicWriteFile(this.marksCacheFile(), JSON.stringify(this.marks, null, 2) + '\n');
   }
 
+  /** Called once by `http.ts` when a real `PlateHost` (S3's proxy, not `StubPlateHost`) is
+   * wired into the running server — flips `wiring.proxy` from S1's honest "none" to "wired"
+   * so the bench's SIM strip reports it without this store needing to know anything about
+   * the proxy itself. */
+  setProxyWired(wired: boolean): void {
+    this.proxyWired = wired;
+  }
+
   getWiring(): Wiring {
     return {
       survey: this.survey.stub ? 'stub' : 'wired',
-      proxy: 'none',
+      proxy: this.proxyWired ? 'wired' : 'none',
       drafter: 'stub',
       shop: 'none',
       fixtures: 'none',
