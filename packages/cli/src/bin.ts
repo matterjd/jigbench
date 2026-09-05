@@ -3,6 +3,7 @@ import { Command } from 'commander';
 import { runServeCommand } from './commands/serve.js';
 import { runInitCommand } from './commands/init.js';
 import { runSurveyCommand } from './commands/survey.js';
+import { runClampCommand } from './commands/clamp.js';
 import { runMcpCommand } from './commands/mcp.js';
 import { printHuman } from './human-output.js';
 import { logger } from '@jigbench/server';
@@ -60,6 +61,21 @@ program
       printHuman(result.message);
     } catch (err) {
       logger.error('jigbench survey failed', String(err));
+      process.exitCode = 1;
+    }
+  });
+
+program
+  .command('clamp')
+  .description('clamp a docs folder (markdown/text/PDF) into .jig/survey/docs.json')
+  .requiredOption('--docs <folder>', 'the folder of docs to clamp')
+  .action(async (opts: { docs: string }, command: Command) => {
+    try {
+      const { repo } = command.optsWithGlobals<{ repo?: string }>();
+      const result = await runClampCommand({ repo, docs: opts.docs });
+      printHuman(result.message);
+    } catch (err) {
+      logger.error('jigbench clamp failed', String(err));
       process.exitCode = 1;
     }
   });
