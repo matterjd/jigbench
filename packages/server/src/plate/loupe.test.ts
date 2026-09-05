@@ -129,4 +129,66 @@ describe('loupe.js', () => {
     target.dispatchEvent(new dom.window.MouseEvent('mousemove', { bubbles: true }));
     expect(target.outerHTML).toBe(before);
   });
+
+  describe('click interception (S3 CONCERNS 2 — a loupe click must not reach the app\'s own handler)', () => {
+    /** Stands in for Angular's [routerLink]: a bubble-phase click listener the target owns
+     * itself, exactly like the imperative navigation a router directive attaches — it runs
+     * from JS inside the listener, not through the browser's default action, so
+     * preventDefault() alone (with no stopPropagation()) would never stop it. */
+    function attachOwnClickListener(target: Element): { fired: boolean } {
+      const state = { fired: false };
+      target.addEventListener('click', () => {
+        state.fired = true;
+      });
+      return state;
+    }
+
+    it('loupe mode: the capture-phase intercept stops the target\'s own click listener from ever running, and still posts jig:pick', () => {
+      const dom = loadLoupe('<a id="target" href="/invoices/1">row</a>');
+      const target = dom.window.document.getElementById('target')!;
+      const own = attachOwnClickListener(target);
+      internalOf(dom).setMode('loupe');
+
+      const posted: unknown[] = [];
+      dom.window.postMessage = ((message: unknown) => posted.push(message)) as typeof dom.window.postMessage;
+
+      target.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true, cancelable: true }));
+
+      expect(own.fired).toBe(false);
+      expect(posted).toHaveLength(1);
+      expect(posted[0]).toMatchObject({ type: 'jig:pick', tag: 'a' });
+    });
+
+    it('hand mode: nothing is intercepted — the target\'s own click listener fires normally and a jig:event is posted', () => {
+      const dom = loadLoupe('<a id="target" href="/invoices/1">row</a>');
+      const target = dom.window.document.getElementById('target')!;
+      const own = attachOwnClickListener(target);
+      expect(internalOf(dom).getMode()).toBe('hand'); // default — never switched
+
+      const posted: unknown[] = [];
+      dom.window.postMessage = ((message: unknown) => posted.push(message)) as typeof dom.window.postMessage;
+
+      target.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true, cancelable: true }));
+
+      expect(own.fired).toBe(true);
+      expect(posted).toHaveLength(1);
+      expect(posted[0]).toMatchObject({ type: 'jig:event', kind: 'click' });
+    });
+
+    it('loupe mode: pointerdown/mousedown/auxclick are also stopped before reaching the target', () => {
+      const dom = loadLoupe('<button id="target">go</button>');
+      const target = dom.window.document.getElementById('target')!;
+      const seen: string[] = [];
+      for (const type of ['pointerdown', 'mousedown', 'auxclick']) {
+        target.addEventListener(type, () => seen.push(type));
+      }
+      internalOf(dom).setMode('loupe');
+
+      target.dispatchEvent(new dom.window.PointerEvent('pointerdown', { bubbles: true, cancelable: true }));
+      target.dispatchEvent(new dom.window.MouseEvent('mousedown', { bubbles: true, cancelable: true }));
+      target.dispatchEvent(new dom.window.MouseEvent('auxclick', { bubbles: true, cancelable: true }));
+
+      expect(seen).toEqual([]);
+    });
+  });
 });

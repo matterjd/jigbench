@@ -248,12 +248,33 @@
     { passive: true },
   );
 
-  // Loupe-mode clicks must call preventDefault before the app's own handlers act (e.g. a
-  // router-linked row navigating away), so this one listener cannot be passive.
+  // Loupe-mode clicks must be stopped before the app's own handlers ever run — not just
+  // have their default action cancelled. preventDefault() alone cancels only the browser's
+  // built-in default action (e.g. following an <a href>); it does nothing to a framework's
+  // own imperative click handler, such as Angular's [routerLink], which navigates from
+  // inside its own listener rather than through the default action. Capturing on `document`
+  // for pointerdown/mousedown/click/auxclick and calling stopPropagation() there means the
+  // event never reaches the target (or the bubble phase) at all in loupe mode, so the app's
+  // own listeners — Angular's included — never run. None of these four are passive, and in
+  // hand mode none of them touch the event; only 'click' and 'input' emit jig:event, exactly
+  // as before.
+  ['pointerdown', 'mousedown', 'auxclick'].forEach(function (type) {
+    document.addEventListener(
+      type,
+      function (event) {
+        if (mode !== 'loupe') return;
+        event.stopPropagation();
+        event.preventDefault();
+      },
+      { capture: true },
+    );
+  });
+
   document.addEventListener(
     'click',
     function (event) {
       if (mode === 'loupe') {
+        event.stopPropagation();
         event.preventDefault();
         if (event.target) postPick(event.target);
         return;
