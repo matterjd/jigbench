@@ -31,6 +31,9 @@ examples/                     a tiny Angular app + a tiny .NET 10 app; not a wor
 docs/                         Source of truth for: the execution plan, ADRs, and the v0.1 team
                               plan.
 
+scripts/                      Source of truth for: repo-level verification scripts run by npm
+                              (e.g. `check:stdout`) — not application code.
+
 .github/                      Source of truth for: issue templates, the PR template, and CI.
 ```
 

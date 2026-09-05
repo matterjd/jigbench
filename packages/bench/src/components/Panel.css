@@ -1,0 +1,23 @@
+.jig-panel {
+  background: var(--bg1);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+}
+
+.jig-panel__title {
+  margin: 0;
+  padding: 10px 14px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--dim);
+  border-bottom: 1px solid var(--line-soft);
+}
+
+.jig-panel__body {
+  padding: 14px;
+  color: var(--ink);
+  font-size: 14px;
+  line-height: 1.45;
+}
