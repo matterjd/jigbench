@@ -1,13 +1,17 @@
 # HANDOFF — next-session entry point
 
-**seat:** Delivery · **branch:** `main` · **written:** 2026-09-05 · founding
+**seat:** Delivery · **branch:** `main` · **written:** 2026-09-05 14:10 CDT · wave 2 in flight
 
 ## State
 
-This repo was founded 2026-09-05 from the Design seat's commission
-(`matter-notes/design-book/10-jig/COMMISSION.md`). The build plan is at `docs/EXECUTION-PLAN.md`,
-**APPROVED by Matter 2026-09-05 13:05** (jigbench#1; blanket merge for verified green slices; Ollama installed on the desk; S2b docs clamp added at the gate). Nothing has been built yet — this session wrote the founding documents
-(README, CONTRIBUTING, SECURITY, AGENTS, CLAUDE, CONTEXT, MAP, QUALITY, issue and PR templates,
-and the v0.1 team plan) so the repo is ready to receive S1 once the plan is signed off.
+Founded 2026-09-05 from the Design seat's commission (now canonical at `docs/design/COMMISSION.md`;
+chassis ruled: A · The Surface Plate + steals, see `docs/team/v0.1/CHASSIS.md`). Plan
+`docs/EXECUTION-PLAN.md` = #1, APPROVED 13:05 with blanket merge for verified green slices.
+**On `main` (`76a33b3`):** wave 1 (S1a shell · S1b examples) · S2b docs clamp · the wave-1 council
+fix pass (clean-checkout test config, path-traversal fix, loopback bind, origin checks, floor fixes).
+Fresh-worktree control on main: 37 files / 189 tests, typecheck, build, stdout guard, security PoCs
+all green. **In flight:** S2 survey adapters (`delegate/build-s2`) and S3 plate proxy + loupe
+(`delegate/build-s3`). Debt: #2 (pdf-parse native transitive). Ollama + `qwen2.5-coder:7b` live on
+the desk. Pre-merge rule of record: verify in a FRESH detached worktree, never the worker's tree.
 
-**→ Next session: wave 1 is in flight — S1a (skeleton · core · server · cli · bench shell · ADRs) on `delegate/build-s1a` and S1b (`examples/ledger-angular` + `examples/ledger-api`) on `delegate/build-s1b`; diff-verify both, re-run their gates, merge to `main`, then open wave 2 (S2 ‖ S2b ‖ S3).**
+**→ Next session: merge S2 and S3 after the fresh-worktree control, then open wave 3 — S4 chassis + gauges ‖ S5 marks → work orders (Ollama drafter, tray/spine/shop lane, held RELEASE) ‖ S7 fixtures — per `docs/EXECUTION-PLAN.md` §4 and `docs/team/v0.1/CHASSIS.md`; Matter's next look is Sunday midday (`npx jigbench` on `examples/ledger-angular`).**
