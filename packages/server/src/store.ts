@@ -10,34 +10,20 @@ import {
   slugify,
   stubSurvey,
   type GaugeSet,
+  type JigState,
   type Mark,
   type MarkTarget,
   type Survey,
+  type Wiring,
   type WorkOrder,
 } from '@jigbench/core';
 import { atomicWriteFile } from './atomic-write.js';
 import { pathExists } from './fs-util.js';
 import { logger } from './logger.js';
 
-export type WiringStatus = 'wired' | 'stub' | 'none';
-
-export interface Wiring {
-  survey: WiringStatus;
-  proxy: WiringStatus;
-  drafter: WiringStatus;
-  shop: WiringStatus;
-  fixtures: WiringStatus;
-  toolpath: WiringStatus;
-  sketch: WiringStatus;
-}
-
-export interface JigState {
-  survey: Survey;
-  gauges: GaugeSet;
-  marks: Mark[];
-  workOrders: WorkOrder[];
-  wiring: Wiring;
-}
+// JigState/Wiring/WiringStatus are defined in @jigbench/core (jig-state.ts), not here —
+// bench needs this exact shape and may only import core's types, never server's.
+export type { JigState, Wiring, WiringStatus } from '@jigbench/core';
 
 function emptyGaugeSet(): GaugeSet {
   return { jigFormat: 1, gauges: [], generatedAt: new Date().toISOString() };
