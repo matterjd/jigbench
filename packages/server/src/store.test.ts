@@ -37,6 +37,7 @@ describe('JigStore.init', () => {
     expect(state.wiring.fixtures).toBe('none');
     expect(state.wiring.toolpath).toBe('none');
     expect(state.wiring.sketch).toBe('none');
+    expect(state.wiring.docs).toBe('none');
     expect(state.marks).toEqual([]);
     expect(state.workOrders).toEqual([]);
   });
@@ -126,5 +127,24 @@ describe('JigStore.reload / a fresh process picking the store back up', () => {
     await store.reload();
 
     expect(store.getState().wiring.survey).toBe('wired');
+  });
+
+  it('reports wiring.docs as wired once a docs.json exists on disk (S2b clamp)', async () => {
+    const repoRoot = await freshRepo();
+    const store = new JigStore(repoRoot);
+    await store.init();
+    expect(store.getState().wiring.docs).toBe('none');
+
+    const paths = jigPaths(repoRoot);
+    const { writeFile } = await import('node:fs/promises');
+    await writeFile(
+      join(paths.survey, 'docs.json'),
+      JSON.stringify({ jigFormat: 1, root: '/docs', clampedAt: new Date().toISOString(), files: [], chunks: [] }),
+      'utf8',
+    );
+
+    await store.reload();
+
+    expect(store.getState().wiring.docs).toBe('wired');
   });
 });

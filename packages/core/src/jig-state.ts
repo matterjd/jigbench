@@ -21,6 +21,9 @@ export const WiringSchema = z.object({
   fixtures: WiringStatusSchema,
   toolpath: WiringStatusSchema,
   sketch: WiringStatusSchema,
+  /** S2b — the docs clamp. Defaults to 'none' so every pre-existing caller that never
+   * heard of docs (S1's wiring object literals included) still parses without change. */
+  docs: WiringStatusSchema.default('none'),
 });
 export type Wiring = z.infer<typeof WiringSchema>;
 

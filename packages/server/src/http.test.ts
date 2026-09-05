@@ -51,7 +51,17 @@ describe('GET /api/state', () => {
       fixtures: 'none',
       toolpath: 'none',
       sketch: 'none',
+      docs: 'none',
     });
+  });
+});
+
+describe('GET /api/docs', () => {
+  it('is mounted on the real server and reports an honest empty summary before any clamp', async () => {
+    const { url } = await freshServer();
+    const res = await fetch(`${url}/api/docs`);
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ root: null, clampedAt: null, files: [] });
   });
 });
 

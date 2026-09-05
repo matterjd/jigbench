@@ -10,6 +10,16 @@ export type { InitJigTreeResult } from './init-tree.js';
 export { runSurvey } from './run-survey.js';
 export type { RunSurveyResult } from './run-survey.js';
 
+export { clampDocs } from './docs/clamp.js';
+export type { ClampDocsOptions, ClampDocsResult } from './docs/clamp.js';
+
+export { contextForPrompt } from './docs/context.js';
+export type { DocsContext, DocsContextChunk } from './docs/context.js';
+
+export { createDocsRoute } from './docs/route.js';
+
+export { extractPdfText } from './docs/pdf.js';
+
 export { atomicWriteFile } from './atomic-write.js';
 
 export { chooseBenchServeMode, attachBenchServing } from './bench-serve.js';

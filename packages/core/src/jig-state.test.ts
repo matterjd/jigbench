@@ -25,6 +25,22 @@ describe('WiringSchema', () => {
     const { proxy: _proxy, ...rest } = wiring;
     expect(() => WiringSchema.parse(rest)).toThrow();
   });
+
+  it('defaults docs to "none" (S2b) so a pre-S2b wiring literal still parses', () => {
+    // `wiring` above has no `docs` key at all — this is exactly the S1 shape.
+    const parsed = WiringSchema.parse(wiring);
+    expect(parsed.docs).toBe('none');
+  });
+
+  it('accepts an explicit docs status of wired | stub | none', () => {
+    expect(WiringSchema.parse({ ...wiring, docs: 'wired' }).docs).toBe('wired');
+    expect(WiringSchema.parse({ ...wiring, docs: 'stub' }).docs).toBe('stub');
+    expect(WiringSchema.parse({ ...wiring, docs: 'none' }).docs).toBe('none');
+  });
+
+  it('rejects an unknown docs status value', () => {
+    expect(() => WiringSchema.parse({ ...wiring, docs: 'unknown' })).toThrow();
+  });
 });
 
 describe('JigStateSchema', () => {

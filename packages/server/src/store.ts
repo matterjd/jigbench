@@ -46,6 +46,7 @@ export class JigStore {
   private gauges: GaugeSet = emptyGaugeSet();
   private marks: Mark[] = [];
   private workOrders: WorkOrder[] = [];
+  private docsWired = false;
 
   constructor(repoRoot: string) {
     this.repoRoot = repoRoot;
@@ -72,6 +73,7 @@ export class JigStore {
     this.gauges = await this.loadGauges();
     this.workOrders = await this.loadWorkOrders();
     this.marks = await this.loadMarksCache();
+    this.docsWired = await this.loadDocsWiring();
   }
 
   private async loadSurvey(): Promise<Survey> {
@@ -83,6 +85,12 @@ export class JigStore {
       logger.warn('survey.json failed to parse; falling back to a stub survey', String(err));
       return stubSurvey();
     }
+  }
+
+  /** S2b — the docs clamp. `docs.json`'s existence alone is enough to say "wired": unlike
+   * the survey there is no stub-vs-real distinction here, so this never reports 'stub'. */
+  private async loadDocsWiring(): Promise<boolean> {
+    return pathExists(join(this.paths.survey, 'docs.json'));
   }
 
   private async loadGauges(): Promise<GaugeSet> {
@@ -140,6 +148,7 @@ export class JigStore {
       fixtures: 'none',
       toolpath: 'none',
       sketch: 'none',
+      docs: this.docsWired ? 'wired' : 'none',
     };
   }
 
