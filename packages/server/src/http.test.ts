@@ -62,6 +62,68 @@ describe('bench serving', () => {
   });
 });
 
+describe('network binding', () => {
+  it('binds loopback-only by default, not all interfaces', async () => {
+    const { boundAddress } = await freshServer();
+    // ::1 shows up on some CI/IPv6-preferring hosts; both are loopback, neither is
+    // 0.0.0.0/:: (all interfaces). What matters is it never comes back as either wildcard.
+    expect(['127.0.0.1', '::1']).toContain(boundAddress);
+  });
+});
+
+describe('same-origin protection', () => {
+  it('rejects a cross-origin POST /api/marks with 403 and creates no work order', async () => {
+    const { url } = await freshServer();
+    const res = await fetch(`${url}/api/marks`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', origin: 'http://evil.example' },
+      body: JSON.stringify({
+        target: { path: 'body > invoice-list', component: 'InvoiceListComponent' },
+        prompt: 'highlight the due date when overdue',
+      }),
+    });
+    expect(res.status).toBe(403);
+
+    const state = await (await fetch(`${url}/api/state`)).json();
+    expect(state.workOrders).toEqual([]);
+  });
+
+  it('accepts a same-origin POST /api/marks (Origin matching the bench\'s own Host)', async () => {
+    const { url } = await freshServer();
+    const res = await fetch(`${url}/api/marks`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', origin: url },
+      body: JSON.stringify({
+        target: { path: 'body > invoice-list', component: 'InvoiceListComponent' },
+        prompt: 'highlight the due date when overdue',
+      }),
+    });
+    expect(res.status).toBe(201);
+  });
+
+  it('rejects a WS upgrade carrying a foreign Origin', async () => {
+    const { url } = await freshServer();
+    const ws = new WebSocket(url.replace('http', 'ws') + '/ws', { origin: 'http://evil.example' });
+    const outcome = await new Promise<'open' | 'error-or-close'>((resolvePromise) => {
+      ws.on('open', () => resolvePromise('open'));
+      ws.on('error', () => resolvePromise('error-or-close'));
+      ws.on('close', () => resolvePromise('error-or-close'));
+    });
+    expect(outcome).toBe('error-or-close');
+  });
+
+  it('accepts a WS upgrade with no Origin header (a non-browser client)', async () => {
+    const { url } = await freshServer();
+    const ws = new WebSocket(url.replace('http', 'ws') + '/ws');
+    const outcome = await new Promise<'open' | 'error'>((resolvePromise) => {
+      ws.on('open', () => resolvePromise('open'));
+      ws.on('error', () => resolvePromise('error'));
+    });
+    expect(outcome).toBe('open');
+    ws.close();
+  });
+});
+
 describe('POST /api/marks', () => {
   it('creates a mark and a marked work order, then broadcasts the new state over WS', async () => {
     const { url } = await freshServer();

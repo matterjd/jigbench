@@ -1,6 +1,6 @@
 import { existsSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
-import { extname, join } from 'node:path';
+import { extname, join, resolve, sep } from 'node:path';
 import { request as httpRequest, type IncomingMessage, type ServerResponse } from 'node:http';
 import type { Express } from 'express';
 import { logger } from './logger.js';
@@ -66,18 +66,46 @@ export interface AttachBenchOptions {
   benchDevServerUrl?: string;
 }
 
+/** Resolves `reqPath` against `distRoot`, rejecting anything that would land outside it.
+ * `req.path` is untrusted and Express does not collapse `..` segments before handing it to
+ * middleware, so a raw `GET /../../../package.json` reaches here with the dots intact —
+ * `join(distRoot, reqPath)` would then happily walk up out of the dist directory and read
+ * whatever real file sits there. Percent-encoded traversal (`%2e%2e`, `..%2f`) is decoded
+ * first so it can't dodge the same check; a malformed encoding is itself a rejection.
+ * Returns null on any escape attempt or decode failure — the caller turns that into 403. */
+function resolveWithinDist(distRoot: string, reqPath: string): string | null {
+  let decoded: string;
+  try {
+    decoded = decodeURIComponent(reqPath);
+  } catch {
+    return null;
+  }
+  const candidate = resolve(distRoot, `.${decoded}`);
+  if (candidate !== distRoot && !candidate.startsWith(distRoot + sep)) {
+    return null;
+  }
+  return candidate;
+}
+
 /** Wires the bench-serving behaviour onto an Express app: static from `benchDistDir` in
  * production, proxied to `benchDevServerUrl` in dev, or an honest "not built" page. */
 export function attachBenchServing(app: Express, options: AttachBenchOptions): BenchServeMode {
-  const benchDistExists = existsSync(join(options.benchDistDir, 'index.html'));
+  const distRoot = resolve(options.benchDistDir);
+  const benchDistExists = existsSync(join(distRoot, 'index.html'));
   const mode = chooseBenchServeMode(benchDistExists, Boolean(options.benchDevServerUrl));
 
   app.use(async (req, res, next) => {
     if (req.path.startsWith('/api')) return next();
 
     if (mode === 'static') {
-      const filePath = join(options.benchDistDir, req.path === '/' ? 'index.html' : req.path);
-      const fallback = join(options.benchDistDir, 'index.html');
+      const fallback = join(distRoot, 'index.html');
+      const requested = req.path === '/' ? distRoot : resolveWithinDist(distRoot, req.path);
+      if (requested === null) {
+        res.status(403).setHeader('content-type', 'text/plain; charset=utf-8');
+        res.end('Forbidden');
+        return;
+      }
+      const filePath = req.path === '/' ? fallback : requested;
       const resolved = existsSync(filePath) ? filePath : fallback;
       try {
         const body = await readFile(resolved);

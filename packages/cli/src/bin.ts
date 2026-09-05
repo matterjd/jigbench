@@ -21,12 +21,14 @@ program
 
 program
   .option('--port <port>', 'port to serve the bench on', '4600')
+  .option('--host <host>', 'interface to bind to (default: loopback-only, 127.0.0.1)')
   .option('--no-open', 'do not open the browser automatically')
-  .action(async (opts: { repo?: string; port: string; open: boolean }) => {
+  .action(async (opts: { repo?: string; port: string; host?: string; open: boolean }) => {
     try {
       const result = await runServeCommand({
         repo: opts.repo,
         port: Number.parseInt(opts.port, 10),
+        host: opts.host,
         open: opts.open,
       });
       printHuman(result.message);
