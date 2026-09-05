@@ -68,7 +68,9 @@ export function SimStrip({ fetchImpl = fetch }: SimStripProps) {
       )}
       {wiring &&
         SUBSYSTEMS.map((name) => (
-          <Chip key={name} tone={TONE[wiring[name]]}>
+          // Chip's own text renders at 10px (under the 11px floor threshold) — floor item 3
+          // requires a paired non-text signal at that size, hence the glyph.
+          <Chip key={name} tone={TONE[wiring[name]]} glyph="●">
             {name}: {wiring[name]}
           </Chip>
         ))}

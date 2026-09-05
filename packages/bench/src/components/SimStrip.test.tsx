@@ -44,4 +44,12 @@ describe('SimStrip', () => {
     render(<SimStrip fetchImpl={failingFetch} />);
     await waitFor(() => expect(screen.getByText(/unreachable/i)).toBeTruthy());
   });
+
+  it('pairs every sub-11px subsystem chip with a non-text glyph (design floor item 3)', async () => {
+    render(<SimStrip fetchImpl={fakeFetch({ wiring })} />);
+    await waitFor(() => expect(screen.getByText(/survey/i)).toBeTruthy());
+    // One glyph per subsystem chip (7 subsystems) — each chip's own text renders at 10px,
+    // under the floor's 11px threshold, so it must carry a paired non-text signal.
+    expect(document.querySelectorAll('.jig-chip__glyph')).toHaveLength(7);
+  });
 });
