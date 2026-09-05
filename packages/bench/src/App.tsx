@@ -6,6 +6,7 @@ import { SimStrip } from './components/SimStrip.js';
 import { Ladder } from './components/Ladder.js';
 import { Logbook } from './components/Logbook.js';
 import { useJigState } from './hooks/useJigState.js';
+import { PlateBench } from './plate/PlateBench.js';
 import './App.css';
 
 export function App() {
@@ -18,11 +19,7 @@ export function App() {
   return (
     <AppFrame
       rail={<div className="jig-rail__brand">JIG</div>}
-      plate={
-        <Panel title="Plate">
-          <p>plate · not wired — S3</p>
-        </Panel>
-      }
+      plate={<PlateBench survey={state?.survey} />}
       side={
         <Panel title="Sim">
           <SimStrip />

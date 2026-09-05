@@ -1,0 +1,42 @@
+.jig-plate-frame {
+  height: 100%;
+  min-height: 320px;
+}
+
+.jig-plate-frame__iframe {
+  display: block;
+  width: 100%;
+  height: 100%;
+  min-height: 320px;
+  border: 0;
+  background: var(--bg0);
+}
+
+.jig-plate-frame--empty {
+  height: 100%;
+  min-height: 320px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 8px;
+  padding: 14px;
+  color: var(--dim);
+}
+
+.jig-plate-frame__tongue {
+  margin: 0;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--faint);
+}
+
+.jig-plate-frame--empty code {
+  font-family: var(--mono);
+  font-size: 12.5px;
+  color: var(--ink);
+  background: var(--bg2);
+  border-radius: var(--r-micro);
+  padding: 1px 5px;
+}
