@@ -1,0 +1,56 @@
+.jig-simstrip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.jig-simstrip__label {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--dim);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.jig-simstrip__glyph {
+  color: var(--storm);
+}
+
+.jig-simstrip__loading {
+  font-size: 12.5px;
+  color: var(--dim);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.jig-simstrip__pulse {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--storm);
+  /* Static (no animation) unless the viewer allows motion — the animation is the opt-in,
+     never the default. */
+  opacity: 0.7;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .jig-simstrip__pulse {
+    animation: jig-simstrip-pulse 900ms ease-in-out infinite;
+  }
+}
+
+@keyframes jig-simstrip-pulse {
+  0%,
+  100% {
+    opacity: 0.25;
+  }
+  50% {
+    opacity: 1;
+  }
+}

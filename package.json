@@ -11,7 +11,7 @@
     "packages/adapters/*"
   ],
   "scripts": {
-    "build": "npm run build --workspace=@jigbench/core && npm run build --workspace=@jigbench/server && npm run build --workspace=@jigbench/cli --workspace=@jigbench/adapter-angular --workspace=@jigbench/adapter-dotnet && npm run build --workspace=@jigbench/bench",
+    "build": "npm run build --workspace=@jigbench/core && npm run build --workspace=@jigbench/server && npm run build --workspace=jigbench --workspace=@jigbench/adapter-angular --workspace=@jigbench/adapter-dotnet && npm run build --workspace=@jigbench/bench",
     "test": "vitest run",
     "typecheck": "npm run build --workspace=@jigbench/core && npm run build --workspace=@jigbench/server && npm run typecheck --workspaces --if-present",
     "dev": "concurrently -k -n server,bench \"npm run dev --workspace=@jigbench/server\" \"npm run dev --workspace=@jigbench/bench\"",

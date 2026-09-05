@@ -1,0 +1,44 @@
+.jig-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: var(--r-pill);
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  border: 1px solid var(--line);
+  color: var(--dim);
+  background: var(--bg2);
+  white-space: nowrap;
+}
+
+.jig-chip--ok {
+  color: var(--ok);
+  border-color: var(--ok-soft);
+  background: var(--ok-soft);
+}
+
+.jig-chip--warn {
+  color: var(--warn);
+  border-color: var(--warn-soft);
+  background: var(--warn-soft);
+}
+
+.jig-chip--alert {
+  color: var(--alert);
+  border-color: var(--alert-soft);
+  background: var(--alert-soft);
+}
+
+.jig-chip--wyrd {
+  color: var(--wyrd);
+  border-color: var(--wyrd-soft);
+  background: var(--wyrd-soft);
+}
+
+.jig-chip__glyph {
+  font-size: 8px;
+  line-height: 1;
+}

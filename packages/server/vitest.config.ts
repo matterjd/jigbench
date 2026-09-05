@@ -6,7 +6,7 @@ const coreSrc = fileURLToPath(new URL('../core/src/index.ts', import.meta.url));
 export default defineConfig({
   test: {
     name: 'server',
-    root: __dirname,
+    root: import.meta.dirname,
     environment: 'node',
     include: ['src/**/*.test.ts'],
   },

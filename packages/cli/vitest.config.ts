@@ -7,7 +7,7 @@ const serverSrc = fileURLToPath(new URL('../server/src/index.ts', import.meta.ur
 export default defineConfig({
   test: {
     name: 'cli',
-    root: __dirname,
+    root: import.meta.dirname,
     environment: 'node',
     include: ['src/**/*.test.ts'],
   },

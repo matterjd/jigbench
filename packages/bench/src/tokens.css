@@ -1,0 +1,95 @@
+/* ==========================================================================
+   packages/bench/src/tokens.css
+
+   Provenance: copied VERBATIM from
+   matter-notes/design-book/tokens/starter.css (v0.1, 2026-08-03) per
+   CONTEXT.md decision 11 ("Register: Obsidian & Ember from starter.css, dark
+   first") and COMMISSION.md F13. Do not hand-edit the token values below —
+   change the source file and re-copy, so the two never drift silently.
+   ========================================================================== */
+
+/* ==========================================================================
+   Matter Design Book · starter tokens — v0.1 (2026-08-03)
+
+   FOR NEW SURFACES ONLY. This file seeds a brand-new app; it is NOT a mirror
+   of any existing app's tokens and no existing app should import it. Each
+   app's own token file (cc styles.scss, sage theme.ts, wyrdglass _tokens.scss,
+   gravitas palette.ts) remains that app's truth — the book's drift rule
+   (design-book/00-the-claim.md) governs disagreements.
+
+   Provenance: ground/ink/status from command-center styles.scss:5-27
+   ("Obsidian & Ember", ideas/command-center/BRIEF.md D12); gold law from
+   axis-grim ADR 0001; storm from wyrdglass electros accent, promoted by the
+   book; motion scale from wyrdglass _tokens.scss.
+   ========================================================================== */
+
+:root {
+  /* Ground — the depth ladder's material (design-book/03) */
+  --bg0: #0a0c0f;            /* z0 the floor */
+  --bg1: #10141a;            /* z1 rest — panels, hairline, no shadow */
+  --bg2: #171d26;            /* z2 raised — in-flight, inner blocks */
+  --bg3: #1f2733;            /* z3 held — active/selected ground */
+  --line: #232b37;           /* primary hairline */
+  --line-soft: #1a212b;      /* internal divider */
+  --scrim: rgba(4, 6, 9, 0.6);  /* z4 the veil */
+
+  /* Ink */
+  --ink: #e8e6e1;            /* primary text */
+  --dim: #9aa3ad;            /* secondary text */
+  --faint: #5c6672;          /* provenance only — never load-bearing (a11y floor) */
+
+  /* Status voices — semantics are law (design-book/01): never decorative */
+  --ember: #f2762e;          /* a HUMAN is the next actor — the only demand color */
+  --ember-soft: rgba(242, 118, 46, 0.14);
+  --ember-dark: #a34d1e;     /* gradient stop / pressed */
+  --wyrd: #9d8cff;           /* agent-side identity & memory */
+  --wyrd-soft: rgba(157, 140, 255, 0.12);
+  --ok: #7fb069;             /* verified good */
+  --ok-soft: rgba(127, 176, 105, 0.12);
+  --warn: #d9a441;           /* in flight / aging */
+  --warn-soft: rgba(217, 164, 65, 0.14);
+  --alert: #e0483e;          /* a flow is STOPPED */
+  --alert-soft: rgba(224, 72, 62, 0.12);
+  --on-accent: #0a0c0f;      /* dark text on filled accent chips */
+
+  /* Lore accents — the Triune channels (design-book/01) */
+  --gold: #e0b55b;           /* sacred: hairline/ring/stroke ONLY — never a fill */
+  --storm: #5fc9e0;          /* live/right-now signals — must not compete with ember */
+  --storm-soft: rgba(95, 201, 224, 0.12);
+
+  /* Type */
+  --sans: 'Segoe UI Variable', 'Segoe UI', Inter, system-ui, sans-serif;
+  --mono: 'Cascadia Code', 'JetBrains Mono', Consolas, ui-monospace, monospace;
+  /* Ramp: body 14/1.45 · display 20-22/650 (one per screen) · panel title
+     11/600 uppercase +0.14em · secondary 12.5 · provenance 10.5 mono ·
+     chips 9-10.5/700 uppercase (sub-11px must pair with a non-text signal) */
+
+  /* Shape — 4px grid */
+  --r: 10px;                 /* panels */
+  --r-inner: 6px;            /* inner blocks, inputs */
+  --r-micro: 4px;            /* micro chips */
+  --r-pill: 999px;           /* pills */
+
+  /* Earned shadows — lift only, never at rest (design-book/03) */
+  --shadow-held: 0 6px 24px rgba(0, 0, 0, 0.45);    /* z3 held */
+  --shadow-overlay: 0 18px 48px rgba(0, 0, 0, 0.55); /* z5 overlay */
+
+  /* Motion mass (design-book/03): feather / slab / stone / oath */
+  --t-feather: 120ms;
+  --t-slab: 280ms;
+  --t-stone: 400ms;
+  --t-oath: 800ms;           /* hold-gated fill — time IS the affordance */
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --ease-settle: cubic-bezier(0.05, 0.7, 0.1, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1); /* feather-class acks only */
+}
+
+/* Reduced motion is mandatory: depth stays, travel goes. */
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --t-feather: 0ms;
+    --t-slab: 0ms;
+    --t-stone: 0ms;
+    /* --t-oath stays: the hold IS the safety, not an animation */
+  }
+}

@@ -1,0 +1,50 @@
+.jig-appframe {
+  display: grid;
+  min-height: 100vh;
+  background: var(--bg0);
+  color: var(--ink);
+  font-family: var(--sans);
+  font-size: 14px;
+  line-height: 1.45;
+  grid-template-columns: 56px 1fr 300px;
+  grid-template-rows: 1fr 180px;
+  grid-template-areas:
+    'rail plate side'
+    'tray tray logbook';
+}
+
+.jig-appframe__rail {
+  grid-area: rail;
+  border-right: 1px solid var(--line);
+  padding: 12px 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.jig-appframe__plate {
+  grid-area: plate;
+  padding: 16px;
+}
+
+.jig-appframe__side {
+  grid-area: side;
+  border-left: 1px solid var(--line);
+  padding: 16px;
+  overflow-y: auto;
+}
+
+.jig-appframe__tray {
+  grid-area: tray;
+  border-top: 1px solid var(--line);
+  padding: 16px;
+  overflow-y: auto;
+}
+
+.jig-appframe__logbook {
+  grid-area: logbook;
+  border-top: 1px solid var(--line);
+  border-left: 1px solid var(--line);
+  padding: 16px;
+  overflow-y: auto;
+}
