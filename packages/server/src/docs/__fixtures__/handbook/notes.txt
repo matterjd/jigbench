@@ -1,0 +1,6 @@
+Deployment notes.
+
+Run the migration before starting the server. The invoice service needs the
+DUE_DATE_GRACE_DAYS environment variable set.
+
+Contact ops if anything looks wrong.

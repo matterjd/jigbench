@@ -19,6 +19,7 @@
   },
   "devDependencies": {
     "concurrently": "^10.0.5",
+    "pdf-lib": "^1.17.1",
     "tsx": "^4.23.12",
     "typescript": "^7.0.2",
     "vitest": "^4.1.11"

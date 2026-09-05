@@ -6,6 +6,7 @@ import open from 'open';
 import { MarkTargetSchema } from '@jigbench/core';
 import { JigStore } from './store.js';
 import { attachBenchServing, type BenchServeMode } from './bench-serve.js';
+import { createDocsRoute } from './docs/route.js';
 import { logger } from './logger.js';
 
 export interface CreateJigServerOptions {
@@ -52,6 +53,8 @@ function buildApp(
   app.get('/api/state', (_req, res) => {
     res.json(store.getState());
   });
+
+  app.get('/api/docs', createDocsRoute(store.repoRoot)); // S2b — see docs/route.ts
 
   app.post('/api/marks', async (req, res, next) => {
     try {
