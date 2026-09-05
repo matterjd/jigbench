@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022"],
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "strict": true,
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "skipLibCheck": true,
+    "resolveJsonModule": true,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "isolatedModules": true,
+    "verbatimModuleSyntax": false,
+    "paths": {
+      "@jigbench/core": ["./packages/core/src/index.ts"],
+      "@jigbench/core/*": ["./packages/core/src/*"],
+      "@jigbench/server": ["./packages/server/src/index.ts"],
+      "@jigbench/server/*": ["./packages/server/src/*"]
+    }
+  }
+}
