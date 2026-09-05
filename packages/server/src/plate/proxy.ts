@@ -17,6 +17,7 @@ import { injectLoupeScript, rewriteHeaders, type PlateHeaderChange } from './rew
 
 const LOUPE_ROUTE = '/__jig/loupe.js';
 const DEFAULT_PORT = 4601;
+const DEFAULT_HOST = '127.0.0.1';
 const PROBE_TIMEOUT_MS = 2000;
 
 export type PlateInterceptor = (
@@ -39,6 +40,11 @@ export interface CreatePlateProxyOptions {
   benchOrigin: string;
   /** The plate's own listening port. Defaults to 4601. */
   port?: number;
+  /** Interface to bind to. Defaults to loopback-only (`127.0.0.1`) — like the bench server,
+   * the plate has no business being reachable from the LAN unless asked. Exposed here so
+   * `--host` (the CLI's bench flag) can opt the plate into the same LAN exposure; nothing
+   * sets it implicitly. */
+  host?: string;
   /** Checked, in order, before every request is proxied. The first one to return a
    * `Response` answers the request directly and the target is never contacted — the seam S7
    * uses to answer `/api/*` from a fixture. Empty by default. */
@@ -48,6 +54,10 @@ export interface CreatePlateProxyOptions {
 export interface PlateProxyHandle extends PlateHost {
   readonly url: string;
   readonly port: number;
+  /** The literal address the socket bound to (`httpServer.address().address`) — exposed so
+   * tests can assert the loopback default without shelling out to `netstat` (mirrors
+   * `JigServerHandle.boundAddress` in `http.ts`). */
+  readonly boundAddress: string;
   /** Probes the current target (if any) and reports what the header/CSP rewrite would do —
    * and did, for the last successful probe. Never throws; an unreachable target is `'down'`,
    * not an error. */
@@ -121,6 +131,7 @@ function decompress(buf: Buffer, encoding: string): Buffer | undefined {
 /** Creates and immediately starts the plate proxy. */
 export function createPlateProxy(options: CreatePlateProxyOptions): PlateProxyHandle {
   const port = options.port ?? DEFAULT_PORT;
+  const host = options.host ?? DEFAULT_HOST;
   const interceptors = options.interceptors ?? [];
   const benchOrigin = options.benchOrigin;
   let currentTarget = options.target;
@@ -230,11 +241,16 @@ export function createPlateProxy(options: CreatePlateProxyOptions): PlateProxyHa
     proxy.ws(req, socket, head, { target: currentTarget });
   });
 
-  httpServer.listen(port);
+  httpServer.listen(port, host);
 
   function actualPort(): number {
     const address = httpServer.address();
     return typeof address === 'object' && address ? address.port : port;
+  }
+
+  function actualBoundAddress(): string {
+    const address = httpServer.address();
+    return typeof address === 'object' && address ? address.address : host;
   }
 
   async function probe(target: string): Promise<{ up: boolean; changes: PlateHeaderChange[] }> {
@@ -257,6 +273,9 @@ export function createPlateProxy(options: CreatePlateProxyOptions): PlateProxyHa
     },
     get port() {
       return actualPort();
+    },
+    get boundAddress() {
+      return actualBoundAddress();
     },
     async start(target: string): Promise<string> {
       currentTarget = target;

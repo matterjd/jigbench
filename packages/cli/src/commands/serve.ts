@@ -64,6 +64,7 @@ export async function runServeCommand(options: ServeCommandOptions): Promise<Ser
     target,
     benchOrigin,
     port: options.platePort,
+    host: options.host,
   });
 
   const handle = await createJigServer({

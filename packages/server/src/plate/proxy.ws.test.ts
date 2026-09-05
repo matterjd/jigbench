@@ -44,6 +44,14 @@ describe('createPlateProxy — WebSocket pass-through (HMR / ng-cli-ws)', () => 
     });
 
     plate = createPlateProxy({ benchOrigin: BENCH_ORIGIN, target: `http://localhost:${port}`, port: 0 });
+    // Binding to an explicit host (the loopback-default fix) routes through Node's
+    // dns.lookup internally, even for an IP literal — unlike the old implicit "any
+    // interface" bind, `httpServer.address()` is not synchronously populated the instant
+    // `createPlateProxy` returns. `getStatus()` is already async for an unrelated reason
+    // (it probes the target), so awaiting it once here — same as every other test in this
+    // file's sibling `proxy.test.ts` already does before reading `plate.url`/`plate.port`
+    // — guarantees the plate's own bind has completed before we open a client socket to it.
+    await plate.getStatus();
 
     const client = new WebSocket(`${plate.url.replace('http', 'ws')}ng-cli-ws`);
     const messages: string[] = [];

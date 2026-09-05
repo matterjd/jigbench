@@ -1,7 +1,7 @@
 import { createServer as createHttpServer, type Server as HttpServer } from 'node:http';
 import { gzipSync } from 'node:zlib';
 import { afterEach, describe, expect, it } from 'vitest';
-import { createPlateProxy, type PlateProxyHandle } from './proxy.js';
+import { createPlateProxy, type CreatePlateProxyOptions, type PlateProxyHandle } from './proxy.js';
 
 const BENCH_ORIGIN = 'http://localhost:4600';
 
@@ -26,9 +26,49 @@ async function listen(server: HttpServer): Promise<number> {
   return address.port;
 }
 
+/** `createPlateProxy` binds an explicit host (the loopback-only default, or whatever
+ * `options.host` overrides it to) — unlike the old implicit "any interface" bind, that
+ * routes through Node's `dns.lookup` internally even for an IP literal, so
+ * `httpServer.address()` (and therefore `.url`/`.port`/`.boundAddress`) is not
+ * synchronously populated the instant `createPlateProxy` returns. `getStatus()` is already
+ * async for an unrelated reason (it probes the target), so awaiting it once here gives the
+ * bind time to complete before a test reads `.url`/`.port`. */
+async function readyPlate(options: CreatePlateProxyOptions): Promise<PlateProxyHandle> {
+  const handle = createPlateProxy(options);
+  // getStatus() alone isn't always enough: when there is no target (or an unreachable one
+  // that fails near-instantly), its promise can resolve on a plain microtask — faster than
+  // the threadpool round trip our own dns.lookup-driven bind needs. Poll for the real,
+  // OS-assigned port (falls back to the *requested* `port: 0` until the bind completes) so
+  // this is deterministic rather than racing two unrelated async operations against a hope.
+  for (let attempt = 0; attempt < 50 && handle.port === 0; attempt++) {
+    await new Promise((resolve) => setImmediate(resolve));
+  }
+  return handle;
+}
+
+describe('createPlateProxy — network binding', () => {
+  it('binds loopback-only by default, not all interfaces', async () => {
+    plate = createPlateProxy({ benchOrigin: BENCH_ORIGIN, port: 0 });
+    // Force at least one tick so the underlying httpServer has finished its (async) bind —
+    // mirrors http.test.ts's same-shaped assertion for the bench server.
+    await plate.getStatus();
+    expect(plate.boundAddress).toBe('127.0.0.1');
+  });
+
+  it('binds the given host when one is passed (parity with --host)', async () => {
+    // '::1' rather than '0.0.0.0': both are a non-default host for this assertion's purposes,
+    // and binding all-interfaces from inside a sandboxed test runner can wedge the process's
+    // loopback routing for every test after it — '::1' is still loopback, just not the
+    // default, so it proves the same parity point without that side effect.
+    plate = createPlateProxy({ benchOrigin: BENCH_ORIGIN, port: 0, host: '::1' });
+    await plate.getStatus();
+    expect(plate.boundAddress).toBe('::1');
+  });
+});
+
 describe('createPlateProxy — no target configured', () => {
   it('serves an honest "no target" page rather than proxying or spinning', async () => {
-    plate = createPlateProxy({ benchOrigin: BENCH_ORIGIN, port: 0 });
+    plate = await readyPlate({ benchOrigin: BENCH_ORIGIN, port: 0 });
     const res = await fetch(plate.url);
     const body = await res.text();
     expect(res.status).toBe(200);
@@ -37,13 +77,13 @@ describe('createPlateProxy — no target configured', () => {
   });
 
   it('reports status "none" with no changes', async () => {
-    plate = createPlateProxy({ benchOrigin: BENCH_ORIGIN, port: 0 });
+    plate = await readyPlate({ benchOrigin: BENCH_ORIGIN, port: 0 });
     const status = await plate.getStatus();
     expect(status).toEqual({ target: null, port: plate.port, status: 'none', changes: [] });
   });
 
   it('still serves the loupe script even with no target', async () => {
-    plate = createPlateProxy({ benchOrigin: BENCH_ORIGIN, port: 0 });
+    plate = await readyPlate({ benchOrigin: BENCH_ORIGIN, port: 0 });
     const res = await fetch(`${plate.url}__jig/loupe.js`);
     expect(res.status).toBe(200);
     const body = await res.text();
@@ -53,7 +93,7 @@ describe('createPlateProxy — no target configured', () => {
 
 describe('createPlateProxy — target unreachable', () => {
   it('serves a plain page saying so, with the target URL and how to start it — never a spinner', async () => {
-    plate = createPlateProxy({ benchOrigin: BENCH_ORIGIN, target: 'http://localhost:1', port: 0 });
+    plate = await readyPlate({ benchOrigin: BENCH_ORIGIN, target: 'http://localhost:1', port: 0 });
     const res = await fetch(plate.url);
     const body = await res.text();
     expect(body.toLowerCase()).toContain('unreachable');
@@ -62,7 +102,7 @@ describe('createPlateProxy — target unreachable', () => {
   });
 
   it('reports status "down"', async () => {
-    plate = createPlateProxy({ benchOrigin: BENCH_ORIGIN, target: 'http://localhost:1', port: 0 });
+    plate = await readyPlate({ benchOrigin: BENCH_ORIGIN, target: 'http://localhost:1', port: 0 });
     const status = await plate.getStatus();
     expect(status.status).toBe('down');
     expect(status.target).toBe('http://localhost:1');
@@ -77,7 +117,7 @@ describe('createPlateProxy — HTML injection', () => {
       res.end(body);
     });
     const port = await listen(fakeUpstream);
-    plate = createPlateProxy({ benchOrigin: BENCH_ORIGIN, target: `http://localhost:${port}`, port: 0 });
+    plate = await readyPlate({ benchOrigin: BENCH_ORIGIN, target: `http://localhost:${port}`, port: 0 });
 
     const res = await fetch(plate.url);
     const body = await res.text();
@@ -96,7 +136,7 @@ describe('createPlateProxy — HTML injection', () => {
       res.end(gz);
     });
     const port = await listen(fakeUpstream);
-    plate = createPlateProxy({ benchOrigin: BENCH_ORIGIN, target: `http://localhost:${port}`, port: 0 });
+    plate = await readyPlate({ benchOrigin: BENCH_ORIGIN, target: `http://localhost:${port}`, port: 0 });
 
     const res = await fetch(plate.url);
     expect(res.headers.get('content-encoding')).toBeNull();
@@ -111,7 +151,7 @@ describe('createPlateProxy — HTML injection', () => {
       res.end(JSON.stringify({ ok: true }));
     });
     const port = await listen(fakeUpstream);
-    plate = createPlateProxy({ benchOrigin: BENCH_ORIGIN, target: `http://localhost:${port}`, port: 0 });
+    plate = await readyPlate({ benchOrigin: BENCH_ORIGIN, target: `http://localhost:${port}`, port: 0 });
 
     const res = await fetch(`${plate.url}api/thing`);
     expect(await res.json()).toEqual({ ok: true });
@@ -125,7 +165,7 @@ describe('createPlateProxy — HTML injection', () => {
       res.end('<html><body></body></html>');
     });
     const port = await listen(fakeUpstream);
-    plate = createPlateProxy({ benchOrigin: BENCH_ORIGIN, target: `http://localhost:${port}`, port: 0 });
+    plate = await readyPlate({ benchOrigin: BENCH_ORIGIN, target: `http://localhost:${port}`, port: 0 });
     await fetch(plate.url);
     expect(seenAcceptEncoding).toBe('identity');
   });
@@ -141,7 +181,7 @@ describe('createPlateProxy — header handling reports itself', () => {
       res.end('<html><body></body></html>');
     });
     const port = await listen(fakeUpstream);
-    plate = createPlateProxy({ benchOrigin: BENCH_ORIGIN, target: `http://localhost:${port}`, port: 0 });
+    plate = await readyPlate({ benchOrigin: BENCH_ORIGIN, target: `http://localhost:${port}`, port: 0 });
 
     const res = await fetch(plate.url);
     expect(res.headers.get('x-frame-options')).toBeNull();
@@ -159,7 +199,7 @@ describe('createPlateProxy — interceptor seam', () => {
       res.end('should never be reached');
     });
     const port = await listen(fakeUpstream);
-    plate = createPlateProxy({
+    plate = await readyPlate({
       benchOrigin: BENCH_ORIGIN,
       target: `http://localhost:${port}`,
       port: 0,
@@ -187,7 +227,7 @@ describe('createPlateProxy — interceptor seam', () => {
       res.end('upstream body');
     });
     const port = await listen(fakeUpstream);
-    plate = createPlateProxy({
+    plate = await readyPlate({
       benchOrigin: BENCH_ORIGIN,
       target: `http://localhost:${port}`,
       port: 0,
@@ -206,7 +246,7 @@ describe('createPlateProxy.start()', () => {
       res.end('<html><body>a</body></html>');
     });
     const port = await listen(fakeUpstream);
-    plate = createPlateProxy({ benchOrigin: BENCH_ORIGIN, port: 0 });
+    plate = await readyPlate({ benchOrigin: BENCH_ORIGIN, port: 0 });
 
     const before = await plate.getStatus();
     expect(before.status).toBe('none');
