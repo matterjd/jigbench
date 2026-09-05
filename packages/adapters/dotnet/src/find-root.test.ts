@@ -44,4 +44,31 @@ describe('findDotnetRoot', () => {
 
     await rm(repoRoot, { recursive: true, force: true });
   });
+
+  it('prefers the non-test project when a sibling *.tests project also exists one level down (examples/ ships ledger-api + ledger-api.tests)', async () => {
+    const repoRoot = await mkdtemp(join(tmpdir(), 'jig-dn-testsibling-'));
+    const testDir = join(repoRoot, 'ledger-api.tests');
+    const appDir = join(repoRoot, 'ledger-api');
+    // Create the test-project sibling FIRST so a naive "first match wins" search would
+    // pick it if readdir happens to return it before the real app directory.
+    await mkdir(testDir);
+    await writeFile(join(testDir, 'LedgerApi.Tests.csproj'), '<Project />');
+    await mkdir(appDir);
+    await writeFile(join(appDir, 'LedgerApi.csproj'), '<Project />');
+
+    expect(await findDotnetRoot(repoRoot)).toBe(appDir.replace(/\\/g, '/'));
+
+    await rm(repoRoot, { recursive: true, force: true });
+  });
+
+  it('falls back to a *.tests project when it is the only candidate one level down', async () => {
+    const repoRoot = await mkdtemp(join(tmpdir(), 'jig-dn-onlytests-'));
+    const testDir = join(repoRoot, 'ledger-api.tests');
+    await mkdir(testDir);
+    await writeFile(join(testDir, 'LedgerApi.Tests.csproj'), '<Project />');
+
+    expect(await findDotnetRoot(repoRoot)).toBe(testDir.replace(/\\/g, '/'));
+
+    await rm(repoRoot, { recursive: true, force: true });
+  });
 });

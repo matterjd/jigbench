@@ -1,9 +1,15 @@
 import { describe, expect, it } from 'vitest';
-import { mkdtemp, readFile, stat } from 'node:fs/promises';
+import { cp, mkdtemp, readFile, rm, stat } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
+import { fileURLToPath } from 'node:url';
 import { join } from 'node:path';
 import { jigPaths, parseWorkOrder } from '@jigbench/core';
 import { JigStore } from './store.js';
+import { runSurveyAndWrite } from './survey/run.js';
+
+const LEDGER_ANGULAR_SOURCE = fileURLToPath(
+  new URL('../../../examples/ledger-angular', import.meta.url),
+);
 
 async function freshRepo(): Promise<string> {
   return mkdtemp(join(tmpdir(), 'jig-store-'));
@@ -127,4 +133,25 @@ describe('JigStore.reload / a fresh process picking the store back up', () => {
 
     expect(store.getState().wiring.survey).toBe('wired');
   });
+
+  it('GET /api/state carries the real survey once S2 wiring has run — not a hand-crafted stand-in (examples/ is read-only, so this runs against a throwaway copy)', async () => {
+    const repoRoot = await mkdtemp(join(tmpdir(), 'jig-store-real-survey-'));
+    try {
+      await cp(LEDGER_ANGULAR_SOURCE, repoRoot, { recursive: true });
+      await runSurveyAndWrite(repoRoot);
+
+      // A store constructed AFTER the survey ran, the way the real server boots against an
+      // already-clamped repo — store.getState() is exactly what `GET /api/state` returns.
+      const store = new JigStore(repoRoot);
+      await store.init();
+      const state = store.getState();
+
+      expect(state.survey.stub).toBe(false);
+      expect(state.survey.components.length).toBe(7);
+      expect(state.survey.components.map((c) => c.name)).toContain('StatusChipComponent');
+      expect(state.wiring.survey).toBe('wired');
+    } finally {
+      await rm(repoRoot, { recursive: true, force: true });
+    }
+  }, 20000);
 });
