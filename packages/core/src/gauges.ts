@@ -59,9 +59,12 @@ export function categorizeGauge(name: string, value: string): GaugeCategory {
   const v = value.trim();
 
   if (/shadow/.test(n)) return 'shadow';
-  if (/^(t|ease)-/.test(n) || /duration|timing/.test(n)) return 'motion';
-  if (/radius/.test(n) || /^r(-|$)/.test(n)) return 'radius';
-  if (/z-index/.test(n) || /^z(-|$)/.test(n)) return 'z';
+  // Boundary-anchored on EITHER side of a hyphen (not just the string start) so a
+  // namespaced/foreign token set (e.g. a third-party app's `--ledger-t-fast`, not just
+  // Jig's own `--t-feather`) still categorizes correctly — see gauges.test.ts.
+  if (/(^|-)(t|ease)-/.test(n) || /duration|timing/.test(n)) return 'motion';
+  if (/radius/.test(n) || /(^|-)r(-|$)/.test(n)) return 'radius';
+  if (/z-index/.test(n) || /(^|-)z(-|$)/.test(n)) return 'z';
   if (/font|sans|mono|leading|tracking|weight/.test(n)) return 'type';
   if (COLOR_VALUE_RE.test(v) || COLOR_NAME_RE.test(n)) return 'colour';
   return 'space';

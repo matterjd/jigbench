@@ -7,4 +7,6 @@ export default defineWorkspace([
   'packages/server/vitest.config.ts',
   'packages/cli/vitest.config.ts',
   'packages/bench/vitest.config.ts',
+  'packages/adapters/angular/vitest.config.ts',
+  'packages/adapters/dotnet/vitest.config.ts',
 ]);
