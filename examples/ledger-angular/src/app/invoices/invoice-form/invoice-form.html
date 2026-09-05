@@ -1,0 +1,44 @@
+<form class="invoice-form" [formGroup]="form" (ngSubmit)="submit()">
+  <h1>{{ isEdit() ? 'Edit invoice' : 'New invoice' }}</h1>
+
+  <label class="invoice-form__field">
+    <span>Customer</span>
+    <select formControlName="customerId">
+      <option value="" disabled>Select a customer</option>
+      @for (customer of customers(); track customer.id) {
+        <option [value]="customer.id">{{ customer.name }}</option>
+      }
+    </select>
+  </label>
+
+  <div class="invoice-form__row">
+    <label class="invoice-form__field">
+      <span>Issued</span>
+      <input type="date" formControlName="issuedOn" />
+    </label>
+    <label class="invoice-form__field">
+      <span>Due</span>
+      <input type="date" formControlName="dueOn" />
+    </label>
+  </div>
+
+  <fieldset class="invoice-form__lines" formArrayName="lines">
+    <legend>Line items</legend>
+    @for (line of lines.controls; track $index) {
+      <div class="invoice-form__line" [formGroupName]="$index">
+        <input type="text" placeholder="Description" formControlName="description" />
+        <input type="number" placeholder="Qty" formControlName="quantity" min="1" />
+        <input type="number" placeholder="Unit price" formControlName="unitPrice" min="0" step="0.01" />
+        <button type="button" (click)="removeLine($index)" aria-label="Remove line">&times;</button>
+      </div>
+    }
+    <button type="button" (click)="addLine()">Add line</button>
+  </fieldset>
+
+  <label class="invoice-form__field">
+    <span>Notes</span>
+    <textarea formControlName="notes" rows="3"></textarea>
+  </label>
+
+  <button type="submit" class="button">Save invoice</button>
+</form>

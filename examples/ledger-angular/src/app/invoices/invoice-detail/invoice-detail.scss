@@ -1,0 +1,51 @@
+.invoice-detail__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: var(--ledger-space-5);
+}
+
+.invoice-detail__customer {
+  color: var(--ledger-color-ink);
+  opacity: 0.7;
+}
+
+.invoice-detail__meta {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: var(--ledger-space-2) var(--ledger-space-4);
+  margin-bottom: var(--ledger-space-5);
+}
+
+.invoice-detail__meta dt {
+  font-weight: 600;
+}
+
+.invoice-detail__lines {
+  width: 100%;
+  background: white;
+  border: 1px solid var(--ledger-color-line);
+  border-radius: var(--ledger-radius-m);
+  margin-bottom: var(--ledger-space-5);
+}
+
+.invoice-detail__lines th,
+.invoice-detail__lines td {
+  text-align: left;
+  padding: var(--ledger-space-2) var(--ledger-space-4);
+  border-bottom: 1px solid var(--ledger-color-line);
+}
+
+.invoice-detail__notes {
+  font-style: italic;
+  opacity: 0.8;
+}
+
+.button {
+  display: inline-block;
+  padding: var(--ledger-space-2) var(--ledger-space-4);
+  background: var(--ledger-color-accent);
+  color: white;
+  text-decoration: none;
+  border-radius: var(--ledger-radius-s);
+}

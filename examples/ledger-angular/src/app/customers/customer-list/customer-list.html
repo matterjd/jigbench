@@ -1,0 +1,25 @@
+<div class="customer-list">
+  <h1>Customers</h1>
+  <table class="customer-list__table">
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Email</th>
+        <th>City</th>
+      </tr>
+    </thead>
+    <tbody>
+      @for (customer of customers(); track customer.id) {
+        <tr>
+          <td>{{ customer.name }}</td>
+          <td>{{ customer.email }}</td>
+          <td>{{ customer.city }}</td>
+        </tr>
+      } @empty {
+        <tr>
+          <td colspan="3" class="customer-list__empty">No customers yet.</td>
+        </tr>
+      }
+    </tbody>
+  </table>
+</div>

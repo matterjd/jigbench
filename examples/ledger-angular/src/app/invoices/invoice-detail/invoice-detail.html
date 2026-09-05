@@ -1,0 +1,47 @@
+@if (invoice(); as inv) {
+  <div class="invoice-detail">
+    <div class="invoice-detail__header">
+      <div>
+        <h1>{{ inv.number }}</h1>
+        <p class="invoice-detail__customer">{{ inv.customerName }}</p>
+      </div>
+      <app-status-chip [status]="inv.status" />
+    </div>
+
+    <dl class="invoice-detail__meta">
+      <dt>Issued</dt>
+      <dd>{{ inv.issuedOn }}</dd>
+      <dt>Due</dt>
+      <dd>{{ inv.dueOn }}</dd>
+      <dt>Total</dt>
+      <dd>{{ inv.total | money }}</dd>
+    </dl>
+
+    <table class="invoice-detail__lines">
+      <thead>
+        <tr>
+          <th>Description</th>
+          <th>Qty</th>
+          <th>Unit price</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (line of inv.lines; track line.id) {
+          <tr>
+            <td>{{ line.description }}</td>
+            <td>{{ line.quantity }}</td>
+            <td>{{ line.unitPrice | money }}</td>
+          </tr>
+        }
+      </tbody>
+    </table>
+
+    @if (inv.notes) {
+      <p class="invoice-detail__notes">{{ inv.notes }}</p>
+    }
+
+    <a class="button" [routerLink]="['/invoices', inv.id, 'edit']">Edit</a>
+  </div>
+} @else {
+  <p>Loading…</p>
+}

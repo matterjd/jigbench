@@ -1,0 +1,19 @@
+.customer-list__table {
+  width: 100%;
+  background: white;
+  border: 1px solid var(--ledger-color-line);
+  border-radius: var(--ledger-radius-m);
+  box-shadow: var(--ledger-shadow-card);
+}
+
+.customer-list__table th,
+.customer-list__table td {
+  text-align: left;
+  padding: var(--ledger-space-3) var(--ledger-space-4);
+  border-bottom: 1px solid var(--ledger-color-line);
+}
+
+.customer-list__empty {
+  text-align: center;
+  opacity: 0.6;
+}

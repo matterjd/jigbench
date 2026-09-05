@@ -1,0 +1,49 @@
+.invoice-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ledger-space-4);
+  max-width: 640px;
+}
+
+.invoice-form__field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ledger-space-1);
+}
+
+.invoice-form__field input,
+.invoice-form__field select,
+.invoice-form__field textarea {
+  padding: var(--ledger-space-2);
+  border: 1px solid var(--ledger-color-line);
+  border-radius: var(--ledger-radius-s);
+  font-family: var(--ledger-font-body);
+}
+
+.invoice-form__row {
+  display: flex;
+  gap: var(--ledger-space-4);
+}
+
+.invoice-form__lines {
+  border: 1px solid var(--ledger-color-line);
+  border-radius: var(--ledger-radius-m);
+  padding: var(--ledger-space-4);
+}
+
+.invoice-form__line {
+  display: grid;
+  grid-template-columns: 1fr 80px 120px auto;
+  gap: var(--ledger-space-2);
+  margin-bottom: var(--ledger-space-2);
+}
+
+.button {
+  align-self: flex-start;
+  padding: var(--ledger-space-2) var(--ledger-space-4);
+  background: var(--ledger-color-accent);
+  color: white;
+  border: none;
+  border-radius: var(--ledger-radius-s);
+  cursor: pointer;
+}

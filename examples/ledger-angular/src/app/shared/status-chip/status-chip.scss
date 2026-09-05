@@ -1,0 +1,38 @@
+.chip {
+  display: inline-flex;
+  align-items: center;
+  padding: var(--ledger-space-1) var(--ledger-space-3);
+  border-radius: var(--ledger-radius-l);
+  font-size: var(--ledger-font-size-s);
+  font-weight: 600;
+  line-height: 1.6;
+  border: 1px solid var(--ledger-color-line);
+  color: var(--ledger-color-ink);
+  background: transparent;
+}
+
+.chip--paid {
+  color: var(--ledger-color-ok);
+  border-color: var(--ledger-color-ok);
+}
+
+.chip--sent {
+  color: var(--ledger-color-accent);
+  border-color: var(--ledger-color-accent);
+}
+
+.chip--draft {
+  color: var(--ledger-color-ink);
+  border-color: var(--ledger-color-line);
+}
+
+.chip--overdue {
+  color: var(--ledger-color-danger);
+  border-color: var(--ledger-color-danger);
+}
+
+.chip--void {
+  color: var(--ledger-color-warn);
+  border-color: var(--ledger-color-warn);
+  text-decoration: line-through;
+}

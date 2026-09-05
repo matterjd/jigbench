@@ -1,0 +1,84 @@
+/*
+ * Ledger design system — a small-business bookkeeping look: paper, ink, a
+ * muted teal accent. This is intentionally NOT Jig's own token set (Jig is
+ * dark-first, Obsidian & Ember) — Ledger is a light-theme THIRD-PARTY app
+ * fixture so Jig's gauges panel has a foreign design system to survey.
+ *
+ * Tokens are published two ways on purpose: CSS custom properties (for
+ * runtime theming and DOM inspection) and mirrored SCSS variables (for
+ * build-time use in component styles) — so a survey tool has both a
+ * `:root { --ledger-* }` block and `$ledger-*` declarations to find.
+ */
+
+:root {
+  /* colour */
+  --ledger-color-paper: #f7f4ec;
+  --ledger-color-ink: #2b2620;
+  --ledger-color-accent: #3b6e5e;
+  --ledger-color-ok: #2f7d4f;
+  --ledger-color-warn: #b8860b;
+  --ledger-color-danger: #b23b3b;
+  --ledger-color-line: #ddd6c4;
+
+  /* type */
+  --ledger-font-body: Georgia, 'Iowan Old Style', 'Times New Roman', serif;
+  --ledger-font-mono: 'Courier New', ui-monospace, SFMono-Regular, monospace;
+  --ledger-font-size-s: 0.8125rem;
+  --ledger-font-size-m: 1rem;
+  --ledger-font-size-l: 1.25rem;
+  --ledger-font-size-xl: 1.75rem;
+
+  /* space — 4px grid */
+  --ledger-space-1: 4px;
+  --ledger-space-2: 8px;
+  --ledger-space-3: 12px;
+  --ledger-space-4: 16px;
+  --ledger-space-5: 24px;
+  --ledger-space-6: 32px;
+
+  /* radius */
+  --ledger-radius-s: 2px;
+  --ledger-radius-m: 4px;
+  --ledger-radius-l: 8px;
+
+  /* shadow */
+  --ledger-shadow-card: 0 1px 2px rgba(43, 38, 32, 0.08), 0 2px 8px rgba(43, 38, 32, 0.06);
+
+  /* motion */
+  --ledger-t-fast: 120ms;
+  --ledger-t-slow: 280ms;
+}
+
+/* SCSS-variable mirror of a subset of the tokens above, for components that
+   need compile-time values (e.g. inside a SCSS function or @media query). */
+$ledger-color-paper: #f7f4ec;
+$ledger-color-ink: #2b2620;
+$ledger-color-accent: #3b6e5e;
+$ledger-space-4: 16px;
+$ledger-radius-m: 4px;
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--ledger-color-paper);
+  color: var(--ledger-color-ink);
+  font-family: var(--ledger-font-body);
+  font-size: var(--ledger-font-size-m);
+}
+
+a {
+  color: var(--ledger-color-accent);
+}
+
+table {
+  border-collapse: collapse;
+  width: 100%;
+}

@@ -1,0 +1,43 @@
+.shell {
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.shell__header {
+  display: flex;
+  align-items: center;
+  gap: var(--ledger-space-6);
+  padding: var(--ledger-space-4) var(--ledger-space-6);
+  border-bottom: 1px solid var(--ledger-color-line);
+  background: var(--ledger-color-paper);
+}
+
+.shell__brand {
+  font-size: var(--ledger-font-size-l);
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.shell__nav {
+  display: flex;
+  gap: var(--ledger-space-5);
+}
+
+.shell__nav a {
+  text-decoration: none;
+  color: var(--ledger-color-ink);
+  padding-bottom: var(--ledger-space-1);
+  border-bottom: 2px solid transparent;
+  transition: border-color var(--ledger-t-fast);
+}
+
+.shell__nav a.is-active {
+  color: var(--ledger-color-accent);
+  border-bottom-color: var(--ledger-color-accent);
+}
+
+.shell__main {
+  flex: 1;
+  padding: var(--ledger-space-6);
+}
