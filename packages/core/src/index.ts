@@ -11,3 +11,5 @@ export * from './jig-state.js';
 export * from './ids.js';
 export * from './paths.js';
 export * from './jsonschema.js';
+export * from './docs.js';
+export * from './rank.js';
