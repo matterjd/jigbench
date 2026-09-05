@@ -1,0 +1,24 @@
+{
+  "name": "jigbench",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Jig — a local-first benchtop. The jigbench CLI: thin wiring over @jigbench/server.",
+  "type": "module",
+  "bin": {
+    "jigbench": "dist/bin.js"
+  },
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run --project cli"
+  },
+  "dependencies": {
+    "@jigbench/server": "*",
+    "commander": "^15.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.13.3"
+  }
+}
