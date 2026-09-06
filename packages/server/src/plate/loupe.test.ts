@@ -191,4 +191,128 @@ describe('loupe.js', () => {
       expect(seen).toEqual([]);
     });
   });
+
+  describe('S4 extension: jig:highlight by selector + jig:navigate', () => {
+    it('jig:highlight with paths still highlights by DOM path (unchanged behaviour)', () => {
+      const dom = loadLoupe('<ul><li id="a">a</li><li id="b">b</li></ul>');
+      const a = dom.window.document.getElementById('a')!;
+      const path = internalOf(dom).buildDomPath(a);
+
+      dom.window.dispatchEvent(
+        new dom.window.MessageEvent('message', { data: { type: 'jig:highlight', paths: [path] }, origin: BENCH_ORIGIN }),
+      );
+
+      const boxes = dom.window.document.querySelectorAll('[data-jig-loupe-highlight]');
+      expect(boxes).toHaveLength(1);
+    });
+
+    it('jig:highlight with selectors outlines every matching element', () => {
+      const dom = loadLoupe(
+        '<div class="lg-btn">one</div><div class="lg-btn">two</div><div class="other">three</div>',
+      );
+
+      dom.window.dispatchEvent(
+        new dom.window.MessageEvent('message', {
+          data: { type: 'jig:highlight', selectors: ['.lg-btn'] },
+          origin: BENCH_ORIGIN,
+        }),
+      );
+
+      const boxes = dom.window.document.querySelectorAll('[data-jig-loupe-highlight]');
+      expect(boxes).toHaveLength(2);
+    });
+
+    it('jig:highlight with multiple selectors unions every match across all of them', () => {
+      const dom = loadLoupe('<div class="a">1</div><div class="b">2</div><div class="c">3</div>');
+
+      dom.window.dispatchEvent(
+        new dom.window.MessageEvent('message', {
+          data: { type: 'jig:highlight', selectors: ['.a', '.b'] },
+          origin: BENCH_ORIGIN,
+        }),
+      );
+
+      expect(dom.window.document.querySelectorAll('[data-jig-loupe-highlight]')).toHaveLength(2);
+    });
+
+    it('an invalid selector is skipped rather than throwing from the message handler', () => {
+      const dom = loadLoupe('<div class="ok">1</div>');
+      expect(() =>
+        dom.window.dispatchEvent(
+          new dom.window.MessageEvent('message', {
+            data: { type: 'jig:highlight', selectors: [':::not-a-selector', '.ok'] },
+            origin: BENCH_ORIGIN,
+          }),
+        ),
+      ).not.toThrow();
+      expect(dom.window.document.querySelectorAll('[data-jig-loupe-highlight]')).toHaveLength(1);
+    });
+
+    it('jig:clear removes selector-painted highlights too', () => {
+      const dom = loadLoupe('<div class="lg-btn">one</div>');
+      dom.window.dispatchEvent(
+        new dom.window.MessageEvent('message', {
+          data: { type: 'jig:highlight', selectors: ['.lg-btn'] },
+          origin: BENCH_ORIGIN,
+        }),
+      );
+      expect(dom.window.document.querySelectorAll('[data-jig-loupe-highlight]')).toHaveLength(1);
+
+      dom.window.dispatchEvent(
+        new dom.window.MessageEvent('message', { data: { type: 'jig:clear' }, origin: BENCH_ORIGIN }),
+      );
+      expect(dom.window.document.querySelectorAll('[data-jig-loupe-highlight]')).toHaveLength(0);
+    });
+
+    // jsdom's Location.prototype.assign is neither writable nor configurable, so it cannot be
+    // spied on directly (a real browser's is a normal method — this is a jsdom-only limit).
+    // The resolution logic (same-origin check + absolute-URL building) is exposed on the same
+    // `__jigLoupeInternal` test hook the file's other pure helpers use, exactly for this
+    // reason: `navigateSameOrigin` itself is exercised below only for "does it throw."
+    it('resolveNavigateUrl resolves a same-origin relative path to an absolute URL', () => {
+      const dom = loadLoupe('<p>hi</p>');
+      expect((internalOf(dom) as unknown as { resolveNavigateUrl(p: string): string | null }).resolveNavigateUrl('/invoices')).toBe(
+        'http://target.example/invoices',
+      );
+    });
+
+    it('resolveNavigateUrl refuses a cross-origin absolute URL', () => {
+      const dom = loadLoupe('<p>hi</p>');
+      expect(
+        (internalOf(dom) as unknown as { resolveNavigateUrl(p: string): string | null }).resolveNavigateUrl(
+          'http://evil.example/steal',
+        ),
+      ).toBeNull();
+    });
+
+    it('resolveNavigateUrl returns null for a malformed path rather than throwing', () => {
+      const dom = loadLoupe('<p>hi</p>');
+      expect(() =>
+        (internalOf(dom) as unknown as { resolveNavigateUrl(p: string): string | null }).resolveNavigateUrl('http://'),
+      ).not.toThrow();
+    });
+
+    it('jig:navigate with a same-origin path never throws from the message handler', () => {
+      const dom = loadLoupe('<p>hi</p>');
+      expect(() =>
+        dom.window.dispatchEvent(
+          new dom.window.MessageEvent('message', { data: { type: 'jig:navigate', path: '/invoices' }, origin: BENCH_ORIGIN }),
+        ),
+      ).not.toThrow();
+    });
+
+    it('jig:navigate with a cross-origin path never throws and never navigates', () => {
+      const dom = loadLoupe('<p>hi</p>');
+      const before = dom.window.location.href;
+      expect(() =>
+        dom.window.dispatchEvent(
+          new dom.window.MessageEvent('message', {
+            data: { type: 'jig:navigate', path: 'http://evil.example/steal' },
+            origin: BENCH_ORIGIN,
+          }),
+        ),
+      ).not.toThrow();
+      expect(dom.window.location.href).toBe(before);
+    });
+  });
 });

@@ -127,6 +127,68 @@
     }
   }
 
+  /* ==== S4 extension (jigbench#1 CHASSIS.md/Gauges panel) — begin delimited block ==========
+     Two additions to the postMessage contract documented at the top of this file:
+       bench -> plate  {type:'jig:highlight', selectors:[...]}   (paths still works, unchanged)
+       bench -> plate  {type:'jig:navigate', path:'...'}
+     Both are wired into the existing `window.addEventListener('message', ...)` dispatcher
+     below with the smallest possible touch to that function (one branch extended, one added)
+     — everything else the two features need lives in this one block. ==================== */
+
+  /** Gauges-panel two-way lighting: "clicking a gauge lights the components whose style
+   * files use it" (S4 brief) — the bench resolves the survey's component selectors for a
+   * gauge's usages and posts them here, and every match on the page gets the same dashed
+   * storm outline `paintHighlights` draws for a DOM-path highlight. Duplicates that
+   * function's small box-painting instead of sharing it, so this block stays self-contained. */
+  function paintHighlightsBySelectors(selectors) {
+    clearHighlights();
+    for (var i = 0; i < selectors.length; i++) {
+      var matches;
+      try {
+        matches = document.querySelectorAll(selectors[i]);
+      } catch (err) {
+        continue; // a selector the survey emitted that isn't valid CSS — skip it, never throw
+      }
+      for (var j = 0; j < matches.length; j++) {
+        var el = matches[j];
+        var rect = el.getBoundingClientRect();
+        var box = document.createElement('div');
+        box.setAttribute('data-jig-loupe-highlight', '');
+        styleFixedBox(box, 2147483646);
+        box.style.border = '1px solid ' + STORM_COLOR;
+        box.style.left = rect.left + 'px';
+        box.style.top = rect.top + 'px';
+        box.style.width = rect.width + 'px';
+        box.style.height = rect.height + 'px';
+        document.body.appendChild(box);
+        highlightBoxes.push(box);
+      }
+    }
+  }
+
+  /** The command palette's "routes" items navigate the plate (F1/S4 brief: "post a
+   * jig:navigate {path} message ... location.assign(path) within the same origin"). Resolved
+   * as a pure function so it can be unit-tested without touching the real `location` (jsdom's
+   * `Location.prototype.assign` is neither writable nor configurable, unlike a real browser's)
+   * — returns the absolute same-origin URL to navigate to, or null when `path` would leave the
+   * target's own origin (or fails to parse at all), in which case nothing happens. */
+  function resolveNavigateUrl(path) {
+    try {
+      var target = new URL(path, window.location.href);
+      if (target.origin !== window.location.origin) return null;
+      return target.href;
+    } catch (err) {
+      return null;
+    }
+  }
+
+  function navigateSameOrigin(path) {
+    var url = resolveNavigateUrl(path);
+    if (url) window.location.assign(url);
+  }
+
+  /* ==== S4 extension — end delimited block ================================================ */
+
   // ---- DOM path: tag:nth-of-type chain, stable across reloads -----------
 
   function buildDomPath(el) {
@@ -304,10 +366,19 @@
     } else if (data.type === 'jig:survey') {
       surveySelectors = Array.isArray(data.selectors) ? data.selectors : [];
     } else if (data.type === 'jig:highlight') {
-      paintHighlights(Array.isArray(data.paths) ? data.paths : []);
+      // S4 extension (see the delimited block above): selectors takes priority when both are
+      // present — a bench message names one or the other, never both on purpose.
+      if (Array.isArray(data.selectors) && data.selectors.length > 0) {
+        paintHighlightsBySelectors(data.selectors);
+      } else {
+        paintHighlights(Array.isArray(data.paths) ? data.paths : []);
+      }
     } else if (data.type === 'jig:clear') {
       clearHighlights();
       clearOutline();
+    } else if (data.type === 'jig:navigate') {
+      // S4 extension (see the delimited block above).
+      navigateSameOrigin(String(data.path || ''));
     }
   });
 
@@ -323,6 +394,7 @@
     setMode: function (next) {
       mode = next;
     },
+    resolveNavigateUrl: resolveNavigateUrl, // S4 extension
     getMode: function () {
       return mode;
     },

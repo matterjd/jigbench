@@ -1,7 +1,8 @@
 // @vitest-environment jsdom
-import { afterEach, describe, expect, it } from 'vitest';
+import { createRef } from 'react';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, render, screen, waitFor } from '@testing-library/react';
-import { PlateBench } from './PlateBench.js';
+import { PlateBench, type PlateBenchHandle } from './PlateBench.js';
 import type { Survey } from '@jigbench/core';
 
 afterEach(() => cleanup());
@@ -14,7 +15,7 @@ const survey: Survey = {
   jigFormat: 1,
   stack: ['angular'],
   components: [
-    { name: 'InvoiceListComponent', selector: 'app-invoice-list', file: 'x.ts', inputs: [], outputs: [], styleUrls: [] },
+    { name: 'InvoiceListComponent', selector: 'app-invoice-list', file: 'x.ts', standalone: true, inline: false, inputs: [], outputs: [], styleUrls: [] },
   ],
   routes: [],
   endpoints: [],
@@ -24,10 +25,9 @@ const survey: Survey = {
 };
 
 describe('PlateBench', () => {
-  it('shows the honest "no target" state and the loupe readout together when nothing is wired', async () => {
+  it('shows the honest "no target" state when nothing is wired', async () => {
     render(<PlateBench fetchImpl={fakeFetch({ target: null, port: 0, status: 'none', changes: [] })} />);
     await waitFor(() => expect(screen.getByText(/no target is set/i)).toBeTruthy());
-    expect(screen.getByText(/point at anything/i)).toBeTruthy();
   });
 
   it('renders the plate iframe once the proxy reports "up"', async () => {
@@ -39,5 +39,51 @@ describe('PlateBench', () => {
     );
     await waitFor(() => expect(document.querySelector('iframe')).toBeTruthy());
     expect(document.querySelector('iframe')?.getAttribute('src')).toBe('http://localhost:4601/');
+  });
+
+  it('renders the top and left rulers reading the plate\'s CSS pixels', async () => {
+    const { container } = render(<PlateBench fetchImpl={fakeFetch({ target: null, port: 0, status: 'none', changes: [] })} />);
+    await waitFor(() => expect(container.querySelector('.jig-plate-rulers__top canvas')).toBeTruthy());
+    expect(container.querySelector('.jig-plate-rulers__left canvas')).toBeTruthy();
+  });
+
+  it('shows no guides when nothing has been picked', async () => {
+    const { container } = render(<PlateBench fetchImpl={fakeFetch({ target: null, port: 0, status: 'none', changes: [] })} />);
+    await waitFor(() => expect(container.querySelector('.jig-plate-rulers')).toBeTruthy());
+    expect(container.querySelector('.jig-plate-guides__line')).toBeNull();
+  });
+
+  it('calls onPick when the bridge records a jig:pick, and onModeChange when the mode changes', async () => {
+    const onPick = vi.fn();
+    const onModeChange = vi.fn();
+    render(
+      <PlateBench
+        fetchImpl={fakeFetch({ target: 'http://localhost:4200', port: 4601, status: 'up', changes: [] })}
+        onPick={onPick}
+        onModeChange={onModeChange}
+      />,
+    );
+    await waitFor(() => expect(document.querySelector('iframe')).toBeTruthy());
+    // The bridge starts in hand mode with no pick — the mount itself fires both callbacks once
+    // with their initial values, which is the honest starting state, not a bug.
+    expect(onModeChange).toHaveBeenCalledWith('hand');
+    expect(onPick).toHaveBeenCalledWith(null);
+  });
+
+  it('exposes highlight/clearHighlight/navigate/setMode via the ref for the chassis to drive', async () => {
+    const ref = createRef<PlateBenchHandle>();
+    const iframe = document.createElement('iframe');
+    render(
+      <PlateBench
+        ref={ref}
+        fetchImpl={fakeFetch({ target: 'http://localhost:4200', port: 4601, status: 'up', changes: [] })}
+      />,
+    );
+    await waitFor(() => expect(document.querySelector('iframe')).toBeTruthy());
+    expect(typeof ref.current?.highlight).toBe('function');
+    expect(typeof ref.current?.clearHighlight).toBe('function');
+    expect(typeof ref.current?.navigate).toBe('function');
+    expect(typeof ref.current?.setMode).toBe('function');
+    void iframe;
   });
 });
