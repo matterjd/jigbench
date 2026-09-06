@@ -13,13 +13,26 @@ export function slugify(input: string): string {
   return slug || 'untitled';
 }
 
-/** The next four-digit work-order id, given the ids already on disk. Pure — the caller
- * reads `.jig/work-orders/` and hands the list in; this never touches a filesystem. */
-export function nextWorkOrderId(existing: readonly string[]): string {
+/** Shared by every `.jig/` collection that numbers its files `0001`, `0002`, … — pure, no
+ * filesystem access; the caller reads its own directory and hands the ids already on disk
+ * in. */
+function nextFourDigitId(existing: readonly string[]): string {
   let max = 0;
   for (const id of existing) {
     const n = Number.parseInt(id, 10);
     if (Number.isFinite(n) && n > max) max = n;
   }
   return String(max + 1).padStart(4, '0');
+}
+
+/** The next four-digit work-order id, given the ids already on disk. */
+export function nextWorkOrderId(existing: readonly string[]): string {
+  return nextFourDigitId(existing);
+}
+
+/** The next four-digit toolpath id, given the ids already under `.jig/toolpaths/` (S8) — the
+ * same numbering rule as work orders, under its own name so a caller reaching for "the next
+ * id for MY collection" never has to borrow a work-order-named function to get it. */
+export function nextToolpathId(existing: readonly string[]): string {
+  return nextFourDigitId(existing);
 }
