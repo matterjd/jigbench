@@ -108,6 +108,24 @@ describe('TrialFitMirror — split once trial-fit is reached', () => {
     expect(right.getAttribute('src')).toBe('http://localhost:4602/');
   });
 
+  // Wave-4 council finding 4 (MEDIUM): the "before" (snapshot) frame is sandboxed as a third
+  // layer of defense — allow-same-origin (so snapshotHighlight.ts can still reach
+  // contentDocument) but NOT allow-scripts, so anything that slipped past both sanitization
+  // passes still can't execute.
+  it('sandboxes the "before" snapshot iframe (allow-same-origin, no scripts) but leaves the live "after" mirror unsandboxed', async () => {
+    const { fetchImpl } = routedFetch({
+      'POST /api/plate/mirror': { target: 'http://localhost:4200', port: 4602 },
+      'GET /api/plate': { target: 'http://localhost:4200', port: 4601, status: 'up', changes: [], mirror: { port: 4602, status: 'up' } },
+    });
+    render(<TrialFitMirror workOrders={[trialFitOrder()]} fetchImpl={fetchImpl} />);
+    await waitFor(() => expect(document.querySelectorAll('iframe')).toHaveLength(2));
+
+    const [left, right] = Array.from(document.querySelectorAll('iframe'));
+    expect(left.getAttribute('sandbox')).toBe('allow-same-origin');
+    expect(left.getAttribute('sandbox')).not.toContain('allow-scripts');
+    expect(right.getAttribute('sandbox')).toBeNull();
+  });
+
   it('starts the mirror once (POST /api/plate/mirror) when entering trial-fit', async () => {
     const { fetchImpl, calls } = routedFetch({
       'POST /api/plate/mirror': { target: 'http://localhost:4200', port: 4602 },

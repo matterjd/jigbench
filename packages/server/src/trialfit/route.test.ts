@@ -222,6 +222,43 @@ describe('POST /api/plate/snapshot + GET /api/plate/snapshot/:id', () => {
     });
     expect(res.status).toBe(400);
   });
+
+  // Wave-4 council finding 4 (MEDIUM): sanitize on save (defense in depth alongside loupe.js's
+  // own client-side sanitization) and serve with a locked-down CSP + nosniff.
+  it('sanitizes dangerous markup on save, and serves the snapshot with a CSP + nosniff header', async () => {
+    const snapshotStore = await freshSnapshotStore();
+    const mirror = { start: vi.fn() } as unknown as TrialFitMirror;
+    const app = express();
+    app.use(express.json());
+    attachTrialFitRoute(app, { mirror, snapshotStore });
+    const url = await serve(app);
+
+    const dangerous =
+      '<p id="keep">hi</p>' +
+      '<button onclick="evil()">go</button>' +
+      '<a href="javascript:alert(1)">click</a>' +
+      '<iframe src="https://evil.example"></iframe>' +
+      '<meta http-equiv="refresh" content="0;url=https://evil.example">';
+
+    const saveRes = await fetch(`${url}/api/plate/snapshot`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ id: '0009', html: dangerous }),
+    });
+    expect(saveRes.status).toBe(201);
+
+    const getRes = await fetch(`${url}/api/plate/snapshot/0009`);
+    expect(getRes.status).toBe(200);
+    expect(getRes.headers.get('content-security-policy')).toContain("default-src 'none'");
+    expect(getRes.headers.get('x-content-type-options')).toBe('nosniff');
+
+    const html = await getRes.text();
+    expect(html).toContain('id="keep"');
+    expect(html).not.toMatch(/onclick\s*=/i);
+    expect(html).not.toMatch(/javascript:/i);
+    expect(html).not.toMatch(/<iframe/i);
+    expect(html).not.toMatch(/http-equiv/i);
+  });
 });
 
 describe('same-origin gate covers the new trial-fit POSTs (via the real server, not the bare express app above)', () => {

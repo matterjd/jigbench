@@ -2,6 +2,16 @@ import type { Express, NextFunction, Request, Response } from 'express';
 import type { PlateProxyHandle } from '../plate/proxy.js';
 import { TrialFitMirror } from './mirror.js';
 import { SnapshotStore } from './snapshot.js';
+import { sanitizeSnapshotHtml } from './sanitize-snapshot.js';
+
+// Wave-4 council finding 4 (MEDIUM): the snapshot is served from ITS OWN response, standalone
+// (no bench chrome around it) — these headers hold even if some future markup slips past
+// sanitizeSnapshotHtml. `default-src 'none'` blocks script/frame/connect/etc. entirely;
+// img/style/font are allowed (a frozen app snapshot legitimately has its own images/fonts and
+// inline styles) but nothing that can execute. `X-Content-Type-Options: nosniff` stops a
+// browser from ever reinterpreting this response as anything other than the `text/html`
+// content-type it's served with.
+const SNAPSHOT_CSP = "default-src 'none'; img-src data: http: https:; style-src 'unsafe-inline' http: https:; font-src data: http: https:";
 
 const MIRROR_PORT_OFFSET = 1;
 const FALLBACK_MIRROR_PORT = 4602;
@@ -58,7 +68,10 @@ export function attachTrialFitRoute(app: Express, options: AttachTrialFitRouteOp
         sendError(res, 400, 'id and html are both required');
         return;
       }
-      await snapshotStore.save(id, html);
+      // Sanitize AGAIN before persisting (finding 4): loupe.js's captureSnapshot() already
+      // sanitizes client-side, but that page's own DOM is exactly what may already carry
+      // attacker-controlled markup — never trust it as the only sanitization point.
+      await snapshotStore.save(id, sanitizeSnapshotHtml(html));
       res.status(201).json({ id });
     } catch (err) {
       next(err);
@@ -72,6 +85,8 @@ export function attachTrialFitRoute(app: Express, options: AttachTrialFitRouteOp
         sendError(res, 404, `no snapshot with id "${req.params.id}"`);
         return;
       }
+      res.set('Content-Security-Policy', SNAPSHOT_CSP);
+      res.set('X-Content-Type-Options', 'nosniff');
       res.status(200).type('html').send(html);
     } catch (err) {
       next(err);

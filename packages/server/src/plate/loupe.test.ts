@@ -523,6 +523,68 @@ describe('loupe.js', () => {
       send(dom, { type: 'jig:snapshot' });
       expect(dom.window.document.documentElement.outerHTML).toBe(before);
     });
+
+    // Wave-4 council finding 4 (MEDIUM): stripping <script> alone leaves on*= handler
+    // attributes, javascript:/data:text/html URLs, <iframe>/<object>/<embed>, and a
+    // <meta http-equiv="refresh"> redirect all live in the standalone snapshot HTML — every
+    // one of those still executes attacker-controlled behaviour once served from
+    // GET /api/plate/snapshot/:id, with no <script> tag involved at all.
+    describe('sanitization beyond <script> (wave-4 council finding 4)', () => {
+      it('strips on*= handler attributes from every element', () => {
+        const dom = loadLoupe('<button id="keep" onclick="evil()" data-onx="fine">go</button>');
+        const posted = postMessages(dom);
+        send(dom, { type: 'jig:snapshot' });
+        const reply = posted.find((m) => (m as { type?: string }).type === 'jig:snapshotted') as { html: string };
+        expect(reply.html).toContain('id="keep"');
+        expect(reply.html).not.toMatch(/\bonclick\s*=/i);
+        // a custom data-* attribute that merely CONTAINS "on" must survive untouched.
+        expect(reply.html).toContain('data-onx="fine"');
+      });
+
+      it('neutralizes javascript: URLs in href/src/action', () => {
+        const dom = loadLoupe('<a id="keep" href="javascript:alert(1)">click</a><form action="JAVASCRIPT:evil()"></form>');
+        const posted = postMessages(dom);
+        send(dom, { type: 'jig:snapshot' });
+        const reply = posted.find((m) => (m as { type?: string }).type === 'jig:snapshotted') as { html: string };
+        expect(reply.html).not.toMatch(/javascript:/i);
+        expect(reply.html).toContain('id="keep"');
+      });
+
+      it('neutralizes data:text/html URLs', () => {
+        const dom = loadLoupe('<a id="keep" href="data:text/html,<script>evil()</script>">click</a>');
+        const posted = postMessages(dom);
+        send(dom, { type: 'jig:snapshot' });
+        const reply = posted.find((m) => (m as { type?: string }).type === 'jig:snapshotted') as { html: string };
+        expect(reply.html).not.toMatch(/data:text\/html/i);
+      });
+
+      it('removes <iframe>, <object>, and <embed> elements entirely', () => {
+        const dom = loadLoupe(
+          '<p id="keep">hi</p><iframe id="bad-frame" src="https://evil.example"></iframe><object id="bad-object" data="evil.swf"></object><embed id="bad-embed" src="evil.swf">',
+        );
+        const posted = postMessages(dom);
+        send(dom, { type: 'jig:snapshot' });
+        const reply = posted.find((m) => (m as { type?: string }).type === 'jig:snapshotted') as { html: string };
+        expect(reply.html).toContain('id="keep"');
+        expect(reply.html).not.toMatch(/<iframe/i);
+        expect(reply.html).not.toMatch(/<object/i);
+        expect(reply.html).not.toMatch(/<embed/i);
+      });
+
+      it('removes a <meta http-equiv="refresh"> redirect', () => {
+        const dom = loadLoupe('<p id="keep">hi</p>', (d) => {
+          const meta = d.window.document.createElement('meta');
+          meta.setAttribute('http-equiv', 'refresh');
+          meta.setAttribute('content', '0;url=https://evil.example');
+          d.window.document.head.appendChild(meta);
+        });
+        const posted = postMessages(dom);
+        send(dom, { type: 'jig:snapshot' });
+        const reply = posted.find((m) => (m as { type?: string }).type === 'jig:snapshotted') as { html: string };
+        expect(reply.html).toContain('id="keep"');
+        expect(reply.html).not.toMatch(/http-equiv/i);
+      });
+    });
   });
 
   describe('integration seam 5: one shared jig:* message table', () => {
