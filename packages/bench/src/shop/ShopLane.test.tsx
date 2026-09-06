@@ -37,6 +37,22 @@ describe('ShopLane', () => {
     expect(screen.queryByText(/none connected/i)).toBeNull();
   });
 
+  // S6 exposed /api/state's top-level `shop: {client, connectedAt}` (http.ts's
+  // composedState) but nothing rendered it — this is that render.
+  it('names the connected client from /api/state.shop once wired', async () => {
+    const fetchImpl = vi.fn().mockResolvedValue({
+      json: async () => ({ wiring: { shop: 'wired' }, shop: { client: 'Claude Code 2.1.259', connectedAt: '2026-09-06T00:00:00.000Z' } }),
+    }) as unknown as typeof fetch;
+    render(<ShopLane workOrders={[]} fetchImpl={fetchImpl} />);
+    await waitFor(() => expect(screen.getByText(/Claude Code 2\.1\.259/)).toBeTruthy());
+    expect(screen.queryByText(/none connected/i)).toBeNull();
+  });
+
+  it('falls back to a plain "connected" when wired but /api/state carries no shop.client', async () => {
+    render(<ShopLane workOrders={[]} fetchImpl={fakeFetch('wired')} />);
+    await waitFor(() => expect(screen.getByText(/^connected$/)).toBeTruthy());
+  });
+
   it('counts the released orders waiting for the shop', async () => {
     const orders = [wo({ id: '0001', state: 'released' }), wo({ id: '0002', state: 'released' }), wo({ id: '0003', state: 'marked' })];
     render(<ShopLane workOrders={orders} fetchImpl={fakeFetch('none')} />);
