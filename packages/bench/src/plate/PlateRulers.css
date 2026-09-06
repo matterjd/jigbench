@@ -1,0 +1,69 @@
+.jig-plate-rulers {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  grid-template-rows: 20px 1fr;
+  grid-template-columns: 20px 1fr;
+  pointer-events: none;
+  z-index: 3;
+}
+
+.jig-plate-rulers__corner {
+  grid-row: 1;
+  grid-column: 1;
+  background: var(--bg1);
+  border-right: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+  display: grid;
+  place-items: center;
+  font: 11px/1 var(--mono);
+  color: var(--faint);
+}
+
+.jig-plate-rulers__top,
+.jig-plate-rulers__left {
+  position: relative;
+  background: var(--bg1);
+  overflow: hidden;
+}
+
+.jig-plate-rulers__top {
+  grid-row: 1;
+  grid-column: 2;
+  border-bottom: 1px solid var(--line);
+}
+
+.jig-plate-rulers__left {
+  grid-row: 2;
+  grid-column: 1;
+  border-right: 1px solid var(--line);
+}
+
+.jig-plate-rulers__top canvas,
+.jig-plate-rulers__left canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.jig-plate-rulers__readout {
+  position: absolute;
+  font: 11px/1 var(--mono);
+  color: var(--storm);
+  background: var(--bg1);
+  padding: 2px 3px;
+  white-space: nowrap;
+}
+
+.jig-plate-rulers__top .jig-plate-rulers__readout {
+  top: 3px;
+  left: 4px;
+}
+
+.jig-plate-rulers__left .jig-plate-rulers__readout {
+  left: 2px;
+  top: 4px;
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+}

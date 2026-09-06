@@ -18,7 +18,23 @@
   display: flex;
 }
 
-.jig-plate-bench__frame .jig-plate-frame,
-.jig-plate-bench__frame .jig-plate-frame--empty {
+.jig-plate-bench__surface {
+  position: relative;
   flex: 1;
+  min-height: 320px;
+}
+
+/* Offset by the rulers' own 20px corner/band (PlateRulers.css) so the iframe area lines up
+   exactly with where the rulers say the app's origin is. */
+.jig-plate-bench__viewport {
+  position: absolute;
+  top: 20px;
+  left: 20px;
+  right: 0;
+  bottom: 0;
+}
+
+.jig-plate-bench__viewport .jig-plate-frame,
+.jig-plate-bench__viewport .jig-plate-frame--empty {
+  height: 100%;
 }

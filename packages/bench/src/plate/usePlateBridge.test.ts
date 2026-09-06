@@ -106,6 +106,86 @@ describe('usePlateBridge', () => {
     document.body.removeChild(iframe);
   });
 
+  it('highlight posts jig:highlight with selectors to the iframe', () => {
+    const ref = createRef<HTMLIFrameElement>();
+    const iframe = document.createElement('iframe');
+    document.body.appendChild(iframe);
+    (ref as { current: HTMLIFrameElement }).current = iframe;
+
+    const posted: unknown[] = [];
+    Object.defineProperty(iframe, 'contentWindow', {
+      value: { postMessage: (msg: unknown) => posted.push(msg) },
+    });
+
+    const { result } = renderHook(() => usePlateBridge(ref, PLATE_ORIGIN, []));
+    act(() => result.current.highlight(['app-invoice-list', '.lg-btn']));
+
+    expect(posted).toContainEqual({ type: 'jig:highlight', selectors: ['app-invoice-list', '.lg-btn'] });
+
+    document.body.removeChild(iframe);
+  });
+
+  it('clearHighlight posts jig:clear to the iframe', () => {
+    const ref = createRef<HTMLIFrameElement>();
+    const iframe = document.createElement('iframe');
+    document.body.appendChild(iframe);
+    (ref as { current: HTMLIFrameElement }).current = iframe;
+
+    const posted: unknown[] = [];
+    Object.defineProperty(iframe, 'contentWindow', {
+      value: { postMessage: (msg: unknown) => posted.push(msg) },
+    });
+
+    const { result } = renderHook(() => usePlateBridge(ref, PLATE_ORIGIN, []));
+    act(() => result.current.clearHighlight());
+
+    expect(posted).toContainEqual({ type: 'jig:clear' });
+
+    document.body.removeChild(iframe);
+  });
+
+  it('navigate posts jig:navigate with the path to the iframe', () => {
+    const ref = createRef<HTMLIFrameElement>();
+    const iframe = document.createElement('iframe');
+    document.body.appendChild(iframe);
+    (ref as { current: HTMLIFrameElement }).current = iframe;
+
+    const posted: unknown[] = [];
+    Object.defineProperty(iframe, 'contentWindow', {
+      value: { postMessage: (msg: unknown) => posted.push(msg) },
+    });
+
+    const { result } = renderHook(() => usePlateBridge(ref, PLATE_ORIGIN, []));
+    act(() => result.current.navigate('/invoices'));
+
+    expect(posted).toContainEqual({ type: 'jig:navigate', path: '/invoices' });
+
+    document.body.removeChild(iframe);
+  });
+
+  it('highlight/clearHighlight/navigate never post when the plate origin is not yet known', () => {
+    const ref = createRef<HTMLIFrameElement>();
+    const iframe = document.createElement('iframe');
+    document.body.appendChild(iframe);
+    (ref as { current: HTMLIFrameElement }).current = iframe;
+
+    const posted: unknown[] = [];
+    Object.defineProperty(iframe, 'contentWindow', {
+      value: { postMessage: (msg: unknown) => posted.push(msg) },
+    });
+
+    const { result } = renderHook(() => usePlateBridge(ref, null, []));
+    act(() => {
+      result.current.highlight(['a']);
+      result.current.clearHighlight();
+      result.current.navigate('/x');
+    });
+
+    expect(posted).toEqual([]);
+
+    document.body.removeChild(iframe);
+  });
+
   it('never posts when the plate origin is not yet known', () => {
     const ref = createRef<HTMLIFrameElement>();
     const iframe = document.createElement('iframe');

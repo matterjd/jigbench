@@ -1,0 +1,100 @@
+.jig-properties {
+  position: relative;
+  display: grid;
+  grid-template-rows: 36px 1fr;
+  min-height: 0;
+  min-width: 0;
+  overflow: hidden;
+  background: var(--bg1);
+  border-left: 1px solid var(--line);
+}
+
+.jig-properties__handle {
+  position: absolute;
+  left: -3px;
+  top: 0;
+  bottom: 0;
+  width: 6px;
+  cursor: ew-resize;
+  background: transparent;
+}
+
+.jig-properties__handle:hover {
+  background: var(--storm-soft);
+}
+
+.jig-properties__tabs {
+  display: flex;
+  align-items: stretch;
+  gap: 2px;
+  padding: 0 6px;
+  border-bottom: 1px solid var(--line);
+  min-width: 0;
+}
+
+.jig-properties__tabs button[role='tab'] {
+  padding: 0 8px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--dim);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+  position: relative;
+}
+
+.jig-properties__tabs button[role='tab']:hover {
+  color: var(--ink);
+}
+
+.jig-properties__tabs button[aria-selected='true'] {
+  color: var(--ink);
+}
+
+.jig-properties__tabs button[aria-selected='true']::after {
+  content: '';
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  bottom: -1px;
+  height: 2px;
+  background: var(--storm);
+}
+
+.jig-properties__count {
+  font: 11px/1 var(--mono);
+  color: var(--dim);
+  border: 1px solid var(--line);
+  border-radius: var(--r-pill);
+  padding: 2px 6px;
+}
+
+.jig-properties__printed {
+  margin-left: auto;
+  align-self: center;
+  display: inline-flex;
+  align-items: center;
+  height: 22px;
+  padding: 0 8px;
+  border-radius: var(--r-micro);
+  border: 1px solid var(--line);
+  color: var(--ink);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  background: var(--bg1);
+}
+
+.jig-properties__printed:hover {
+  background: var(--bg2);
+}
+
+.jig-properties__pane {
+  min-height: 0;
+  overflow: auto;
+  padding: 12px;
+}

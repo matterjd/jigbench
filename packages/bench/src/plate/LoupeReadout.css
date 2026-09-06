@@ -51,3 +51,46 @@
   color: var(--ink);
   word-break: break-word;
 }
+
+.jig-loupe-readout__gauges {
+  margin-top: 12px;
+  border-top: 1px solid var(--line-soft);
+  padding-top: 10px;
+}
+
+.jig-loupe-readout__gauges-title {
+  margin: 0 0 6px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--dim);
+}
+
+.jig-loupe-readout__gauges-empty {
+  margin: 0;
+  color: var(--dim);
+  font-size: 12px;
+}
+
+.jig-loupe-readout__gauge-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.jig-loupe-readout__gauge-chip {
+  display: inline-flex;
+  align-items: center;
+  height: 24px;
+  padding: 0 8px;
+  border-radius: var(--r-micro);
+  border: 1px solid var(--line);
+  background: var(--bg2);
+  color: var(--ink);
+  font: 11px/1 var(--mono);
+}
+
+.jig-loupe-readout__gauge-chip:hover {
+  border-color: var(--storm);
+}

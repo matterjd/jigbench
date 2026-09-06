@@ -38,6 +38,13 @@ export interface UsePlateBridgeResult {
   events: PlateEvent[];
   mode: LoupeMode;
   setMode: (mode: LoupeMode) => void;
+  /** Posts `jig:highlight` — the Gauges panel's two-way lighting (S4) and the command
+   * palette's "light this gauge/component" action both go through this. */
+  highlight: (selectors: string[]) => void;
+  /** Posts `jig:clear` — the `printed` affordance that unlights everything. */
+  clearHighlight: () => void;
+  /** Posts `jig:navigate` — the command palette's "routes" items. */
+  navigate: (path: string) => void;
 }
 
 const MAX_EVENTS = 200;
@@ -98,5 +105,17 @@ export function usePlateBridge(
     [postToPlate],
   );
 
-  return { lastPick, events, mode, setMode };
+  const highlight = useCallback(
+    (selectors: string[]) => postToPlate({ type: 'jig:highlight', selectors }),
+    [postToPlate],
+  );
+
+  const clearHighlight = useCallback(() => postToPlate({ type: 'jig:clear' }), [postToPlate]);
+
+  const navigate = useCallback(
+    (path: string) => postToPlate({ type: 'jig:navigate', path }),
+    [postToPlate],
+  );
+
+  return { lastPick, events, mode, setMode, highlight, clearHighlight, navigate };
 }

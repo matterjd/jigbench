@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import type { Component, Gauge } from '@jigbench/core';
 import { LoupeReadout } from './LoupeReadout.js';
 import type { PlatePick } from './usePlateBridge.js';
 
@@ -46,5 +47,112 @@ describe('LoupeReadout', () => {
 
     const handButton = screen.getByRole('button', { name: /hand/i });
     expect(handButton.getAttribute('aria-pressed')).toBe('true');
+  });
+
+  describe('gauges the picked component uses (S4 extension)', () => {
+    const component: Component = {
+      name: 'InvoiceListComponent',
+      selector: 'app-invoice-list',
+      file: 'src/app/invoices/invoice-list/invoice-list.ts',
+      standalone: true,
+      inline: false,
+      inputs: [],
+      outputs: [],
+      // Angular's own convention: relative to the component file's own directory, not
+      // repo-relative (see resolveGaugeUsage.ts's doc comment) — confirmed against a live
+      // `jigbench survey` of examples/ledger-angular.
+      styleUrls: ['./invoice-list.scss'],
+    };
+    const usedGauge: Gauge = {
+      name: '--lg-primary',
+      $type: 'color',
+      $value: '#1a56db',
+      category: 'colour',
+      source: { file: 'src/styles/_tokens.scss', line: 1 },
+      usages: [{ file: 'src/app/invoices/invoice-list/invoice-list.scss', count: 2 }],
+    };
+    const unusedGauge: Gauge = {
+      name: '--lg-danger',
+      $type: 'color',
+      $value: '#b42318',
+      category: 'colour',
+      source: { file: 'src/styles/_tokens.scss', line: 1 },
+      usages: [{ file: 'src/app/customers/customer-list.scss', count: 1 }],
+    };
+
+    it('says honestly when there is no pick, no survey, or no gauges given', () => {
+      render(<LoupeReadout lastPick={null} mode="loupe" onModeChange={() => {}} />);
+      expect(screen.queryByText(/gauges it uses/i)).toBeNull();
+    });
+
+    it('lists only the gauges whose usages include the picked component\'s styleUrls', () => {
+      render(
+        <LoupeReadout
+          lastPick={pick}
+          mode="loupe"
+          onModeChange={() => {}}
+          survey={{
+            jigFormat: 1,
+            stack: [],
+            components: [component],
+            routes: [],
+            endpoints: [],
+            schemas: [],
+            docs: [],
+            generatedAt: 'now',
+          }}
+          gauges={[usedGauge, unusedGauge]}
+        />,
+      );
+      expect(screen.getByText('--lg-primary')).toBeTruthy();
+      expect(screen.queryByText('--lg-danger')).toBeNull();
+    });
+
+    it('clicking a gauge chip calls onGaugeSelect with that gauge\'s name', () => {
+      const onGaugeSelect = vi.fn();
+      render(
+        <LoupeReadout
+          lastPick={pick}
+          mode="loupe"
+          onModeChange={() => {}}
+          survey={{
+            jigFormat: 1,
+            stack: [],
+            components: [component],
+            routes: [],
+            endpoints: [],
+            schemas: [],
+            docs: [],
+            generatedAt: 'now',
+          }}
+          gauges={[usedGauge]}
+          onGaugeSelect={onGaugeSelect}
+        />,
+      );
+      fireEvent.click(screen.getByRole('button', { name: /--lg-primary/ }));
+      expect(onGaugeSelect).toHaveBeenCalledWith('--lg-primary');
+    });
+
+    it('says honestly when the picked component uses no surveyed gauges', () => {
+      render(
+        <LoupeReadout
+          lastPick={pick}
+          mode="loupe"
+          onModeChange={() => {}}
+          survey={{
+            jigFormat: 1,
+            stack: [],
+            components: [component],
+            routes: [],
+            endpoints: [],
+            schemas: [],
+            docs: [],
+            generatedAt: 'now',
+          }}
+          gauges={[unusedGauge]}
+        />,
+      );
+      expect(screen.getByText(/no gauges on this element/i)).toBeTruthy();
+    });
   });
 });

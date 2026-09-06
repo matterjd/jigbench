@@ -1,0 +1,44 @@
+.jig-plate-guides {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 4;
+}
+
+.jig-plate-guides__line {
+  position: absolute;
+  background: var(--storm);
+  opacity: 0.55;
+}
+
+.jig-plate-guides__line--v {
+  top: 0;
+  bottom: 0;
+  width: 1px;
+}
+
+.jig-plate-guides__line--h {
+  left: 0;
+  right: 0;
+  height: 1px;
+}
+
+.jig-plate-guides__readout {
+  position: absolute;
+  font: 11px/1 var(--mono);
+  color: var(--storm);
+  background: var(--bg1);
+  border: 1px solid var(--storm);
+  padding: 2px 6px;
+  border-radius: 2px;
+  white-space: nowrap;
+}
+
+.jig-plate-guides__fallback-note {
+  position: absolute;
+  right: 8px;
+  bottom: 8px;
+  margin: 0;
+  font-size: 11px;
+  color: var(--faint); /* provenance only, never load-bearing — the readout text carries the fact */
+}
