@@ -24,7 +24,11 @@ function component(overrides: Partial<Component> = {}): Component {
     inline: false,
     inputs: [],
     outputs: [],
-    styleUrls: ['src/app/invoices/invoice-list/invoice-list.scss'],
+    // Angular's own convention (adapter-angular reads `styleUrls` verbatim from the
+    // decorator): relative to the component file's OWN directory, never repo-relative —
+    // confirmed against a live `jigbench survey` of examples/ledger-angular. resolveGaugeUsage
+    // joins this against `file` before comparing to a gauge's (repo-relative) usages.
+    styleUrls: ['./invoice-list.scss'],
     ...overrides,
   };
 }

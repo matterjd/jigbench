@@ -58,7 +58,10 @@ describe('LoupeReadout', () => {
       inline: false,
       inputs: [],
       outputs: [],
-      styleUrls: ['src/app/invoices/invoice-list/invoice-list.scss'],
+      // Angular's own convention: relative to the component file's own directory, not
+      // repo-relative (see resolveGaugeUsage.ts's doc comment) — confirmed against a live
+      // `jigbench survey` of examples/ledger-angular.
+      styleUrls: ['./invoice-list.scss'],
     };
     const usedGauge: Gauge = {
       name: '--lg-primary',

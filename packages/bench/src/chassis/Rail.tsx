@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { setTool, useTool, type Tool } from '../tools/toolState.js';
 import { Pairing } from '../components/Pairing.js';
 import './Rail.css';
@@ -22,7 +22,7 @@ interface ToolDef {
   word: string;
   pair: string;
   key: string;
-  icon: JSX.Element;
+  icon: ReactNode;
 }
 
 // Order mirrors CHASSIS.md: Hand · Loupe · Mark · Fixture · Toolpath · Sketch. Shortcuts are
