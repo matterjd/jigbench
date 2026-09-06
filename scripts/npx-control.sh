@@ -60,10 +60,22 @@ kill_pid() {
 PORT=4680
 PLATE_PORT=4681
 STAGE="$(mktemp -d)"
+# Retry-safe: a cold npx boot that stdout-guard.sh had to kill (mcp check, below) may leave a
+# Windows child process a beat behind its own termination, still holding a handle inside
+# $STAGE. This control's verdict is the four checks above (survey / init / serve+health / mcp)
+# -- not whether the OS let go of a temp directory a few hundred ms sooner -- so a still-busy
+# $STAGE after two tries is a WARN, never a FAIL.
 cleanup() {
   kill_pid "$(find_listener_pid "$PORT")"
   kill_pid "$(find_listener_pid "$PLATE_PORT")"
-  rm -rf "$STAGE"
+  rm -rf "$STAGE" 2>/dev/null || true
+  if [ -d "$STAGE" ]; then
+    sleep 2
+    rm -rf "$STAGE" 2>/dev/null || true
+  fi
+  if [ -d "$STAGE" ]; then
+    echo "WARN: could not remove $STAGE (still busy) -- leaving it for OS cleanup; this does not fail the control" >&2
+  fi
 }
 trap cleanup EXIT
 
@@ -131,7 +143,11 @@ kill_pid "$(find_listener_pid "$PORT")"
 kill_pid "$(find_listener_pid "$PLATE_PORT")"
 echo "OK: stopped the bench/plate server (port -> PID, never by process name)" >&2
 
+# A cold runner extracts the tarball (first `npx --yes` use), resolves it, boots node, AND
+# answers `initialize` -- that can run well past stdout-guard.sh's 10s default, so this control
+# gives it 120s here specifically (a warm local run, or the plain `npm run check:stdout` CI
+# step against the workspace build, keeps the 10s default -- see stdout-guard.sh).
 echo "== npx control: mcp (stdout purity via scripts/stdout-guard.sh) ==" >&2
-(cd "$STAGE" && JIG_MCP_CMD="npx --yes ./$TGZ_NAME" bash "$REPO_ROOT/scripts/stdout-guard.sh")
+(cd "$STAGE" && JIG_MCP_CMD="npx --yes ./$TGZ_NAME" JIG_GUARD_TIMEOUT=120 bash "$REPO_ROOT/scripts/stdout-guard.sh")
 
 echo "PASS: npx control -- survey, init, serve+health+html, and mcp all green against the packed tarball in a clean directory" >&2

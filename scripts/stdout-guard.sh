@@ -38,9 +38,19 @@
 # npx control), rather than the workspace's own tsc build. Word-split, so quote it as one
 # shell-parseable string; `mcp --repo "$TARGET_REPO"` is always appended after it.
 #
+# `JIG_GUARD_TIMEOUT` (seconds, default 10, must be a positive integer): how long each of the
+# two interactive reads below (the `initialize` and `tools/list` responses) waits before
+# declaring FAIL. A cold `npx --yes <tarball>` run has to extract the tarball, resolve it, boot
+# node, AND answer `initialize` -- on a cold CI runner that can take much longer than a warm
+# local `node packages/cli/dist/bin.js`, so scripts/npx-control.sh raises this for its own mcp
+# check. The outer per-child watchdog (the `timeout` wrapping the coproc below) scales with
+# this value too, so raising it actually helps instead of being cut off by an unrelated,
+# shorter bound.
+#
 # Usage:
 #   bash scripts/stdout-guard.sh                                    (run after `npm run build`)
 #   JIG_MCP_CMD="npx --yes ./jigbench-0.1.0.tgz" bash scripts/stdout-guard.sh   (npx control)
+#   JIG_GUARD_TIMEOUT=120 JIG_MCP_CMD="npx --yes ./jigbench-0.1.0.tgz" bash scripts/stdout-guard.sh
 
 set -uo pipefail
 
@@ -48,9 +58,23 @@ HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$HERE/.." && pwd)"
 BIN="$REPO_ROOT/packages/cli/dist/bin.js"
 
+GUARD_TIMEOUT="${JIG_GUARD_TIMEOUT:-10}"
+if ! [[ "$GUARD_TIMEOUT" =~ ^[1-9][0-9]*$ ]]; then
+  echo "FAIL: JIG_GUARD_TIMEOUT must be a positive integer (got '${JIG_GUARD_TIMEOUT:-}')" >&2
+  exit 1
+fi
+# Outer watchdog for the WHOLE child run (cold start + both interactive reads + the hold
+# below): scale with GUARD_TIMEOUT so a caller who raises the read timeout for a slow cold npx
+# boot isn't silently cut off a few seconds later by this separate, previously-fixed bound.
+CHILD_TIMEOUT=$((GUARD_TIMEOUT * 2 + 15))
+
+MEASURE_NPX_ELAPSED=0
 if [ -n "${JIG_MCP_CMD:-}" ]; then
   # shellcheck disable=SC2206 -- deliberate word-splitting of a caller-supplied command string
   MCP_CMD=(${JIG_MCP_CMD})
+  case "$JIG_MCP_CMD" in
+    npx*) MEASURE_NPX_ELAPSED=1 ;;
+  esac
 else
   if [ ! -f "$BIN" ]; then
     echo "FAIL: $BIN does not exist — run 'npm run build' first." >&2
@@ -89,27 +113,54 @@ assert_json_rpc_line() {
   ' <<<"$line"
 }
 
+# Kills the coproc's child on ANY failure path and WAITS for it to actually be gone before
+# returning. A timeout used to just `kill "$MCP_PID"` and move on — on Windows that signal
+# doesn't reliably reach the real node/npx process the shell wrapper spawned, so the child kept
+# running and holding an open handle inside $TARGET_REPO; the caller's own `rm -rf` of that
+# directory (this script's `cleanup` trap, or npx-control.sh's fixture cleanup) then raced it
+# and failed with "Device or resource busy". `taskkill //T //F` (never by process name) takes
+# the whole process tree down; `wait` afterward reaps it so control never returns early.
+kill_mcp() {
+  echo "killing coproc MCP_PID=$MCP_PID" >&2
+  kill "$MCP_PID" 2>/dev/null || true
+  case "$(uname -s)" in
+    MINGW* | MSYS* | CYGWIN*)
+      if kill -0 "$MCP_PID" 2>/dev/null; then
+        taskkill //PID "$MCP_PID" //T //F >/dev/null 2>&1 || true
+      fi
+      ;;
+  esac
+  wait "$MCP_PID" 2>/dev/null || true
+}
+
 # The pipeline's own exit status is node's, not tee's: `set -o pipefail` is scoped to this
 # coproc's own subshell (bash runs a `coproc NAME { list; }` block as a subshell), so it never
 # touches this script's own shell options. `tee` mirrors node's ENTIRE stdout to $STDOUT_FILE
 # for the whole run; ${MCP[0]} (this coproc's read end, i.e. tee's own stdout) still carries
-# the same bytes in real time for the two interactive reads below. `timeout 15` bounds the
-# whole child run (a cold start plus the hold below) — a real agent session stays connected
-# far longer than this; this timeout only bounds THIS script's own run.
-coproc MCP { set -o pipefail; timeout 15 "${MCP_CMD[@]}" mcp --repo "$TARGET_REPO" 2>"$STDERR_FILE" | tee "$STDOUT_FILE"; }
+# the same bytes in real time for the two interactive reads below. `timeout "$CHILD_TIMEOUT"`
+# bounds the whole child run (a cold start plus the hold below, scaled off JIG_GUARD_TIMEOUT
+# above) — a real agent session stays connected far longer than this; this timeout only bounds
+# THIS script's own run.
+COPROC_START_NS="$(date +%s%N)"
+coproc MCP { set -o pipefail; timeout "$CHILD_TIMEOUT" "${MCP_CMD[@]}" mcp --repo "$TARGET_REPO" 2>"$STDERR_FILE" | tee "$STDOUT_FILE"; }
 
 printf '%s\n' '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-11-25","capabilities":{},"clientInfo":{"name":"stdout-guard","version":"1.0.0"}}}' >&"${MCP[1]}"
 
 INIT_LINE=""
-if ! IFS= read -r -t 10 INIT_LINE <&"${MCP[0]}"; then
-  echo "FAIL: no response to initialize within 10s" >&2
-  kill "$MCP_PID" 2>/dev/null
+if ! IFS= read -r -t "$GUARD_TIMEOUT" INIT_LINE <&"${MCP[0]}"; then
+  echo "FAIL: no response to initialize within ${GUARD_TIMEOUT}s" >&2
+  kill_mcp
   exit 1
+fi
+if [ "$MEASURE_NPX_ELAPSED" -eq 1 ]; then
+  ELAPSED_NS=$(( $(date +%s%N) - COPROC_START_NS ))
+  ELAPSED_MS=$(( ELAPSED_NS / 1000000 ))
+  printf 'TIMING: npx cold start -> initialize response took %d.%03ds\n' "$((ELAPSED_MS / 1000))" "$((ELAPSED_MS % 1000))" >&2
 fi
 if ! assert_json_rpc_line "$INIT_LINE"; then
   echo "FAIL: the initialize response was not a JSON-RPC 2.0 message:" >&2
   echo "$INIT_LINE" >&2
-  kill "$MCP_PID" 2>/dev/null
+  kill_mcp
   exit 1
 fi
 
@@ -117,15 +168,15 @@ printf '%s\n' '{"jsonrpc":"2.0","method":"notifications/initialized"}' >&"${MCP[
 printf '%s\n' '{"jsonrpc":"2.0","id":2,"method":"tools/list","params":{}}' >&"${MCP[1]}"
 
 TOOLS_LINE=""
-if ! IFS= read -r -t 10 TOOLS_LINE <&"${MCP[0]}"; then
-  echo "FAIL: no response to tools/list within 10s" >&2
-  kill "$MCP_PID" 2>/dev/null
+if ! IFS= read -r -t "$GUARD_TIMEOUT" TOOLS_LINE <&"${MCP[0]}"; then
+  echo "FAIL: no response to tools/list within ${GUARD_TIMEOUT}s" >&2
+  kill_mcp
   exit 1
 fi
 if ! assert_json_rpc_line "$TOOLS_LINE"; then
   echo "FAIL: the tools/list response was not a JSON-RPC 2.0 message (a stray console.log?):" >&2
   echo "$TOOLS_LINE" >&2
-  kill "$MCP_PID" 2>/dev/null
+  kill_mcp
   exit 1
 fi
 
@@ -145,6 +196,7 @@ if ! wait "$MCP_PID"; then
   cat "$STDOUT_FILE" >&2
   echo "--- stderr ---" >&2
   cat "$STDERR_FILE" >&2
+  kill_mcp
   exit 1
 fi
 
