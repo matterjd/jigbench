@@ -121,6 +121,7 @@ assert_json_rpc_line() {
 # and failed with "Device or resource busy". `taskkill //T //F` (never by process name) takes
 # the whole process tree down; `wait` afterward reaps it so control never returns early.
 kill_mcp() {
+  echo "killing coproc MCP_PID=$MCP_PID" >&2
   kill "$MCP_PID" 2>/dev/null || true
   case "$(uname -s)" in
     MINGW* | MSYS* | CYGWIN*)
