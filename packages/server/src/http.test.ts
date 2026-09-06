@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createServer as createHttpServer, type Server as HttpServer } from 'node:http';
 import { mkdir, mkdtemp, readFile, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
@@ -17,7 +17,22 @@ let handle: JigServerHandle | undefined;
 // the real 'model' driver code path — just against THIS fake, never the real endpoint.
 let fakeOllama: FakeOllamaDrafter;
 
+// `selectDrafter` (orders/select-drafter.ts) treats `JIG_NO_MODEL=1` as an unconditional
+// override, straight past `fakeOllama`'s `available: true` above — by design (that file's own
+// comment), for exactly the CI/S10 command this repo runs: `JIG_NO_MODEL=1 npm test`. This
+// suite asserts the real 'model' driver path against the fake, so it must not inherit that
+// ambient override. Snapshot and clear before each test, restore after — same isolation
+// `select-drafter.test.ts`'s own "JIG_NO_MODEL" describe block already uses per-test.
+let priorJigNoModel: string | undefined;
+
+beforeEach(() => {
+  priorJigNoModel = process.env.JIG_NO_MODEL;
+  delete process.env.JIG_NO_MODEL;
+});
+
 afterEach(async () => {
+  if (priorJigNoModel === undefined) delete process.env.JIG_NO_MODEL;
+  else process.env.JIG_NO_MODEL = priorJigNoModel;
   if (handle) {
     await handle.close();
     handle = undefined;

@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { mkdtemp } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -21,7 +21,19 @@ let handle: JigServerHandle | undefined;
 // 'model' driver code path, just against THIS fake, never the real endpoint.
 let fakeOllama: FakeOllamaDrafter;
 
+// See ../http.test.ts's matching comment: `selectDrafter` treats `JIG_NO_MODEL=1` as an
+// unconditional override past `fakeOllama`'s `available: true`, which would defeat this
+// suite's 'model' driver assertions under the CI/S10 command `JIG_NO_MODEL=1 npm test`.
+let priorJigNoModel: string | undefined;
+
+beforeEach(() => {
+  priorJigNoModel = process.env.JIG_NO_MODEL;
+  delete process.env.JIG_NO_MODEL;
+});
+
 afterEach(async () => {
+  if (priorJigNoModel === undefined) delete process.env.JIG_NO_MODEL;
+  else process.env.JIG_NO_MODEL = priorJigNoModel;
   if (handle) {
     await handle.close();
     handle = undefined;

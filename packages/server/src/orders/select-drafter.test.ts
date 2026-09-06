@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { OllamaDrafter } from './drafters/ollama.js';
 import { AgentDrafter } from './drafters/shop.js';
 import { HumanDrafter } from './drafters/human.js';
@@ -9,6 +9,23 @@ function ollamaThatIs(available: boolean): OllamaDrafter {
   vi.spyOn(drafter, 'available').mockResolvedValue(available);
   return drafter;
 }
+
+// This outer suite (unlike the "JIG_NO_MODEL" describe block below, which owns and drives
+// the switch itself) asserts the ordinary ollama-reachable/unreachable behavior and must not
+// inherit an ambient `JIG_NO_MODEL=1` (the CI/S10 command `JIG_NO_MODEL=1 npm test`) — that
+// would force every `ollamaThatIs(true)` case straight to 'person'/'shop' regardless of the
+// mock. Snapshot and clear before each test, restore after.
+let priorJigNoModelOuter: string | undefined;
+
+beforeEach(() => {
+  priorJigNoModelOuter = process.env.JIG_NO_MODEL;
+  delete process.env.JIG_NO_MODEL;
+});
+
+afterEach(() => {
+  if (priorJigNoModelOuter === undefined) delete process.env.JIG_NO_MODEL;
+  else process.env.JIG_NO_MODEL = priorJigNoModelOuter;
+});
 
 describe('selectDrafter', () => {
   it('picks the model first when Ollama is reachable, regardless of the shop', async () => {
