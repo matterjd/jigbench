@@ -17,6 +17,14 @@
  * on `typeof data.type !== 'string'` and fall through their if/else-if chain with no default
  * case that throws); `loupe.test.ts`'s "integration seam 5" suite asserts this directly.
  *
+ * ORIGIN RULE (finding 1, wave-3 council — security blocker): both dispatchers ALSO guard on
+ * `isBenchOrigin(event)` before touching `data.type` at all — a message whose `event.origin`
+ * is not exactly the configured `benchOrigin` (from `data-jig-bench`) is ignored silently (one
+ * `console.debug` line, logged once per page load, not once per rejected message). Every
+ * outbound `postMessage` (the single `post()` helper) targets `benchOrigin` explicitly —
+ * never the `'*'` wildcard — so this script neither accepts commands from, nor leaks page data
+ * to, any origin but the bench's own. See `loupe.test.ts`'s "bench-origin enforcement" suite.
+ *
  * Inbound (bench -> plate):
  *   {type:'jig:mode', mode:'hand'|'loupe'}
  *     Switches loupe-mode hover/click interception on or off. Off (`'hand'`) also clears the
@@ -398,9 +406,30 @@
     { passive: true },
   );
 
+  // ---- messaging FROM the bench: origin guard (finding 1, wave-3 council) ----------------
+  // Every inbound `jig:*` message is rejected unless it came from the SAME origin this
+  // script was told to trust (`data-jig-bench` on its own <script> tag, captured above as
+  // `benchOrigin`). Without this, ANY page able to obtain a reference to this iframe's
+  // `window` (e.g. because the target app itself can be framed by a third party) could post
+  // `jig:fill`/`jig:navigate`/etc. and drive it exactly as the real bench would. `benchOrigin`
+  // falling back to `'*'` (no attribute present — shouldn't happen via the real proxy, which
+  // always stamps a concrete origin, but is possible if this script is loaded some other way)
+  // fails CLOSED: `'*'` can never equal a real `event.origin`, so every message is ignored.
+  var loggedForeignOrigin = false;
+  function isBenchOrigin(event) {
+    return typeof benchOrigin === 'string' && benchOrigin !== '*' && event.origin === benchOrigin;
+  }
+  function rejectForeignOrigin(event) {
+    if (!loggedForeignOrigin) {
+      loggedForeignOrigin = true;
+      console.debug('[jig] loupe ignored a jig:* message from a non-bench origin', event.origin);
+    }
+  }
+
   window.addEventListener('message', function (event) {
     var data = event.data;
     if (!data || typeof data.type !== 'string') return;
+    if (!isBenchOrigin(event)) return rejectForeignOrigin(event);
     if (data.type === 'jig:mode') {
       mode = data.mode === 'loupe' ? 'loupe' : 'hand';
       if (mode !== 'loupe') clearOutline();
@@ -551,6 +580,7 @@
   window.addEventListener('message', function (event) {
     var data = event.data;
     if (!data || typeof data.type !== 'string') return;
+    if (!isBenchOrigin(event)) return rejectForeignOrigin(event);
 
     if (data.type === 'jig:fill-probe') {
       var form = nearestForm(data.formPath);

@@ -470,4 +470,87 @@ describe('loupe.js', () => {
       }
     });
   });
+
+  // Finding 1 (wave-3 council, security blocker): both message dispatchers above must ignore
+  // any `jig:*` message whose event.origin isn't the bench origin the script was configured
+  // with (data-jig-bench) — a foreign iframe embedding the same target could otherwise drive
+  // navigation or fill arbitrary form fields.
+  describe('bench-origin enforcement (finding 1)', () => {
+    const FOREIGN_ORIGIN = 'http://evil.example';
+
+    function sendFrom(dom: JSDOM, origin: string, data: unknown): void {
+      dom.window.dispatchEvent(new dom.window.MessageEvent('message', { data, origin }));
+    }
+
+    it('ignores jig:fill from a non-bench origin — the field is left untouched', () => {
+      const dom = loadLoupe('<form><input name="customerId"></form>');
+      const input = dom.window.document.querySelector('input') as HTMLInputElement;
+      sendFrom(dom, FOREIGN_ORIGIN, { type: 'jig:fill', fields: [{ name: 'customerId', value: 'evil-value' }] });
+      expect(input.value).toBe('');
+    });
+
+    it('fills the field when the SAME message comes from the bench origin (control)', () => {
+      const dom = loadLoupe('<form><input name="customerId"></form>');
+      const input = dom.window.document.querySelector('input') as HTMLInputElement;
+      sendFrom(dom, BENCH_ORIGIN, { type: 'jig:fill', fields: [{ name: 'customerId', value: 'good-value' }] });
+      expect(input.value).toBe('good-value');
+    });
+
+    it('ignores jig:fill-probe from a non-bench origin — no reply is posted', () => {
+      const dom = loadLoupe('<form><input name="customerId"></form>');
+      const posted: unknown[] = [];
+      dom.window.postMessage = ((message: unknown) => posted.push(message)) as typeof dom.window.postMessage;
+      sendFrom(dom, FOREIGN_ORIGIN, { type: 'jig:fill-probe' });
+      expect(posted).toHaveLength(0);
+    });
+
+    // jsdom never actually mutates location.pathname on navigation (per the comment above,
+    // "Not implemented: navigation to another Document" — a jsdom limitation, not a loupe
+    // bug), so pathname is not a usable signal either way. jsdom instead reports the attempt
+    // through its virtualConsole as a jsdomError — that IS a reliable "did navigateSameOrigin
+    // actually call location.assign" signal, and is what these two tests key off.
+    it('ignores jig:navigate from a non-bench origin — navigateSameOrigin is never reached', () => {
+      const dom = loadLoupe('<p>hi</p>');
+      let navigationAttempts = 0;
+      dom.virtualConsole.on('jsdomError', (e: Error) => {
+        if (/navigation/i.test(e.message)) navigationAttempts++;
+      });
+      sendFrom(dom, FOREIGN_ORIGIN, { type: 'jig:navigate', path: '/invoices' });
+      expect(navigationAttempts).toBe(0);
+    });
+
+    it('attempts navigation for the SAME jig:navigate message from the bench origin (control)', () => {
+      const dom = loadLoupe('<p>hi</p>');
+      let navigationAttempts = 0;
+      dom.virtualConsole.on('jsdomError', (e: Error) => {
+        if (/navigation/i.test(e.message)) navigationAttempts++;
+      });
+      sendFrom(dom, BENCH_ORIGIN, { type: 'jig:navigate', path: '/invoices' });
+      expect(navigationAttempts).toBe(1);
+    });
+
+    it('ignores jig:highlight from a non-bench origin — no highlight box is drawn', () => {
+      const dom = loadLoupe('<div id="target">x</div>');
+      sendFrom(dom, FOREIGN_ORIGIN, { type: 'jig:highlight', paths: ['#target'] });
+      expect(dom.window.document.querySelectorAll('[data-jig-loupe-highlight]')).toHaveLength(0);
+    });
+
+    it('ignores jig:mode from a non-bench origin — mode stays hand', () => {
+      const dom = loadLoupe('<p>hi</p>');
+      sendFrom(dom, FOREIGN_ORIGIN, { type: 'jig:mode', mode: 'loupe' });
+      expect(internalOf(dom).getMode()).toBe('hand');
+    });
+
+    it('logs a foreign-origin rejection once at debug level, not per message', () => {
+      const calls: unknown[][] = [];
+      const dom = loadLoupe('<p>hi</p>', (d) => {
+        d.window.console.debug = (...args: unknown[]) => calls.push(args);
+      });
+      sendFrom(dom, FOREIGN_ORIGIN, { type: 'jig:mode', mode: 'loupe' });
+      sendFrom(dom, FOREIGN_ORIGIN, { type: 'jig:navigate', path: '/x' });
+      sendFrom(dom, FOREIGN_ORIGIN, { type: 'jig:fill', fields: [] });
+      // one "ready" line already logs at load; foreign-origin rejection should add exactly one more.
+      expect(calls).toHaveLength(2);
+    });
+  });
 });
