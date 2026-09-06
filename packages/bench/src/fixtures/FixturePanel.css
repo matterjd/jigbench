@@ -125,7 +125,13 @@
   font-size: 11px;
   color: var(--dim);
   opacity: 1;
-  transition: opacity var(--t-feather) var(--ease-standard);
+}
+/* Finding 5 (wave-3 council, Blocker-class): purely cosmetic fade — the opacity value
+   itself still changes for reduced-motion viewers, just without an animated transition. */
+@media (prefers-reduced-motion: no-preference) {
+  .jig-fixtures__fill-status {
+    transition: opacity var(--t-feather) var(--ease-standard);
+  }
 }
 
 .jig-fixtures__message {

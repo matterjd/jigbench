@@ -156,9 +156,18 @@
   user-select: none;
   touch-action: none;
   cursor: pointer;
-  transition:
-    transform var(--t-feather) var(--ease-standard),
-    box-shadow var(--t-feather) var(--ease-standard);
+}
+/* Finding 5 (wave-3 council, Blocker-class): the hold's travel (translateY) and shadow are
+   cosmetic — reduced-motion viewers still get the full state change (`.jig-release--holding`
+   below), just without an animated transition between states. The ring FILL just below is
+   the one exception: it is a safety/progress signal, not decoration, and keeps its
+   `--t-oath` timing outside this gate on purpose. */
+@media (prefers-reduced-motion: no-preference) {
+  .jig-release {
+    transition:
+      transform var(--t-feather) var(--ease-standard),
+      box-shadow var(--t-feather) var(--ease-standard);
+  }
 }
 .jig-release:disabled {
   border-color: var(--line);
