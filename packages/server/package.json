@@ -21,6 +21,7 @@
   "dependencies": {
     "@faker-js/faker": "^10.6.0",
     "@jigbench/core": "*",
+    "@modelcontextprotocol/sdk": "^1.30.0",
     "express": "^5.2.1",
     "http-proxy": "^1.18.1",
     "json-schema-faker": "^0.6.3",
