@@ -1,8 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { JigStore } from '../store.js';
+import { logger } from '../logger.js';
 import { OllamaDrafter } from './drafters/ollama.js';
 import { OrdersService } from './service.js';
 import { OrderConflictError, OrderNotFoundError } from './errors.js';
@@ -219,27 +220,102 @@ describe('OrdersService.draftOrder — de-dup and concurrency cap (finding 3)', 
         await service.createMark({ pick: { path: `x${i}` }, prompt: `x${i}` }); // fires draftOrder in the background
       }
 
-      await tick(); // let the 5 background auto-drafts reach (or queue behind) the semaphore
-      expect(draftSpy).toHaveBeenCalledTimes(2); // only 2 ever reached draft(); 3 are queued
+      // `vi.waitFor` on the observable count, not a fixed `tick()` — a slot doesn't free
+      // until the released draft's real `persist()` (a real fs write: mkdir + write +
+      // rename, plus the stability merge's own EPERM/EBUSY retry loop on top) actually
+      // completes, and a loaded CI runner can make that take longer than any fixed guess.
+      // CI evidence (windows-latest, run 34044270785): this loop's first iteration failed
+      // "expected \"draft\" to be called 3 times, but got 2 times" behind a fixed 100ms
+      // tick. This is a single flat `vi.waitFor` per step (never a hand-rolled while loop
+      // around it — see the note above `tick()` on why that combination can starve the
+      // event loop), so it stays exempt from that failure mode while still tolerating a
+      // slow runner.
+      await vi.waitFor(() => expect(draftSpy).toHaveBeenCalledTimes(2), { timeout: 5000, interval: 20 }); // only 2 ever reach draft(); 3 queue
       expect(inFlight()).toBe(2);
 
       // Release one at a time. Each release should free exactly one slot, immediately
-      // backfilled by a queued order — the cap must hold at every step, not just at the end.
+      // backfilled by a queued order — the cap (the semaphore's high-water mark) must hold
+      // at every step, not just at the end.
       for (const expectedCalls of [3, 4, 5]) {
         releases.shift()!();
-        await tick();
-        expect(draftSpy).toHaveBeenCalledTimes(expectedCalls);
+        await vi.waitFor(() => expect(draftSpy).toHaveBeenCalledTimes(expectedCalls), { timeout: 5000, interval: 20 });
         expect(inFlight()).toBeLessThanOrEqual(2);
       }
       expect(maxInFlight()).toBeLessThanOrEqual(2); // never exceeded, at any point in the run
 
-      // drain what's left so nothing leaks past this test
+      // Drain what's left, then await the service being fully idle. Every backgrounded
+      // draftOrder's real persist() must land before this test's `afterEach` removes its
+      // temp directory (`tempDirs`, above) — otherwise the removal can race an in-flight
+      // write and reproduce the ENOENT this same CI run logged moments earlier:
+      // "[...] WARN  auto-draft failed Error: ENOENT: no such file or directory, open
+      // 'C:\Users\RUNNER~1\...\jig-orders-...\.jig\work-orders\0003-x2.md.tmp-...'" — see
+      // `OrdersService.close` below for the fix and its own deterministic reproduction.
       releases.shift()?.();
       releases.shift()?.();
-      await tick(20);
+      await service.close();
     },
     10_000,
   );
+});
+
+// The ENOENT WARN CI logged moments before the assertion failure above ("auto-draft failed
+// Error: ENOENT ... open '...work-orders\0003-x2.md.tmp-...'") came from THIS suite: a
+// background auto-draft's real persist() (mkdir + write + rename) was still opening its
+// temp file when `afterEach` removed the test's temp directory out from under it — nothing
+// in the test awaited that write before returning. `close()` (service.ts) exists to close
+// that gap; this suite proves it does, with a deterministic (not timing-dependent) delay
+// standing in for "the write is still slow when teardown wants to run."
+describe('OrdersService.close', () => {
+  it('awaits an in-flight background auto-draft before resolving, so a caller can safely tear down its store afterward', async () => {
+    const store = await freshStore();
+    const realWrite = store.writeWorkOrder.bind(store);
+    let writeStarted = false;
+    let writeFinished = false;
+    // Stands in for a slow real fs write (the Windows CI runner's atomic-write retry loop)
+    // — deterministic, not a race against real disk timing.
+    vi.spyOn(store, 'writeWorkOrder').mockImplementation(async (wo) => {
+      writeStarted = true;
+      await new Promise((r) => setTimeout(r, 50));
+      await realWrite(wo);
+      writeFinished = true;
+    });
+    const service = new OrdersService({ store, ollama: ollamaAvailable({ what: 'x', why: '', where: '', acceptance: [] }) });
+
+    await service.createMark({ pick: { path: 'x' }, prompt: 'x' }); // fires draftOrder in the background; its write hasn't started yet
+    expect(writeStarted).toBe(false);
+    expect(writeFinished).toBe(false);
+
+    await service.close();
+
+    expect(writeStarted).toBe(true);
+    expect(writeFinished).toBe(true); // close() did not resolve until the real write actually landed
+  });
+
+  it('reproduces the CI ENOENT: a removal landing between the write\'s mkdir and its file-open fails the write, and without close() nothing stops it racing an in-flight auto-draft', async () => {
+    // `atomic-write.ts`'s own retry loop is correct (reviewed: the temp file is never
+    // touched again after a final failure, never re-created against a missing directory) —
+    // this reproduces the TOCTOU one level up, at the exact two steps `atomicWriteFile`
+    // itself always does in order (mkdir, then open-for-write), with a removal deterministically
+    // landing in the gap between them instead of depending on real OS scheduling to hit it.
+    const repoRoot = await mkdtemp(join(tmpdir(), 'jig-orders-'));
+    const store = new JigStore(repoRoot);
+    await store.init();
+    const workOrdersDir = store.paths.workOrders;
+    vi.spyOn(store, 'writeWorkOrder').mockImplementation(async () => {
+      await mkdir(workOrdersDir, { recursive: true }); // atomicWriteFile's own first step
+      await rm(repoRoot, { recursive: true, force: true }); // the race: teardown removes the dir HERE — no close() awaited it first
+      await writeFile(join(workOrdersDir, 'race.md.tmp-test'), 'x', 'utf8'); // atomicWriteFile's second step — now ENOENT
+    });
+    const warnSpy = vi.spyOn(logger, 'warn').mockImplementation(() => {});
+    const service = new OrdersService({ store, ollama: ollamaAvailable({ what: 'x', why: '', where: '', acceptance: [] }) });
+
+    await service.createMark({ pick: { path: 'x' }, prompt: 'x' }); // fires draftOrder in the background, never awaited by the caller
+
+    await vi.waitFor(() => expect(warnSpy).toHaveBeenCalled(), { timeout: 5000, interval: 20 });
+    const [message, detail] = warnSpy.mock.calls[0]!;
+    expect(message).toBe('auto-draft failed');
+    expect(String(detail)).toMatch(/ENOENT/); // matches CI: "auto-draft failed Error: ENOENT: no such file or directory, open '...work-orders\...tmp-...'"
+  });
 });
 
 describe('OrdersService.editHumanFace', () => {
