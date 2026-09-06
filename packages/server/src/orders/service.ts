@@ -1,6 +1,7 @@
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import { DocsIndexSchema, transition, type DocsIndex, type Mark, type MarkTarget, type WorkOrder, type WorkOrderHuman, type WorkOrderShop } from '@jigbench/core';
+import { z } from 'zod';
+import { DocsIndexSchema, WorkOrderHumanSchema, transition, type DocsIndex, type Mark, type MarkTarget, type WorkOrder, type WorkOrderHuman, type WorkOrderShop } from '@jigbench/core';
 import type { JigStore } from '../store.js';
 import { pathExists } from '../fs-util.js';
 import { logger } from '../logger.js';
@@ -50,6 +51,19 @@ function costNote(selection: DrafterSelection, elapsedMs: number): string {
   if (selection.driver === 'shop') return 'queued for the shop';
   return selection.reason;
 }
+
+// Finding 2 (wave-3 council, security high): `editHumanFace`'s `patch` parameter used to be
+// typed `Partial<WorkOrderHuman>` and nothing more — a compile-time-only annotation, erased
+// at runtime, so `PATCH /api/work-orders/:id` (http.ts) could merge ANY JSON object (wrong
+// field types, unknown keys) straight into the persisted `human` face. `.strict()` rejects
+// unknown keys instead of silently dropping or merging them; the `what` override adds a sane
+// per-field length cap on top of the whole-body size limit `http.ts` sets on express.json() —
+// a single absurdly long field could otherwise still bloat the frontmatter well under that
+// overall byte budget.
+const MAX_WHAT_LENGTH = 4000;
+export const HumanFacePatchSchema = WorkOrderHumanSchema.partial()
+  .extend({ what: z.string().max(MAX_WHAT_LENGTH).optional() })
+  .strict();
 
 function fallbackMark(order: WorkOrder): Mark {
   return {
@@ -194,13 +208,21 @@ export class OrdersService {
   }
 
   /** The human face stays editable before release ("released — the file is written; a
-   * change now is a new work order", concept B F6) — `marked` and `drafted` only. */
-  async editHumanFace(id: string, patch: Partial<WorkOrderHuman>): Promise<WorkOrder> {
+   * change now is a new work order", concept B F6) — `marked` and `drafted` only.
+   *
+   * `patch` is `unknown`, not `Partial<WorkOrderHuman>` — it is untrusted request-body
+   * content (http.ts passes `req.body` straight through), so the TYPE alone must not be
+   * trusted either; `HumanFacePatchSchema.parse` is the runtime check that used to be
+   * missing entirely (finding 2). A rejected patch throws a `ZodError` (the same pattern
+   * `http.ts`'s `POST /api/marks` already uses for `MarkTargetSchema`), which the PATCH
+   * route's catch-all maps to 400 — nothing merges until validation passes. */
+  async editHumanFace(id: string, patch: unknown): Promise<WorkOrder> {
     const order = this.require(id);
     if (order.state !== 'marked' && order.state !== 'drafted') {
       throw new OrderConflictError(`work order ${id} is ${order.state} — the human face is only editable before release`);
     }
-    return this.persist({ ...order, human: { ...order.human, ...patch } });
+    const validated = HumanFacePatchSchema.parse(patch);
+    return this.persist({ ...order, human: { ...order.human, ...validated } });
   }
 
   /** RELEASE — the one demand (design-book Law I.2, CHASSIS.md): fills the shop face

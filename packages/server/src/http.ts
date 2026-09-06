@@ -50,6 +50,16 @@ export function isSameOriginOrAbsent(origin: string | undefined, host: string | 
   }
 }
 
+/** Reads a numeric `status`/`statusCode` off a thrown error (the shape node's http-errors —
+ * and therefore body-parser's PayloadTooLargeError — actually use) without resorting to
+ * `any`. Returns `undefined` for anything else (a ZodError, a plain Error, a non-Error
+ * throw), so callers can fall back to their own default. */
+function errorStatus(err: unknown): number | undefined {
+  if (typeof err !== 'object' || err === null) return undefined;
+  const candidate = (err as { status?: unknown; statusCode?: unknown }).status ?? (err as { statusCode?: unknown }).statusCode;
+  return typeof candidate === 'number' ? candidate : undefined;
+}
+
 export interface JigServerHandle {
   url: string;
   port: number;
@@ -82,7 +92,11 @@ function buildApp(
   fixtureStore: FixtureStore, // S7
 ): { app: Express; benchServeMode: BenchServeMode } {
   const app = express();
-  app.use(express.json());
+  // 64kb: the bench's own request bodies (marks, work-order patches) are all small,
+  // structured JSON — a generous cap on any single field lives closer to that field
+  // (see orders/service.ts's HumanFacePatchSchema), this is the whole-body backstop
+  // (finding 2, wave-3 council).
+  app.use(express.json({ limit: '64kb' }));
 
   // Same-origin gate on every mutating /api/* request. GET is exempt (it has no side
   // effect to forge); anything else — today just POST /api/marks, but the rule is written
@@ -234,8 +248,13 @@ function buildApp(
   // fine to return; it is never a stack trace, never a secret.
   app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
     const message = err instanceof Error ? err.message : String(err);
+    // Most thrown errors here (a ZodError from MarkTargetSchema/HumanFacePatchSchema) have
+    // no status of their own -> 400 (malformed request), same as always. body-parser's own
+    // PayloadTooLargeError (the express.json({limit}) cap, finding 2) DOES carry a real
+    // `status`/`statusCode` (413) -- honour it instead of flattening every error to 400.
+    const status = errorStatus(err) ?? 400;
     logger.warn('request failed', message);
-    res.status(400).json({ error: message });
+    res.status(status).json({ error: message });
   });
 
   return { app, benchServeMode };

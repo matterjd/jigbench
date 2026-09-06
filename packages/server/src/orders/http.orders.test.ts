@@ -126,6 +126,64 @@ describe('orders routes — illegal transitions map to 409, not 400 or a crash',
   });
 });
 
+// Finding 2 (wave-3 council, security high): PATCH /api/work-orders/:id used to merge
+// req.body straight into `human` with no runtime validation — `Partial<WorkOrderHuman>` is
+// just a compile-time annotation, erased at runtime. This block reproduces the exact council
+// repro end to end over real HTTP, then proves it 400s (not 200s) and the junk never lands.
+describe('PATCH /api/work-orders/:id validates the body (finding 2)', () => {
+  it('rejects the council repro body (wrong types + an unknown key) with 400, and nothing persists', async () => {
+    const { url } = await freshServer();
+    const id = await createMarkedOrder(url);
+
+    const res = await fetch(`${url}/api/work-orders/${id}`, {
+      method: 'PATCH',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ what: 1, evil: { $ref: 'x' }, acceptance: 'not-an-array' }),
+    });
+
+    expect(res.status).toBe(400);
+    const errorBody = await res.json();
+    expect(typeof errorBody.error).toBe('string'); // a plain JSON error, not a stack trace
+
+    const state = await (await fetch(`${url}/api/state`)).json();
+    const wo = state.workOrders.find((w: { id: string }) => w.id === id);
+    expect(wo.human.what).toBe('x'); // the original prompt-derived value, untouched
+    expect(wo.human.evil).toBeUndefined();
+  });
+
+  it('still accepts a well-formed patch (control)', async () => {
+    const { url } = await freshServer();
+    const id = await createMarkedOrder(url);
+
+    const res = await fetch(`${url}/api/work-orders/${id}`, {
+      method: 'PATCH',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ why: 'nobody notices overdue invoices' }),
+    });
+
+    expect(res.status).toBe(200);
+    expect((await res.json()).human.why).toBe('nobody notices overdue invoices');
+  });
+
+  it('rejects a request body over the 64kb limit rather than accepting an unbounded one', async () => {
+    const { url } = await freshServer();
+    const id = await createMarkedOrder(url);
+    // 80kb: comfortably over the new 64kb cap, but under express's own 100kb default — so
+    // this only fails once the route-specific limit is actually wired in (the RED case).
+    const oversized = 'x'.repeat(80 * 1024);
+
+    const res = await fetch(`${url}/api/work-orders/${id}`, {
+      method: 'PATCH',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ why: oversized }),
+    });
+
+    expect(res.status).not.toBe(200);
+    expect(res.status).toBeGreaterThanOrEqual(400);
+    expect(res.status).toBeLessThan(500);
+  });
+});
+
 describe('orders routes — the full loop, end to end over real HTTP', () => {
   it(
     'mark -> draft -> release -> scrap -> restore, each landing the right state',

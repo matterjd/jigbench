@@ -149,6 +149,71 @@ describe('OrdersService.editHumanFace', () => {
     const service = new OrdersService({ store });
     await expect(service.editHumanFace('9999', { why: 'x' })).rejects.toBeInstanceOf(OrderNotFoundError);
   });
+
+  // Finding 2 (wave-3 council, security high): editHumanFace used to spread `patch` into
+  // `human` with no runtime validation — a `Partial<WorkOrderHuman>` type annotation is
+  // erased at build time, so nothing stopped a caller (the PATCH route passes raw req.body)
+  // from writing arbitrary junk into the frontmatter.
+  describe('runtime validation of the patch (finding 2)', () => {
+    it('rejects an unknown key rather than merging it silently', async () => {
+      const store = await freshStore();
+      const service = new OrdersService({ store, ollama: ollamaUnavailable() });
+      const { workOrder } = await store.createMarkAndWorkOrder({ target: { path: 'x' }, prompt: 'x' });
+
+      await expect(service.editHumanFace(workOrder.id, { evil: { $ref: 'x' } })).rejects.toThrow();
+      // and the junk never landed — untouched, not partially written.
+      expect((store.getWorkOrder(workOrder.id)?.human as unknown as Record<string, unknown>).evil).toBeUndefined();
+    });
+
+    it('rejects a field of the wrong type (what as a number, not a string)', async () => {
+      const store = await freshStore();
+      const service = new OrdersService({ store, ollama: ollamaUnavailable() });
+      const { workOrder } = await store.createMarkAndWorkOrder({ target: { path: 'x' }, prompt: 'x' });
+
+      await expect(service.editHumanFace(workOrder.id, { what: 1 as unknown as string })).rejects.toThrow();
+      expect(store.getWorkOrder(workOrder.id)?.human.what).toBe('x'); // unchanged
+    });
+
+    it('rejects acceptance when it is not an array', async () => {
+      const store = await freshStore();
+      const service = new OrdersService({ store, ollama: ollamaUnavailable() });
+      const { workOrder } = await store.createMarkAndWorkOrder({ target: { path: 'x' }, prompt: 'x' });
+
+      await expect(
+        service.editHumanFace(workOrder.id, { acceptance: 'not-an-array' as unknown as string[] }),
+      ).rejects.toThrow();
+    });
+
+    it('rejects a "what" longer than the sane per-field cap even though the whole patch is tiny', async () => {
+      const store = await freshStore();
+      const service = new OrdersService({ store, ollama: ollamaUnavailable() });
+      const { workOrder } = await store.createMarkAndWorkOrder({ target: { path: 'x' }, prompt: 'x' });
+
+      await expect(service.editHumanFace(workOrder.id, { what: 'x'.repeat(5000) })).rejects.toThrow();
+    });
+
+    it('still accepts a well-formed, fully-populated patch (control)', async () => {
+      const store = await freshStore();
+      const service = new OrdersService({ store, ollama: ollamaUnavailable() });
+      const { workOrder } = await store.createMarkAndWorkOrder({ target: { path: 'x' }, prompt: 'x' });
+
+      const patched = await service.editHumanFace(workOrder.id, {
+        what: 'flag overdue rows',
+        why: 'nobody notices',
+        where: 'InvoiceListComponent',
+        acceptance: ['an overdue row is red'],
+        fixture: 'overdue-fixture',
+      });
+
+      expect(patched.human).toEqual({
+        what: 'flag overdue rows',
+        why: 'nobody notices',
+        where: 'InvoiceListComponent',
+        acceptance: ['an overdue row is red'],
+        fixture: 'overdue-fixture',
+      });
+    });
+  });
 });
 
 describe('OrdersService.release', () => {
