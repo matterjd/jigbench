@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { App } from './App.js';
 import { setTool } from './tools/toolState.js';
 
@@ -98,6 +98,56 @@ describe('App', () => {
     // the shared `{ wiring }` shape, which has no `fixtures`/`active` keys) and renders its
     // own empty state — proof the real S7 component is mounted, not a placeholder.
     expect(await screen.findByText('no fixtures yet.')).toBeTruthy();
+  });
+
+  it('integration seam (S8): selecting the Toolpath tool from the rail shows the Toolpath panel', async () => {
+    render(<App />);
+    fireEvent.click(screen.getByRole('button', { name: /^Toolpath —/ }));
+
+    expect(screen.getByRole('tab', { name: /Toolpath/ }).getAttribute('aria-selected')).toBe('true');
+    // ToolpathBar resolves its GET /api/toolpaths call (the App-level fetch stub degrades to
+    // the shared `{ wiring }` shape, which has no `toolpaths` key) and renders its own honest
+    // empty state — proof the real S8 component is mounted, not a placeholder.
+    expect(await screen.findByText(/no toolpaths yet/i)).toBeTruthy();
+  });
+
+  it('integration seam (S8): the plate stays PlateBench (never the trial-fit mirror) when no order is at trial-fit', () => {
+    render(<App />);
+    // Same assertion the first test in this file already makes — restated here to name WHY
+    // it matters post-S8: TrialFitMirror must never take over the plate slot by default.
+    expect(screen.getByText(/Plate — where the app renders/)).toBeTruthy();
+    expect(screen.queryByText(/trial fit · not yet/i)).toBeNull();
+  });
+
+  it('integration seam (S8): the plate slot swaps to the trial-fit mirror once a real order reaches trial-fit', () => {
+    render(<App />);
+    const workOrder = {
+      jigFormat: 1,
+      id: '0007',
+      slug: 'rename-the-total-column',
+      state: 'trial-fit',
+      draftedBy: 'model',
+      marks: [],
+      human: { what: 'x', why: 'y', where: 'z', acceptance: [] },
+      shop: { files: [], patterns: [], tests: [], brief: 'x', trialFit: { summary: 'renamed it', files: [] } },
+      log: [],
+    };
+    const state = {
+      survey: { jigFormat: 1, stack: [], components: [], routes: [], endpoints: [], schemas: [], docs: [], generatedAt: 'now' },
+      gauges: { jigFormat: 1, gauges: [], generatedAt: 'now' },
+      marks: [],
+      workOrders: [workOrder],
+      wiring,
+    };
+
+    act(() => {
+      FakeWebSocket.instances[0].onmessage?.({ data: JSON.stringify({ type: 'state', state }) });
+    });
+
+    // PlateBench's own "no target" text is gone — the mirror's own frame region took over
+    // the exact same layout slot.
+    expect(screen.queryByText(/Plate — where the app renders/)).toBeNull();
+    expect(screen.getByText(/renamed it/i)).toBeTruthy();
   });
 
   it('switching the tool via the rail is reflected in the Loupe tab\'s mode toggle', () => {

@@ -8,9 +8,11 @@ import { GaugesPanel } from './gauges/GaugesPanel.js';
 import { selectorsForGauge } from './gauges/resolveGaugeUsage.js';
 import { LoupeReadout } from './plate/LoupeReadout.js';
 import { PlateBench, type PlateBenchHandle } from './plate/PlateBench.js';
-import type { PlatePick } from './plate/usePlateBridge.js';
+import type { PlateEvent, PlatePick } from './plate/usePlateBridge.js';
 import { CommandPalette, type PaletteDocsResult } from './palette/CommandPalette.js';
 import { FixturePanel } from './fixtures/index.js';
+import { ToolpathBar } from './toolpath/ToolpathBar.js';
+import { TrialFitMirror } from './trialfit/TrialFitMirror.js';
 import { TrayRegion } from './orders/TrayRegion.js';
 import { ShopLane } from './shop/ShopLane.js';
 import { Logbook } from './components/Logbook.js';
@@ -35,6 +37,10 @@ export function App() {
   const [lastPick, setLastPick] = useState<PlatePick | null>(null);
   const [propertiesTab, setPropertiesTab] = useState<PropertiesTab>('loupe');
   const [docsCount, setDocsCount] = useState<number | undefined>(undefined);
+  // S8: the toolpath recorder's own seam (PlateBench's onEvent) and the trial-fit mirror's
+  // "one printed affordance returns to a single frame" override.
+  const [lastEvent, setLastEvent] = useState<PlateEvent | null>(null);
+  const [forceSinglePlate, setForceSinglePlate] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -67,6 +73,24 @@ export function App() {
     if (tool === 'fixture') setPropertiesTab('fixture');
   }, [tool]);
 
+  // Integration seam (S8): the rail's Toolpath tool switches the properties column to the
+  // Toolpath tab, the exact same pattern as Fixture above.
+  useEffect(() => {
+    if (tool === 'toolpath') setPropertiesTab('toolpath');
+  }, [tool]);
+
+  // S8 (CHASSIS.md's trial-fit mode): "the plate region splits into two frames" once the
+  // order in hand reaches trial-fit — swaps PlateBench out for TrialFitMirror in the exact
+  // same layout slot below, rather than editing PlateBench.tsx itself (a restricted,
+  // delimited-block-only file). `forceSinglePlate` is the "one printed affordance" override;
+  // it clears itself once no order is at trial-fit any more, so a LATER trial-fit still shows.
+  const workOrders = state?.workOrders ?? [];
+  const anyOrderAtTrialFit = workOrders.some((w) => w.state === 'trial-fit');
+  useEffect(() => {
+    if (!anyOrderAtTrialFit) setForceSinglePlate(false);
+  }, [anyOrderAtTrialFit]);
+  const showTrialFitMirror = anyOrderAtTrialFit && !forceSinglePlate;
+
   const survey = state?.survey;
   const gauges = state?.gauges.gauges;
 
@@ -87,14 +111,19 @@ export function App() {
       <Chassis
         rail={<Rail />}
         plate={
-          <PlateBench
-            ref={plateRef}
-            survey={survey}
-            gauges={gauges}
-            onPick={setLastPick}
-            iframeRef={plateIframeRef}
-            onPlateOriginChange={setPlateOrigin}
-          />
+          showTrialFitMirror ? (
+            <TrialFitMirror workOrders={workOrders} onPrinted={() => setForceSinglePlate(true)} />
+          ) : (
+            <PlateBench
+              ref={plateRef}
+              survey={survey}
+              gauges={gauges}
+              onPick={setLastPick}
+              onEvent={setLastEvent}
+              iframeRef={plateIframeRef}
+              onPlateOriginChange={setPlateOrigin}
+            />
+          )
         }
         properties={
           <PropertiesColumn
@@ -128,6 +157,7 @@ export function App() {
             fixture={
               <FixturePanel iframeRef={plateIframeRef} plateOrigin={plateOrigin} lastPickPath={lastPick?.path ?? null} />
             }
+            toolpath={<ToolpathBar lastEvent={lastEvent} post={(message) => plateRef.current?.post(message)} />}
           />
         }
         tray={

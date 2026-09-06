@@ -43,6 +43,44 @@ describe('PropertiesColumn', () => {
     expect(screen.queryByText('loupe content')).toBeNull();
   });
 
+  // S8 — the Toolpath tool's recorder/replay bar gets a fifth tab, the exact same
+  // optional-prop pattern S7's Fixture tab above already established.
+  it('renders a Toolpath tab when toolpath content is provided, and switches to it on click', () => {
+    render(
+      <PropertiesColumn
+        loupe={<div>loupe content</div>}
+        gauges={<div>gauges content</div>}
+        survey={<div>survey content</div>}
+        toolpath={<div>toolpath content</div>}
+      />,
+    );
+    fireEvent.click(screen.getByRole('tab', { name: /Toolpath/ }));
+    expect(screen.getByRole('tab', { name: /Toolpath/ }).getAttribute('aria-selected')).toBe('true');
+    expect(screen.getByText('toolpath content')).toBeTruthy();
+    expect(screen.queryByText('loupe content')).toBeNull();
+  });
+
+  it('the Toolpath tab is controllable — passing activeTab="toolpath" selects it without a click', () => {
+    render(
+      <PropertiesColumn
+        loupe={<div>loupe content</div>}
+        gauges={<div>gauges content</div>}
+        survey={<div>survey content</div>}
+        toolpath={<div>toolpath content</div>}
+        activeTab="toolpath"
+      />,
+    );
+    expect(screen.getByRole('tab', { name: /Toolpath/ }).getAttribute('aria-selected')).toBe('true');
+    expect(screen.getByText('toolpath content')).toBeTruthy();
+  });
+
+  it('no Toolpath tab renders when no toolpath content is provided', () => {
+    render(
+      <PropertiesColumn loupe={<div>loupe content</div>} gauges={<div>gauges content</div>} survey={<div>survey content</div>} />,
+    );
+    expect(screen.queryByRole('tab', { name: /Toolpath/ })).toBeNull();
+  });
+
   it('the Fixture tab is controllable — passing activeTab="fixture" selects it without a click', () => {
     render(
       <PropertiesColumn
