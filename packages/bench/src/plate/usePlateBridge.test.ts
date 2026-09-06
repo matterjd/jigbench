@@ -186,6 +186,46 @@ describe('usePlateBridge', () => {
     document.body.removeChild(iframe);
   });
 
+  // S8 — the toolpath replayer needs to post jig:click/jig:fill/jig:navigate/jig:highlight
+  // directly rather than growing a bespoke bridge method per message shape.
+  it('post() posts an arbitrary jig:* message to the iframe verbatim', () => {
+    const ref = createRef<HTMLIFrameElement>();
+    const iframe = document.createElement('iframe');
+    document.body.appendChild(iframe);
+    (ref as { current: HTMLIFrameElement }).current = iframe;
+
+    const posted: unknown[] = [];
+    Object.defineProperty(iframe, 'contentWindow', {
+      value: { postMessage: (msg: unknown) => posted.push(msg) },
+    });
+
+    const { result } = renderHook(() => usePlateBridge(ref, PLATE_ORIGIN, []));
+    act(() => result.current.post({ type: 'jig:click', path: '#target' }));
+
+    expect(posted).toContainEqual({ type: 'jig:click', path: '#target' });
+
+    document.body.removeChild(iframe);
+  });
+
+  it('post() never posts when the plate origin is not yet known', () => {
+    const ref = createRef<HTMLIFrameElement>();
+    const iframe = document.createElement('iframe');
+    document.body.appendChild(iframe);
+    (ref as { current: HTMLIFrameElement }).current = iframe;
+
+    const posted: unknown[] = [];
+    Object.defineProperty(iframe, 'contentWindow', {
+      value: { postMessage: (msg: unknown) => posted.push(msg) },
+    });
+
+    const { result } = renderHook(() => usePlateBridge(ref, null, []));
+    act(() => result.current.post({ type: 'jig:click', path: '#target' }));
+
+    expect(posted).toEqual([]);
+
+    document.body.removeChild(iframe);
+  });
+
   it('never posts when the plate origin is not yet known', () => {
     const ref = createRef<HTMLIFrameElement>();
     const iframe = document.createElement('iframe');

@@ -19,6 +19,11 @@ import type { AgentDrafter } from './orders/drafters/shop.js';
 import { FixtureStore } from './fixtures/store.js'; // S7
 import { attachFixturesRoute } from './fixtures/route.js'; // S7
 import { createFixtureInterceptor } from './fixtures/interceptor.js'; // S7
+import { ToolpathStore } from './toolpath/store.js'; // S8
+import { attachToolpathsRoute } from './toolpath/route.js'; // S8
+import { TrialFitMirror } from './trialfit/mirror.js'; // S8
+import { SnapshotStore } from './trialfit/snapshot.js'; // S8
+import { attachTrialFitRoute } from './trialfit/route.js'; // S8
 
 export interface CreateJigServerOptions {
   repoRoot: string;
@@ -77,6 +82,12 @@ export interface JigServerHandle {
   store: JigStore;
   /** S7 — the fixture data/lifecycle store; exposed for tests the same way `store` is. */
   fixtureStore: FixtureStore;
+  /** S8 — the toolpath data/lifecycle store; exposed for tests the same way `store` is. */
+  toolpathStore: ToolpathStore;
+  /** S8 — the trial-fit mirror + its snapshot store; exposed for tests the same way
+   * `store`/`fixtureStore`/`toolpathStore` are. */
+  trialFitMirror: TrialFitMirror;
+  snapshotStore: SnapshotStore;
   benchServeMode: BenchServeMode;
   close(): Promise<void>;
 }
@@ -98,6 +109,9 @@ function buildApp(
   wss: WebSocketServer,
   options: CreateJigServerOptions,
   fixtureStore: FixtureStore, // S7
+  toolpathStore: ToolpathStore, // S8
+  trialFitMirror: TrialFitMirror, // S8
+  snapshotStore: SnapshotStore, // S8
 ): { app: Express; benchServeMode: BenchServeMode } {
   const app = express();
   // 64kb: the bench's own request bodies (marks, work-order patches) are all small,
@@ -248,9 +262,40 @@ function buildApp(
   });
   // === end S5 orders block ===
 
-  if (options.plate) attachPlateRoute(app, options.plate, () => store.getActiveFixture());
+  // === S8 (trial fit): the two ladder moves the shop drives ==============================
+  app.post('/api/work-orders/:id/claim', async (req, res, next) => {
+    try {
+      const by = typeof req.body?.by === 'string' && req.body.by.trim() ? req.body.by : undefined;
+      res.status(200).json(await orders.claim(req.params.id, by));
+    } catch (err) {
+      mapOrderError(err, res, next);
+    }
+  });
+
+  app.post('/api/work-orders/:id/report', async (req, res, next) => {
+    try {
+      const summary = String(req.body?.summary ?? '');
+      if (!summary.trim()) {
+        res.status(400).json({ error: 'summary is required' });
+        return;
+      }
+      const files = Array.isArray(req.body?.files) ? req.body.files.map(String) : undefined;
+      res.status(200).json(await orders.reportDone(req.params.id, { summary, files }));
+    } catch (err) {
+      mapOrderError(err, res, next);
+    }
+  });
+  // === end S8 block ===
+
+  if (options.plate) {
+    attachPlateRoute(app, options.plate, () => store.getActiveFixture(), () => trialFitMirror.getStatus());
+  }
 
   attachFixturesRoute(app, fixtureStore, () => store.getState().survey); // S7
+
+  attachToolpathsRoute(app, toolpathStore); // S8
+
+  attachTrialFitRoute(app, { mirror: trialFitMirror, snapshotStore, primaryPlate: options.plate }); // S8
 
   const benchServeMode = attachBenchServing(app, {
     benchDistDir: options.benchDistDir ?? defaultBenchDistDir(),
@@ -286,8 +331,23 @@ export async function createJigServer(options: CreateJigServerOptions): Promise<
   if (options.plate) options.plate.addInterceptor?.(createFixtureInterceptor(fixtureStore));
   // -----------------------------------------------------------------------------------------
 
+  // --- S8 (toolpath): construct + wire ------------------------------------------------------
+  const toolpathStore = new ToolpathStore(repoRoot, store); // store satisfies ToolpathWiringSink
+  await toolpathStore.init();
+  // -------------------------------------------------------------------------------------------
+
+  // --- S8 (trial fit): construct + wire -----------------------------------------------------
+  // benchOrigin mirrors serve.ts's own approach for the primary plate (the CONFIGURED port,
+  // not necessarily the OS-assigned one under `port: 0` in tests) — the mirror is embedded
+  // in the SAME bench page the primary already is, so it needs the same origin value.
+  const benchOrigin = `http://localhost:${port}`;
+  const trialFitMirror = new TrialFitMirror(benchOrigin);
+  const snapshotStore = new SnapshotStore(repoRoot);
+  await snapshotStore.init();
+  // -------------------------------------------------------------------------------------------
+
   const wss = new WebSocketServer({ noServer: true });
-  const { app, benchServeMode } = buildApp(store, wss, options, fixtureStore);
+  const { app, benchServeMode } = buildApp(store, wss, options, fixtureStore, toolpathStore, trialFitMirror, snapshotStore);
   const httpServer: HttpServer = createHttpServer(app);
 
   httpServer.on('upgrade', (req: IncomingMessage, socket, head) => {
@@ -326,12 +386,16 @@ export async function createJigServer(options: CreateJigServerOptions): Promise<
     boundAddress,
     store,
     fixtureStore, // S7
+    toolpathStore, // S8
+    trialFitMirror, // S8
+    snapshotStore, // S8
     benchServeMode,
     async close() {
       // wss was created with { noServer: true }, so close() alone won't drop connected
       // clients — terminate them explicitly or httpServer.close()'s callback never fires.
       for (const client of wss.clients as Set<WebSocket>) client.terminate();
       wss.close();
+      await trialFitMirror.close(); // S8 — the mirror's own listening socket, if started
       await new Promise<void>((resolve, reject) => {
         httpServer.close((err) => (err ? reject(err) : resolve()));
       });

@@ -98,4 +98,44 @@ describe('attachPlateRoute', () => {
     const res = await fetch(`${url}/api/plate`);
     expect(Object.keys(await res.json())).not.toContain('fixture');
   });
+
+  // S8 — CHASSIS.md's trial-fit mode: "GET /api/plate reports mirror: {port, status}" once
+  // POST /api/plate/mirror has started one. Same "omit, never a literal null" convention the
+  // fixture getter above already established.
+  it('reports the mirror\'s port + status when a getMirrorStatus getter is supplied and running', async () => {
+    const app = express();
+    attachPlateRoute(
+      app,
+      fakePlate({ target: 'http://localhost:4200', port: 4601, status: 'up', changes: [] }),
+      undefined,
+      async () => ({ port: 4602, status: 'up' }),
+    );
+    const url = await serve(app);
+
+    const res = await fetch(`${url}/api/plate`);
+    expect((await res.json()).mirror).toEqual({ port: 4602, status: 'up' });
+  });
+
+  it('omits the "mirror" key when the getter reports none running (never a literal null)', async () => {
+    const app = express();
+    attachPlateRoute(
+      app,
+      fakePlate({ target: 'http://localhost:4200', port: 4601, status: 'up', changes: [] }),
+      undefined,
+      async () => null,
+    );
+    const url = await serve(app);
+
+    const res = await fetch(`${url}/api/plate`);
+    expect(Object.keys(await res.json())).not.toContain('mirror');
+  });
+
+  it('has no "mirror" key at all when no getMirrorStatus is supplied (every pre-S8 call site)', async () => {
+    const app = express();
+    attachPlateRoute(app, fakePlate({ target: 'http://localhost:4200', port: 4601, status: 'up', changes: [] }));
+    const url = await serve(app);
+
+    const res = await fetch(`${url}/api/plate`);
+    expect(Object.keys(await res.json())).not.toContain('mirror');
+  });
 });
