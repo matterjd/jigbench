@@ -2,25 +2,41 @@
 # scripts/mcp-smoke.sh
 #
 # The REAL interop gate (EXECUTION-PLAN.md §4 S6's testable acceptance): builds everything,
-# re-runs the stdout-purity + tools/list round trip (scripts/stdout-guard.sh), then verifies
-# the INSTALLED Claude Code CLI actually negotiates a session against `npx jigbench mcp` and
-# reports it healthy.
+# re-runs the stdout-purity + tools/list round trip (scripts/stdout-guard.sh), then drives a
+# READ-ONLY end-to-end MCP session against the built binary using the real SDK Client +
+# StdioClientTransport (packages/cli/src/commands/mcp.e2e.test.ts) — no global npm state, no
+# writes to the user's own Claude Code config, ever, in this default path.
 #
-# FINDING (2026-09-06, verified live on this desk against Claude Code 2.1.259): a
-# project-scoped `.mcp.json` entry (what `jigbench init` writes) is reported by
-# `claude mcp list` as "Pending approval" until a human interactively approves it once in
-# that project — Claude Code's own security gate against untrusted repos' checked-in
-# `.mcp.json` files, not something this script should or safely could bypass.
-# `claude mcp add <name> -- <command> <args...>` is the non-interactive equivalent of that
-# one-time approval (a LOCAL-scope, user-initiated registration) — THAT is what this script
-# uses to get a real, health-checked "Connected" status. It still runs `jigbench init` first
-# and asserts `.mcp.json` itself is written correctly, matching the literal S6 acceptance.
+# Wave-4 council finding 2 (HIGH): a prior version of this script ALWAYS ran `npm link`
+# (into global npm) and `claude mcp add` (into the CURRENT machine's `~/.claude.json`) — two
+# real, global mutations a caller could trigger unintentionally just by running this script.
+# Those two steps now run ONLY when `JIGBENCH_SMOKE_GLOBAL=1` is set; otherwise this script
+# prints one SKIPPED line naming both steps and how to opt in, and still exits 0 for the
+# read-only part above.
 #
-# `jigbench` is not published to npm yet (EXECUTION-PLAN.md decision 12: private for now),
-# so a bare `npx jigbench` would 404 against the real registry — this script `npm link`s the
-# local build for its own duration and always `npm unlink`s it again, even on failure.
+# FINDING (2026-09-06, verified live on this desk against Claude Code 2.1.259, kept from the
+# prior version of this script — only reachable under the opt-in path now): a project-scoped
+# `.mcp.json` entry (what `jigbench init` writes) is reported by `claude mcp list` as "Pending
+# approval" until a human interactively approves it once in that project — Claude Code's own
+# security gate against untrusted repos' checked-in `.mcp.json` files, not something this
+# script should or safely could bypass. `claude mcp add <name> -- <command> <args...>` is the
+# non-interactive equivalent of that one-time approval (a LOCAL-scope, user-initiated
+# registration) — THAT is what the opt-in path uses to get a real, health-checked "Connected"
+# status. It still runs `jigbench init` first and asserts `.mcp.json` itself is written
+# correctly, matching the literal S6 acceptance.
 #
-# Usage: bash scripts/mcp-smoke.sh   (builds everything itself; leaves nothing running)
+# `jigbench` is not published to npm yet (EXECUTION-PLAN.md decision 12: private for now), so
+# a bare `npx jigbench` would 404 against the real registry — the opt-in path `npm link`s the
+# local build for its own duration and always `npm unlink`s it again, even on failure or a
+# Ctrl-C (the cleanup trap runs either way, so an interrupted run can never leave the link or
+# the claude registration behind).
+#
+# Usage:
+#   bash scripts/mcp-smoke.sh                       # read-only: build + stdout-guard + e2e
+#   JIGBENCH_SMOKE_GLOBAL=1 bash scripts/mcp-smoke.sh  # also: npm link + claude mcp add/list
+#
+# See scripts/mcp-smoke.test.sh: it asserts mechanically (fake npm/claude shims first on
+# PATH) that a plain run of this script never invokes either global-state step.
 
 set -uo pipefail
 
@@ -62,7 +78,32 @@ if ! bash "$HERE/stdout-guard.sh"; then
   PASS=0
 fi
 
-echo "== mcp-smoke: npm link (npx jigbench -> this build; jigbench isn't published yet) ==" >&2
+# --- read-only MCP e2e: spawns the built binary, drives it with the real SDK Client over a
+# real StdioClientTransport (packages/cli/src/commands/mcp.e2e.test.ts) — no global npm
+# state, no claude CLI, no writes outside a throwaway temp repo it creates and removes itself.
+echo "== mcp-smoke: read-only MCP e2e (real SDK Client + StdioClientTransport; no global state touched) ==" >&2
+E2E_LOG="$(mktemp)"
+if ! (cd "$CLI_DIR" && npx vitest run src/commands/mcp.e2e.test.ts >"$E2E_LOG" 2>&1); then
+  echo "FAIL: the read-only MCP e2e failed:" >&2
+  cat "$E2E_LOG" >&2
+  PASS=0
+else
+  echo "OK: read-only MCP e2e" >&2
+fi
+rm -f "$E2E_LOG"
+
+if [ "${JIGBENCH_SMOKE_GLOBAL:-0}" != "1" ]; then
+  echo "SKIPPED: the global-state interop step (npm link into global npm; claude mcp add into ~/.claude.json) -- opt in with JIGBENCH_SMOKE_GLOBAL=1 to also verify a REAL 'claude mcp add' + 'claude mcp list' round trip" >&2
+  if [ "$PASS" -eq 1 ]; then
+    echo "PASS: mcp-smoke (read-only)" >&2
+    exit 0
+  else
+    echo "FAIL: mcp-smoke (read-only)" >&2
+    exit 1
+  fi
+fi
+
+echo "== mcp-smoke: npm link (npx jigbench -> this build; jigbench isn't published yet) [JIGBENCH_SMOKE_GLOBAL=1] ==" >&2
 if ! (cd "$CLI_DIR" && npm link >/dev/null 2>&1); then
   echo "FAIL: npm link failed" >&2
   exit 1
@@ -85,7 +126,7 @@ else
   echo "OK: jigbench init wrote .mcp.json" >&2
 fi
 
-echo "== mcp-smoke: claude mcp add + claude mcp list (the real interop gate) ==" >&2
+echo "== mcp-smoke: claude mcp add + claude mcp list (the real interop gate) [JIGBENCH_SMOKE_GLOBAL=1] ==" >&2
 if ! command -v claude >/dev/null 2>&1; then
   echo "FAIL: the 'claude' CLI is not on PATH — cannot run the real interop gate" >&2
   exit 1
