@@ -10,3 +10,11 @@
 export function printHuman(message: string): void {
   process.stdout.write(message.endsWith('\n') ? message : `${message}\n`);
 }
+
+/** `jigbench survey`'s default (non-`--json`) human summary goes here instead of
+ * `printHuman` — stdout is reserved for the `--json` payload on that one command, so its
+ * summary must not land there too. Safe under the same stdout-purity guard: it never calls
+ * `process.stdout.write`. */
+export function printSummary(message: string): void {
+  process.stderr.write(message.endsWith('\n') ? message : `${message}\n`);
+}

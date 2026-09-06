@@ -1,0 +1,369 @@
+{
+  "jigFormat": 1,
+  "stack": [
+    "angular"
+  ],
+  "components": [
+    {
+      "name": "App",
+      "selector": "app-root",
+      "file": "src/app/app.ts",
+      "standalone": true,
+      "inline": true,
+      "inputs": [],
+      "outputs": [],
+      "styleUrls": []
+    },
+    {
+      "name": "ShellComponent",
+      "selector": "app-shell",
+      "file": "src/app/shell/shell.ts",
+      "standalone": true,
+      "inline": false,
+      "inputs": [],
+      "outputs": [],
+      "templateUrl": "./shell.html",
+      "styleUrls": [
+        "./shell.scss"
+      ]
+    },
+    {
+      "name": "CustomerListComponent",
+      "selector": "app-customer-list",
+      "file": "src/app/customers/customer-list/customer-list.ts",
+      "standalone": true,
+      "inline": false,
+      "inputs": [],
+      "outputs": [],
+      "templateUrl": "./customer-list.html",
+      "styleUrls": [
+        "./customer-list.scss"
+      ]
+    },
+    {
+      "name": "InvoiceDetailComponent",
+      "selector": "app-invoice-detail",
+      "file": "src/app/invoices/invoice-detail/invoice-detail.ts",
+      "standalone": true,
+      "inline": false,
+      "inputs": [],
+      "outputs": [],
+      "templateUrl": "./invoice-detail.html",
+      "styleUrls": [
+        "./invoice-detail.scss"
+      ]
+    },
+    {
+      "name": "InvoiceFormComponent",
+      "selector": "app-invoice-form",
+      "file": "src/app/invoices/invoice-form/invoice-form.ts",
+      "standalone": true,
+      "inline": false,
+      "inputs": [],
+      "outputs": [],
+      "templateUrl": "./invoice-form.html",
+      "styleUrls": [
+        "./invoice-form.scss"
+      ]
+    },
+    {
+      "name": "InvoiceListComponent",
+      "selector": "app-invoice-list",
+      "file": "src/app/invoices/invoice-list/invoice-list.ts",
+      "standalone": true,
+      "inline": false,
+      "inputs": [],
+      "outputs": [],
+      "templateUrl": "./invoice-list.html",
+      "styleUrls": [
+        "./invoice-list.scss"
+      ]
+    },
+    {
+      "name": "StatusChipComponent",
+      "selector": "app-status-chip",
+      "file": "src/app/shared/status-chip/status-chip.ts",
+      "standalone": true,
+      "inline": false,
+      "inputs": [
+        {
+          "name": "status",
+          "required": true
+        }
+      ],
+      "outputs": [],
+      "templateUrl": "./status-chip.html",
+      "styleUrls": [
+        "./status-chip.scss"
+      ]
+    }
+  ],
+  "routes": [
+    {
+      "path": "invoices",
+      "component": "InvoiceListComponent",
+      "file": "src/app/invoices/invoice-list/invoice-list.ts"
+    },
+    {
+      "path": "invoices/new",
+      "component": "InvoiceFormComponent",
+      "file": "src/app/invoices/invoice-form/invoice-form.ts"
+    },
+    {
+      "path": "invoices/:id/edit",
+      "component": "InvoiceFormComponent",
+      "file": "src/app/invoices/invoice-form/invoice-form.ts"
+    },
+    {
+      "path": "invoices/:id",
+      "component": "InvoiceDetailComponent",
+      "file": "src/app/invoices/invoice-detail/invoice-detail.ts"
+    },
+    {
+      "path": "customers",
+      "component": "CustomerListComponent",
+      "file": "src/app/customers/customer-list/customer-list.ts"
+    }
+  ],
+  "endpoints": [],
+  "schemas": [
+    {
+      "schemaRef": "Customer",
+      "schema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string"
+          },
+          "city": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "email",
+          "city"
+        ],
+        "additionalProperties": false,
+        "definitions": {}
+      }
+    },
+    {
+      "schemaRef": "InvoiceLine",
+      "schema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "quantity": {
+            "type": "number"
+          },
+          "unitPrice": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "id",
+          "description",
+          "quantity",
+          "unitPrice"
+        ],
+        "additionalProperties": false,
+        "definitions": {}
+      }
+    },
+    {
+      "schemaRef": "Invoice",
+      "schema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "number": {
+            "type": "string"
+          },
+          "customerId": {
+            "type": "string"
+          },
+          "customerName": {
+            "type": "string"
+          },
+          "issuedOn": {
+            "type": "string"
+          },
+          "dueOn": {
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/definitions/InvoiceStatus"
+          },
+          "lines": {
+            "type": "array",
+            "items": {
+              "$ref": "#/definitions/InvoiceLine"
+            }
+          },
+          "notes": {
+            "type": "string"
+          },
+          "total": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "id",
+          "number",
+          "customerId",
+          "customerName",
+          "issuedOn",
+          "dueOn",
+          "status",
+          "lines",
+          "notes",
+          "total"
+        ],
+        "additionalProperties": false,
+        "definitions": {
+          "InvoiceStatus": {
+            "type": "string",
+            "enum": [
+              "draft",
+              "sent",
+              "paid",
+              "overdue",
+              "void"
+            ],
+            "description": "Ledger domain models. This is FAKE data for a fictitious small business (\"Ledger\") used only as a Jig fixture app — see the repo README."
+          },
+          "InvoiceLine": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "description": {
+                "type": "string"
+              },
+              "quantity": {
+                "type": "number"
+              },
+              "unitPrice": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "id",
+              "description",
+              "quantity",
+              "unitPrice"
+            ],
+            "additionalProperties": false
+          }
+        }
+      }
+    },
+    {
+      "schemaRef": "InvoiceFormValue",
+      "schema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "customerId": {
+            "type": "string"
+          },
+          "issuedOn": {
+            "type": "string"
+          },
+          "dueOn": {
+            "type": "string"
+          },
+          "notes": {
+            "type": "string"
+          },
+          "lines": {
+            "type": "array",
+            "items": {
+              "$ref": "#/definitions/InvoiceLine"
+            }
+          }
+        },
+        "required": [
+          "customerId",
+          "issuedOn",
+          "dueOn",
+          "notes",
+          "lines"
+        ],
+        "additionalProperties": false,
+        "definitions": {
+          "InvoiceLine": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "description": {
+                "type": "string"
+              },
+              "quantity": {
+                "type": "number"
+              },
+              "unitPrice": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "id",
+              "description",
+              "quantity",
+              "unitPrice"
+            ],
+            "additionalProperties": false
+          }
+        }
+      }
+    },
+    {
+      "schemaRef": "InvoiceStatus",
+      "schema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "string",
+        "enum": [
+          "draft",
+          "sent",
+          "paid",
+          "overdue",
+          "void"
+        ],
+        "description": "Ledger domain models. This is FAKE data for a fictitious small business (\"Ledger\") used only as a Jig fixture app — see the repo README.",
+        "definitions": {}
+      }
+    }
+  ],
+  "docs": [],
+  "generatedAt": "GENERATED_AT",
+  "stub": false,
+  "adapters": [
+    {
+      "adapter": "angular",
+      "appRoot": "APP_ROOT",
+      "source": "ts-morph",
+      "stub": false
+    }
+  ]
+}

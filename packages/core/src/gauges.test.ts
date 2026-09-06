@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { categorizeGauge } from './gauges.js';
+import { categorizeGauge, GaugeSchema, GaugeUsageSchema } from './gauges.js';
 
 // Exercised against the actual starter.css tokens (design-book/tokens/starter.css) that
 // packages/bench's tokens.css copies verbatim, so this test is pinned to real names.
@@ -39,5 +39,37 @@ describe('categorizeGauge', () => {
 
   it('falls back to space for an unrecognized quantitative token', () => {
     expect(categorizeGauge('--gutter-lg', '24px')).toBe('space');
+  });
+});
+
+// S2: adapter-angular lights the gauges panel's "instances" from a usages map — which files
+// reference `var(--name)` / `$name`, with counts.
+describe('Gauge usages (S2: adapter-angular)', () => {
+  it('a usage entry names the file and how many times the gauge is referenced there', () => {
+    expect(() => GaugeUsageSchema.parse({ file: 'src/app/shell/shell.scss', count: 3 })).not.toThrow();
+  });
+
+  it('a gauge may carry its usages alongside the DTCG shape', () => {
+    const gauge = {
+      name: '--ledger-color-accent',
+      $type: 'color',
+      $value: '#3b6e5e',
+      category: 'colour',
+      source: { file: 'src/styles.scss', line: 18 },
+      usages: [{ file: 'src/app/shell/shell.scss', count: 2 }],
+    };
+    expect(() => GaugeSchema.parse(gauge)).not.toThrow();
+  });
+
+  it('a gauge with no usages parses with an empty list', () => {
+    const gauge = {
+      name: '$ledger-color-paper',
+      $type: 'color',
+      $value: '#f7f4ec',
+      category: 'colour',
+      source: { file: 'src/styles.scss', line: 54 },
+      usages: [],
+    };
+    expect(() => GaugeSchema.parse(gauge)).not.toThrow();
   });
 });

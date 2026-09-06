@@ -5,7 +5,7 @@ import { runInitCommand } from './commands/init.js';
 import { runSurveyCommand } from './commands/survey.js';
 import { runClampCommand } from './commands/clamp.js';
 import { runMcpCommand } from './commands/mcp.js';
-import { printHuman } from './human-output.js';
+import { printHuman, printSummary } from './human-output.js';
 import { logger } from '@jigbench/server';
 
 // `--repo` is declared exactly once, on the root command, and every subcommand reads it
@@ -62,11 +62,16 @@ program
 program
   .command('survey')
   .description('survey the clamped repo')
-  .action(async (_opts: unknown, command: Command) => {
+  .option('--json', 'print the merged survey as JSON to stdout instead of the human summary')
+  .action(async (opts: { json?: boolean }, command: Command) => {
     try {
       const { repo } = command.optsWithGlobals<{ repo?: string }>();
-      const result = await runSurveyCommand({ repo });
-      printHuman(result.message);
+      const result = await runSurveyCommand({ repo, json: opts.json });
+      if (opts.json) {
+        printHuman(JSON.stringify(result.survey, null, 2));
+      } else {
+        printSummary(result.message);
+      }
     } catch (err) {
       logger.error('jigbench survey failed', String(err));
       process.exitCode = 1;

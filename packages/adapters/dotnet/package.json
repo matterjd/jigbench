@@ -2,12 +2,25 @@
   "name": "@jigbench/adapter-dotnet",
   "version": "0.1.0",
   "private": true,
-  "description": "SurveyAdapter for .NET 10. Placeholder — filled in S2.",
+  "description": "SurveyAdapter for .NET 10 — OpenAPI fetch first, regex-lite C# fallback badged as a stub.",
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
   "scripts": {
     "build": "tsc -p tsconfig.json",
-    "typecheck": "tsc -p tsconfig.json --noEmit"
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run --project adapter-dotnet"
+  },
+  "dependencies": {
+    "@jigbench/core": "*"
+  },
+  "devDependencies": {
+    "@types/node": "^24.13.3"
   }
 }
