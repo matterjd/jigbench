@@ -70,7 +70,7 @@ describe('PlateBench', () => {
     expect(onPick).toHaveBeenCalledWith(null);
   });
 
-  it('exposes highlight/clearHighlight/navigate/setMode via the ref for the chassis to drive', async () => {
+  it('exposes highlight/clearHighlight/navigate/setMode/post via the ref for the chassis to drive', async () => {
     const ref = createRef<PlateBenchHandle>();
     const iframe = document.createElement('iframe');
     render(
@@ -84,6 +84,42 @@ describe('PlateBench', () => {
     expect(typeof ref.current?.clearHighlight).toBe('function');
     expect(typeof ref.current?.navigate).toBe('function');
     expect(typeof ref.current?.setMode).toBe('function');
+    expect(typeof ref.current?.post).toBe('function');
+    void iframe;
+  });
+
+  // S8 — the toolpath recorder needs the raw jig:event stream (click/input with a DOM path);
+  // onPick/onModeChange already mirror the bridge's other state up, this is the same pattern.
+  it('calls onEvent with every jig:event the bridge records, in order', async () => {
+    const onEvent = vi.fn();
+    render(
+      <PlateBench
+        fetchImpl={fakeFetch({ target: 'http://localhost:4200', port: 4601, status: 'up', changes: [] })}
+        onEvent={onEvent}
+      />,
+    );
+    const iframe = await waitFor(() => {
+      const el = document.querySelector('iframe');
+      if (!el) throw new Error('no iframe yet');
+      return el as HTMLIFrameElement;
+    });
+    const plateOrigin = 'http://localhost:4601';
+
+    act(() => {
+      window.dispatchEvent(
+        new MessageEvent('message', { data: { type: 'jig:event', kind: 'click', path: 'a' }, origin: plateOrigin }),
+      );
+    });
+    await waitFor(() => expect(onEvent).toHaveBeenCalledWith({ type: 'jig:event', kind: 'click', path: 'a' }));
+
+    act(() => {
+      window.dispatchEvent(
+        new MessageEvent('message', { data: { type: 'jig:event', kind: 'input', path: 'b', value: 'x' }, origin: plateOrigin }),
+      );
+    });
+    await waitFor(() =>
+      expect(onEvent).toHaveBeenLastCalledWith({ type: 'jig:event', kind: 'input', path: 'b', value: 'x' }),
+    );
     void iframe;
   });
 

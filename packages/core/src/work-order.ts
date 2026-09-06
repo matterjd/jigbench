@@ -15,11 +15,24 @@ export const WorkOrderHumanSchema = z.object({
 });
 export type WorkOrderHuman = z.infer<typeof WorkOrderHumanSchema>;
 
+// === S8 (EXECUTION-PLAN.md §4 row S8 / F11 "the trial fit"): what `orders/service.ts`'s
+// `reportDone` fills in once the shop reports a released work order done — the shop's own
+// summary of what changed, and the files it says it touched. Persisted as a "## Trial fit"
+// section (+ a "### Trial fit files" list) in the shop half of the markdown file, right
+// alongside the brief it grew from. ===
+export const ShopTrialFitSchema = z.object({
+  summary: z.string(),
+  files: z.array(z.string()),
+});
+export type ShopTrialFit = z.infer<typeof ShopTrialFitSchema>;
+// === end S8 block ===
+
 export const WorkOrderShopSchema = z.object({
   files: z.array(z.string()),
   patterns: z.array(z.string()),
   tests: z.array(z.string()),
   brief: z.string(),
+  trialFit: ShopTrialFitSchema.optional(), // S8
 });
 export type WorkOrderShop = z.infer<typeof WorkOrderShopSchema>;
 
@@ -96,6 +109,11 @@ export function serializeWorkOrder(wo: WorkOrder): string {
     lines.push(...section('### Files', wo.shop.files.map((f) => `- ${f}`)));
     lines.push(...section('### Patterns', wo.shop.patterns.map((p) => `- ${p}`)));
     lines.push(...section('### Tests', wo.shop.tests.map((t) => `- ${t}`)));
+    // S8: only present once the shop has actually reported the work order done.
+    if (wo.shop.trialFit) {
+      lines.push(...section('## Trial fit', [wo.shop.trialFit.summary]));
+      lines.push(...section('### Trial fit files', wo.shop.trialFit.files.map((f) => `- ${f}`)));
+    }
   }
 
   lines.push('');
@@ -165,12 +183,20 @@ export function parseWorkOrder(markdown: string): WorkOrder {
     ...(fixtureRaw && fixtureRaw !== '_none_' ? { fixture: fixtureRaw } : {}),
   };
 
+  // S8: "## Trial fit" only exists once the shop has reported the work order done — absent
+  // for every pre-S8 file and every shop face still in progress.
+  const trialFitPresent = sections.has('Trial fit');
+  const trialFit = trialFitPresent
+    ? { summary: textOf('Trial fit'), files: stripListMarkers(sections.get('Trial fit files') ?? []) }
+    : undefined;
+
   const shop = shopBriefPresent
     ? {
         brief: textOf('Shop brief'),
         files: stripListMarkers(sections.get('Files') ?? []),
         patterns: stripListMarkers(sections.get('Patterns') ?? []),
         tests: stripListMarkers(sections.get('Tests') ?? []),
+        ...(trialFit ? { trialFit } : {}),
       }
     : undefined;
 

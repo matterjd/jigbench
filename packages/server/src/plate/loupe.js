@@ -17,7 +17,7 @@
  * on `typeof data.type !== 'string'` and fall through their if/else-if chain with no default
  * case that throws); `loupe.test.ts`'s "integration seam 5" suite asserts this directly.
  *
- * ORIGIN RULE (finding 1, wave-3 council — security blocker): both dispatchers ALSO guard on
+ * ORIGIN RULE (finding 1, wave-3 council — security blocker): every dispatcher ALSO guards on
  * `isBenchOrigin(event)` before touching `data.type` at all — a message whose `event.origin`
  * is not exactly the configured `benchOrigin` (from `data-jig-bench`) is ignored silently (one
  * `console.debug` line, logged once per page load, not once per rejected message). Every
@@ -51,6 +51,17 @@
  *   {type:'jig:fill-probe', formPath?} (S7)
  *     Asks for a form's field `name`s without filling anything. Replies with
  *     `jig:fill-fields`.
+ *   {type:'jig:click', path:'...'} (S8)
+ *     Dispatches a REAL click (`el.click()`, not a synthetic-only postMessage) on the element
+ *     at the given DOM path — toolpath replay's click step. Runs exactly like a genuine user
+ *     click (hand-mode's own click listener still fires and reports its own `jig:event`, and
+ *     the app's own handlers — routerLink included — run normally); replies `jig:clicked`.
+ *   {type:'jig:snapshot'} (S8)
+ *     Captures the CURRENT document as a standalone static HTML string for the trial-fit
+ *     mirror's "before" frame: a clone of `document.documentElement` with every `<script>`
+ *     removed and a `<base href>` (the page's own URL) inserted so relative asset/link URLs
+ *     still resolve when the string is served on its own, later, from a different origin.
+ *     Replies `jig:snapshotted`.
  *
  * Outbound (plate -> bench):
  *   {type:'jig:pick', path, tag, text, component, componentClass, file, rect}
@@ -64,6 +75,10 @@
  *   {type:'jig:fill-fields', formPath: string|null, names: string[]} (S7)
  *     Reply to `jig:fill-probe` — the resolved form's DOM path (or `null` if none found) and
  *     its field names.
+ *   {type:'jig:clicked', path, ok} (S8)
+ *     Reply to `jig:click` — `ok` is false (never thrown) when `path` resolved to nothing.
+ *   {type:'jig:snapshotted', html} (S8)
+ *     Reply to `jig:snapshot` — the full standalone HTML string.
  *
  * Law I.6 (never a spinner) doesn't apply here directly — but the sibling law it shares in
  * spirit does: this script never modifies the target's own DOM nodes. Every visual it draws
@@ -611,6 +626,65 @@
     }
   });
   // --- end S7 fixtures block ----------------------------------------------------------------
+
+  // --- S8 (toolpath replay + the trial-fit mirror): jig:click / jig:snapshot --------------
+  // A separate, additive `message` listener (sibling to the ones above, never touching them)
+  // so this block stays a clean delimited diff:
+  //   bench -> plate  {type:'jig:click', path}
+  //   plate -> bench  {type:'jig:clicked', path, ok}
+  //   bench -> plate  {type:'jig:snapshot'}
+  //   plate -> bench  {type:'jig:snapshotted', html}
+
+  /** A REAL click, not a synthetic postMessage-only event — `.click()` runs the browser's own
+   * activation behaviour (link navigation, routerLink's imperative handler, a submit button)
+   * exactly as a physical click would, unlike constructing and dispatching a bare MouseEvent.
+   * Returns false (never throws) when the path resolves to nothing. */
+  function dispatchRealClick(path) {
+    var el = resolveDomPath(path);
+    if (!el) return false;
+    el.click();
+    return true;
+  }
+
+  /** A standalone copy of the current document for the trial-fit mirror's "before" frame: a
+   * deep clone (the live DOM is never touched) with every `<script>` removed — the snapshot
+   * is served later, from a different port, and must never re-execute this page's scripts —
+   * and a `<base>` pointing at the page's own URL prepended to `<head>` so the snapshot's own
+   * relative asset/link URLs keep resolving once it is no longer served from here. */
+  function captureSnapshot() {
+    var clone = document.documentElement.cloneNode(true);
+    var scripts = clone.querySelectorAll('script');
+    for (var i = scripts.length - 1; i >= 0; i--) {
+      if (scripts[i].parentNode) scripts[i].parentNode.removeChild(scripts[i]);
+    }
+    var head = clone.querySelector('head');
+    if (!head) {
+      head = document.createElement('head');
+      clone.insertBefore(head, clone.firstChild);
+    }
+    var base = document.createElement('base');
+    base.setAttribute('href', window.location.href);
+    head.insertBefore(base, head.firstChild);
+    return '<!doctype html>\n' + clone.outerHTML;
+  }
+
+  window.addEventListener('message', function (event) {
+    var data = event.data;
+    if (!data || typeof data.type !== 'string') return;
+    if (!isBenchOrigin(event)) return rejectForeignOrigin(event);
+
+    if (data.type === 'jig:click') {
+      var path = String(data.path || '');
+      var ok = dispatchRealClick(path);
+      post({ type: 'jig:clicked', path: path, ok: ok });
+      return;
+    }
+
+    if (data.type === 'jig:snapshot') {
+      post({ type: 'jig:snapshotted', html: captureSnapshot() });
+    }
+  });
+  // --- end S8 block --------------------------------------------------------------------------
 
   console.debug('[jig] loupe ready');
 })();

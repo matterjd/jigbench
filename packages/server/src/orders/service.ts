@@ -1,7 +1,7 @@
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { z } from 'zod';
-import { DocsIndexSchema, WorkOrderHumanSchema, transition, type DocsIndex, type Mark, type MarkTarget, type WorkOrder, type WorkOrderHuman, type WorkOrderShop } from '@jigbench/core';
+import { DocsIndexSchema, WorkOrderHumanSchema, transition, type DocsIndex, type Mark, type MarkTarget, type ShopTrialFit, type WorkOrder, type WorkOrderHuman, type WorkOrderShop } from '@jigbench/core';
 import type { JigStore } from '../store.js';
 import { pathExists } from '../fs-util.js';
 import { logger } from '../logger.js';
@@ -377,4 +377,52 @@ export class OrdersService {
   selectOrder(id: string): WorkOrder | undefined {
     return this.store.getWorkOrder(id);
   }
+
+  // === S8 (EXECUTION-PLAN.md §4 row S8 / F11 "the trial fit"): the two ladder moves the shop
+  // drives — `claim` (released -> in-the-shop) and `reportDone` (in-the-shop -> trial-fit).
+  // S6's `jig_report` MCP tool calls `reportDone` directly (same method, exported from
+  // server's index — see packages/server/src/index.ts), exactly the way `http.ts`'s
+  // `POST /api/work-orders/:id/report` route also just calls it. ===
+
+  /** `POST /api/work-orders/:id/claim` — the shop picks up a released order. `by` is
+   * whatever the caller says claimed it (an agent's own name, e.g. "Claude Code"); never
+   * required — an anonymous shop is still "the shop". */
+  async claim(id: string, by = 'the shop'): Promise<WorkOrder> {
+    const order = this.require(id);
+    const nextState = transition(order.state, 'claim');
+    if (!nextState) {
+      throw new OrderConflictError(`work order ${id} is ${order.state}, not released — claim needs a released order first`);
+    }
+    const next: WorkOrder = {
+      ...order,
+      state: nextState,
+      log: [...order.log, { at: this.now(), actor: 'shop', event: 'claimed', ref: id, note: by }],
+    };
+    return this.persist(next);
+  }
+
+  /** `POST /api/work-orders/:id/report` — the shop reports a claimed order done. Stores the
+   * shop's own summary and the files it says it touched into the shop face's "## Trial fit"
+   * section (`work-order.ts`'s `serializeWorkOrder`/`parseWorkOrder`) and moves the ladder to
+   * `trial-fit`. `order.shop` is guaranteed set by the time an order reaches `in-the-shop`
+   * (release() always fills it) — the check below is defence-in-depth, not a real branch. */
+  async reportDone(id: string, input: { summary: string; files?: string[] }): Promise<WorkOrder> {
+    const order = this.require(id);
+    const nextState = transition(order.state, 'report');
+    if (!nextState) {
+      throw new OrderConflictError(`work order ${id} is ${order.state}, not in the shop — report needs a claimed order first`);
+    }
+    if (!order.shop) {
+      throw new OrderConflictError(`work order ${id} has no shop face yet — release it before reporting it done`);
+    }
+    const trialFit: ShopTrialFit = { summary: input.summary, files: input.files ?? [] };
+    const next: WorkOrder = {
+      ...order,
+      state: nextState,
+      shop: { ...order.shop, trialFit },
+      log: [...order.log, { at: this.now(), actor: 'shop', event: 'reported', ref: id, note: input.summary }],
+    };
+    return this.persist(next);
+  }
+  // === end S8 block ===
 }

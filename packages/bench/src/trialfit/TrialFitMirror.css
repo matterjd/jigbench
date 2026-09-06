@@ -1,0 +1,125 @@
+/* S8 — the trial-fit mode: two plates + one scrubber. Tokens only (design floor): no ember
+   (the demand was RELEASE, already spent); the change outline uses the storm token, matching
+   the loupe's own live/right-now signal; no motion here — state renders directly. */
+
+.jig-trialfit {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  gap: 10px;
+}
+
+.jig-trialfit--void {
+  align-items: center;
+  justify-content: center;
+  color: var(--dim);
+  font-size: 12.5px;
+  text-align: center;
+  padding: 24px;
+}
+
+.jig-trialfit__void {
+  margin: 0;
+}
+
+.jig-trialfit__frames {
+  display: flex;
+  flex: 1;
+  gap: 10px;
+  min-height: 0;
+}
+
+.jig-trialfit__frame {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  padding: 8px;
+  background: var(--bg1);
+}
+
+.jig-trialfit__label {
+  margin: 0;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--dim);
+}
+
+.jig-trialfit__iframe {
+  flex: 1;
+  width: 100%;
+  border: 1px solid var(--line-soft);
+  border-radius: var(--r-inner);
+  background: var(--bg0);
+}
+
+.jig-trialfit__scrubber {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  border-top: 1px solid var(--line-soft);
+  padding-top: 10px;
+  font-size: 12px;
+  color: var(--ink);
+}
+
+.jig-trialfit__changes {
+  flex: 1;
+  min-width: 160px;
+}
+
+.jig-trialfit__changes-title {
+  margin: 0 0 4px;
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--dim);
+}
+
+.jig-trialfit__summary {
+  margin: 0 0 4px;
+  color: var(--ink);
+}
+
+.jig-trialfit__changes-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--storm);
+}
+
+.jig-trialfit__toolpaths {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.jig-trialfit__toolpath-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.jig-trialfit__toolpath-row button,
+.jig-trialfit__scrubber > button {
+  font-size: 11px;
+  padding: 4px 10px;
+  border-radius: var(--r-inner);
+  border: 1px solid var(--line);
+  background: var(--bg2);
+  color: var(--ink);
+  cursor: pointer;
+}

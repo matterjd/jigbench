@@ -7,7 +7,7 @@ import { PlateRulers } from './PlateRulers.js';
 import { PlateGuides } from './PlateGuides.js';
 import { resolveGridPx } from './gridReadout.js';
 import { usePlatePoll, type FetchLike } from './usePlatePoll.js';
-import { usePlateBridge, type LoupeMode, type PlatePick, type SurveySelector } from './usePlateBridge.js';
+import { usePlateBridge, type LoupeMode, type PlateEvent, type PlatePick, type SurveySelector } from './usePlateBridge.js';
 import './PlateBench.css';
 
 export interface PlateBenchProps {
@@ -32,6 +32,9 @@ export interface PlateBenchProps {
    * onModeChange do — TrayRegion needs it (alongside `iframeRef`) to post directly rather
    * than through this component's imperative handle. */
   onPlateOriginChange?: (origin: string | null) => void;
+  /** S8: mirrors the bridge's raw `jig:event` stream up — the toolpath recorder needs every
+   * click/input with its DOM path, the same pattern `onPick`/`onModeChange` already use. */
+  onEvent?: (event: PlateEvent) => void;
 }
 
 export interface PlateBenchHandle {
@@ -41,6 +44,8 @@ export interface PlateBenchHandle {
   clearHighlight: () => void;
   navigate: (path: string) => void;
   setMode: (mode: LoupeMode) => void;
+  /** S8: posts an arbitrary `jig:*` message — the toolpath replayer's own seam. */
+  post: (message: Record<string, unknown>) => void;
 }
 
 /** S3's plate, extended by S4 with rulers (in the app's own CSS px) and guides (drawn from
@@ -49,7 +54,7 @@ export interface PlateBenchHandle {
  * `usePlateBridge` postMessage wiring; the Loupe readout itself now lives in the Properties
  * column (`onPick`/`onModeChange` mirror the bridge's state up there). */
 export const PlateBench = forwardRef<PlateBenchHandle, PlateBenchProps>(function PlateBench(
-  { survey, gauges, fetchImpl, onPick, onModeChange, iframeRef: externalIframeRef, onPlateOriginChange },
+  { survey, gauges, fetchImpl, onPick, onModeChange, iframeRef: externalIframeRef, onPlateOriginChange, onEvent },
   ref,
 ) {
   const internalIframeRef = useRef<HTMLIFrameElement>(null);
@@ -91,6 +96,7 @@ export const PlateBench = forwardRef<PlateBenchHandle, PlateBenchProps>(function
       clearHighlight: bridge.clearHighlight,
       navigate: bridge.navigate,
       setMode: bridge.setMode,
+      post: bridge.post, // S8
     }),
     [bridge],
   );
@@ -98,6 +104,13 @@ export const PlateBench = forwardRef<PlateBenchHandle, PlateBenchProps>(function
   useEffect(() => {
     onPick?.(bridge.lastPick);
   }, [bridge.lastPick, onPick]);
+
+  // S8: the toolpath recorder's own seam — mirrors the last jig:event up, same pattern as
+  // onPick/onModeChange above.
+  const lastEvent = bridge.events.length > 0 ? bridge.events[bridge.events.length - 1] : undefined;
+  useEffect(() => {
+    if (lastEvent) onEvent?.(lastEvent as PlateEvent);
+  }, [lastEvent, onEvent]);
 
   useEffect(() => {
     onModeChange?.(bridge.mode);
