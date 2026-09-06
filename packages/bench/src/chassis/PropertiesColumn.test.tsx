@@ -28,6 +28,35 @@ describe('PropertiesColumn', () => {
     expect(screen.getByText('survey content')).toBeTruthy();
   });
 
+  it('renders a Fixture tab when fixture content is provided, and switches to it on click', () => {
+    render(
+      <PropertiesColumn
+        loupe={<div>loupe content</div>}
+        gauges={<div>gauges content</div>}
+        survey={<div>survey content</div>}
+        fixture={<div>fixture content</div>}
+      />,
+    );
+    fireEvent.click(screen.getByRole('tab', { name: /Fixture/ }));
+    expect(screen.getByRole('tab', { name: /Fixture/ }).getAttribute('aria-selected')).toBe('true');
+    expect(screen.getByText('fixture content')).toBeTruthy();
+    expect(screen.queryByText('loupe content')).toBeNull();
+  });
+
+  it('the Fixture tab is controllable — passing activeTab="fixture" selects it without a click', () => {
+    render(
+      <PropertiesColumn
+        loupe={<div>loupe content</div>}
+        gauges={<div>gauges content</div>}
+        survey={<div>survey content</div>}
+        fixture={<div>fixture content</div>}
+        activeTab="fixture"
+      />,
+    );
+    expect(screen.getByRole('tab', { name: /Fixture/ }).getAttribute('aria-selected')).toBe('true');
+    expect(screen.getByText('fixture content')).toBeTruthy();
+  });
+
   it('starts at the default width with no printed affordance shown', () => {
     const { container } = render(
       <PropertiesColumn loupe={<div />} gauges={<div />} survey={<div />} />,

@@ -89,6 +89,17 @@ describe('App', () => {
     expect(screen.getAllByText('Loupe').length).toBeGreaterThan(0);
   });
 
+  it('integration seam 1: selecting the Fixture tool from the rail shows the Fixture panel', async () => {
+    render(<App />);
+    fireEvent.click(screen.getByRole('button', { name: /^Fixture —/ }));
+
+    expect(screen.getByRole('tab', { name: /Fixture/ }).getAttribute('aria-selected')).toBe('true');
+    // FixturePanel resolves its GET /api/fixtures call (the App-level fetch stub degrades to
+    // the shared `{ wiring }` shape, which has no `fixtures`/`active` keys) and renders its
+    // own empty state — proof the real S7 component is mounted, not a placeholder.
+    expect(await screen.findByText('no fixtures yet.')).toBeTruthy();
+  });
+
   it('switching the tool via the rail is reflected in the Loupe tab\'s mode toggle', () => {
     render(<App />);
     fireEvent.click(screen.getByRole('button', { name: /^Loupe —/ }));

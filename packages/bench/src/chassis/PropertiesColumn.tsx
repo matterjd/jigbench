@@ -5,12 +5,16 @@ const DEFAULT_WIDTH = 320;
 const MIN_WIDTH = 240;
 const MAX_WIDTH = 560;
 
-export type PropertiesTab = 'loupe' | 'gauges' | 'survey';
+export type PropertiesTab = 'loupe' | 'gauges' | 'survey' | 'fixture';
 
 export interface PropertiesColumnProps {
   loupe: ReactNode;
   gauges: ReactNode;
   survey: ReactNode;
+  /** S7's `FixturePanel`, mounted by the integrator (CHASSIS.md's properties column gets a
+   * fourth tab beside Loupe · Gauges · Survey). Optional — a column with no fixture content
+   * simply renders the original three tabs, so every pre-existing caller/test is unaffected. */
+  fixture?: ReactNode;
   /** Badge counts shown beside the Gauges/Survey tab labels — optional, since neither the
    * gauge set nor the survey is guaranteed to be loaded yet. */
   gaugesCount?: number;
@@ -28,6 +32,7 @@ export function PropertiesColumn({
   loupe,
   gauges,
   survey,
+  fixture,
   gaugesCount,
   surveyCount,
   activeTab,
@@ -109,6 +114,16 @@ export function PropertiesColumn({
           Survey
           {surveyCount !== undefined && <span className="jig-properties__count">{surveyCount}</span>}
         </button>
+        {fixture !== undefined && (
+          <button
+            type="button"
+            role="tab"
+            aria-selected={tab === 'fixture'}
+            onClick={() => setTab('fixture')}
+          >
+            Fixture
+          </button>
+        )}
         {!isPrinted && (
           <button type="button" className="jig-properties__printed" onClick={resetWidth}>
             printed
@@ -119,6 +134,7 @@ export function PropertiesColumn({
         {tab === 'loupe' && loupe}
         {tab === 'gauges' && gauges}
         {tab === 'survey' && survey}
+        {tab === 'fixture' && fixture}
       </div>
     </div>
   );

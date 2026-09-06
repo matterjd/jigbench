@@ -10,6 +10,7 @@ import { LoupeReadout } from './plate/LoupeReadout.js';
 import { PlateBench, type PlateBenchHandle } from './plate/PlateBench.js';
 import type { PlatePick } from './plate/usePlateBridge.js';
 import { CommandPalette, type PaletteDocsResult } from './palette/CommandPalette.js';
+import { FixturePanel } from './fixtures/index.js';
 import { TrayRegion } from './orders/TrayRegion.js';
 import { ShopLane } from './shop/ShopLane.js';
 import { Logbook } from './components/Logbook.js';
@@ -57,6 +58,13 @@ export function App() {
   useEffect(() => {
     if (tool === 'hand') plateRef.current?.setMode('hand');
     else if (tool === 'loupe' || tool === 'mark') plateRef.current?.setMode('loupe');
+  }, [tool]);
+
+  // Integration seam 1: the rail's Fixture tool switches the properties column to the
+  // Fixture tab (S7 built FixturePanel but never touched App.tsx/the rail — CHASSIS.md
+  // names Fixture as one properties-column tab alongside Loupe/Gauges/Survey).
+  useEffect(() => {
+    if (tool === 'fixture') setPropertiesTab('fixture');
   }, [tool]);
 
   const survey = state?.survey;
@@ -117,6 +125,9 @@ export function App() {
               />
             }
             survey={<SurveyPane survey={survey} docsCount={docsCount} />}
+            fixture={
+              <FixturePanel iframeRef={plateIframeRef} plateOrigin={plateOrigin} lastPickPath={lastPick?.path ?? null} />
+            }
           />
         }
         tray={
