@@ -1,11 +1,11 @@
 import { createServer as createHttpServer, type IncomingMessage, type Server as HttpServer } from 'node:http';
-import { fileURLToPath } from 'node:url';
 import express, { type Express, type NextFunction, type Request, type Response } from 'express';
 import { WebSocketServer, type WebSocket } from 'ws';
 import open from 'open';
 import { MarkTargetSchema } from '@jigbench/core';
 import { JigStore } from './store.js';
 import { attachBenchServing, type BenchServeMode } from './bench-serve.js';
+import { defaultBenchDistDir } from './default-bench-dist.js';
 import { createDocsRoute } from './docs/route.js';
 import { attachPlateRoute } from './plate/route.js';
 import type { PlateProxyHandle } from './plate/proxy.js';
@@ -100,11 +100,6 @@ export interface JigServerHandle {
   sketchStore: SketchStore;
   benchServeMode: BenchServeMode;
   close(): Promise<void>;
-}
-
-function defaultBenchDistDir(): string {
-  // packages/server/src/http.ts (or dist/http.js, same relative depth) -> packages/bench/dist
-  return fileURLToPath(new URL('../../bench/dist', import.meta.url));
 }
 
 // S6: GET /api/state and every WS 'state' broadcast carry the same composed shape — the core
