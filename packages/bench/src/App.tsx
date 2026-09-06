@@ -13,6 +13,7 @@ import { CommandPalette, type PaletteDocsResult } from './palette/CommandPalette
 import { FixturePanel } from './fixtures/index.js';
 import { ToolpathBar } from './toolpath/ToolpathBar.js';
 import { TrialFitMirror } from './trialfit/TrialFitMirror.js';
+import { useAutoSnapshot } from './trialfit/useAutoSnapshot.js';
 import { TrayRegion } from './orders/TrayRegion.js';
 import { ShopLane } from './shop/ShopLane.js';
 import { Logbook } from './components/Logbook.js';
@@ -83,13 +84,31 @@ export function App() {
   // order in hand reaches trial-fit — swaps PlateBench out for TrialFitMirror in the exact
   // same layout slot below, rather than editing PlateBench.tsx itself (a restricted,
   // delimited-block-only file). `forceSinglePlate` is the "one printed affordance" override;
-  // it clears itself once no order is at trial-fit any more, so a LATER trial-fit still shows.
+  // it clears itself whenever the SET of trial-fit order ids changes — not just when it goes
+  // empty — so dismissing order A's mirror never suppresses a LATER order B's trial-fit too
+  // (found live-driving the real bench: with #0001 already dismissed, #0002 reaching
+  // trial-fit stayed hidden until this fix — the exact N=2 case one order alone can't catch).
   const workOrders = state?.workOrders ?? [];
-  const anyOrderAtTrialFit = workOrders.some((w) => w.state === 'trial-fit');
+  const trialFitIds = workOrders
+    .filter((w) => w.state === 'trial-fit')
+    .map((w) => w.id)
+    .sort()
+    .join(',');
+  const prevTrialFitIds = useRef(trialFitIds);
   useEffect(() => {
-    if (!anyOrderAtTrialFit) setForceSinglePlate(false);
-  }, [anyOrderAtTrialFit]);
-  const showTrialFitMirror = anyOrderAtTrialFit && !forceSinglePlate;
+    if (trialFitIds !== prevTrialFitIds.current) {
+      setForceSinglePlate(false);
+      prevTrialFitIds.current = trialFitIds;
+    }
+  }, [trialFitIds]);
+  const showTrialFitMirror = trialFitIds.length > 0 && !forceSinglePlate;
+
+  // Captures the release-moment "before" snapshot (TrialFitMirror.tsx's left frame) while
+  // the PRIMARY plate is still showing the as-is app — it has to happen here, not inside
+  // TrialFitMirror itself, which only mounts once the order has already reached trial-fit
+  // (by then the primary plate's iframe is gone). Found missing while driving the live
+  // bench: GET /api/plate/snapshot/:id 404'd because nothing had ever posted one.
+  useAutoSnapshot(workOrders, plateIframeRef, plateOrigin);
 
   const survey = state?.survey;
   const gauges = state?.gauges.gauges;
