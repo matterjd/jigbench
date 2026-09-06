@@ -39,21 +39,39 @@ export function isHeartbeatFresh(
   return now - t < staleMs;
 }
 
-/** The read side — used by `JigStore` (`wiring.shop`) and anything else that just wants to
- * know "is an agent connected right now", without owning the write/refresh lifecycle. Never
- * throws: a missing file, a stale one, or malformed JSON all read as "no shop connected". */
-export async function readShopHeartbeat(repoRoot: string): Promise<{ client: string; connectedAt: string } | null> {
+/** The RAW read side — parses `.jig/cache/shop.json` and returns its fields (including
+ * `lastSeen`) with no freshness filtering applied. `JigStore` (wave-4 council finding 3)
+ * keeps exactly this shape cached between `reload()`s and re-runs `isHeartbeatFresh` against
+ * it on every `getWiring()`/`getShopInfo()` call — so staleness is judged against the CURRENT
+ * time whenever a caller asks, not against whatever time `reload()` last happened to run at.
+ * Never throws: a missing file or malformed JSON both read as `null` (no heartbeat at all). */
+export async function readShopHeartbeatRaw(repoRoot: string): Promise<ShopHeartbeatFile | null> {
   const file = shopHeartbeatFile(repoRoot);
   if (!(await pathExists(file))) return null;
   try {
     const raw = JSON.parse(await readFile(file, 'utf8')) as Partial<ShopHeartbeatFile>;
     if (typeof raw.client !== 'string' || typeof raw.lastSeen !== 'string') return null;
-    if (!isHeartbeatFresh(raw.lastSeen)) return null;
-    return { client: raw.client, connectedAt: typeof raw.connectedAt === 'string' ? raw.connectedAt : raw.lastSeen };
+    return {
+      client: raw.client,
+      pid: typeof raw.pid === 'number' ? raw.pid : 0,
+      connectedAt: typeof raw.connectedAt === 'string' ? raw.connectedAt : raw.lastSeen,
+      lastSeen: raw.lastSeen,
+    };
   } catch (err) {
     logger.warn('shop.json failed to parse; reporting the shop as not connected', String(err));
     return null;
   }
+}
+
+/** The read side — used by anything that just wants to know "is an agent connected right
+ * now, as of THIS call", without owning the write/refresh lifecycle or needing the raw
+ * `lastSeen` itself. Freshness is judged at call time (`isHeartbeatFresh`'s own `Date.now()`
+ * default) against whatever is on disk right now. Never throws: a missing file, a stale one,
+ * or malformed JSON all read as "no shop connected". */
+export async function readShopHeartbeat(repoRoot: string): Promise<{ client: string; connectedAt: string } | null> {
+  const raw = await readShopHeartbeatRaw(repoRoot);
+  if (!raw || !isHeartbeatFresh(raw.lastSeen)) return null;
+  return { client: raw.client, connectedAt: raw.connectedAt };
 }
 
 /**

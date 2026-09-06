@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cp, mkdir, mkdtemp, readFile, rm, stat, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
@@ -6,6 +6,7 @@ import { join } from 'node:path';
 import { jigPaths, parseWorkOrder } from '@jigbench/core';
 import { JigStore } from './store.js';
 import { runSurveyAndWrite } from './survey/run.js';
+import { SHOP_HEARTBEAT_STALE_MS } from './mcp/heartbeat.js';
 
 const LEDGER_ANGULAR_SOURCE = fileURLToPath(
   new URL('../../../examples/ledger-angular', import.meta.url),
@@ -25,6 +26,10 @@ function skipHeavyDirs(source: string): boolean {
 async function freshRepo(): Promise<string> {
   return mkdtemp(join(tmpdir(), 'jig-store-'));
 }
+
+afterEach(() => {
+  vi.useRealTimers();
+});
 
 describe('JigStore.init', () => {
   it('creates the full .jig/ tree', async () => {
@@ -305,5 +310,36 @@ describe('JigStore — S6 shop wiring bridge', () => {
     await rm(shopFile);
     await store.reload();
     expect(store.getWiring().shop).toBe('none');
+  });
+
+  // Wave-4 council finding 3 (HIGH): a prior version cached `shopInfo` as an already-
+  // freshness-filtered value at reload() time, so it stayed 'wired' indefinitely after an
+  // ungraceful agent exit until SOMETHING triggered another reload() (a .jig/ file event) —
+  // which never happens on its own just because time passed. getWiring()/getShopInfo() must
+  // recompute freshness against Date.now() on every call, not on every reload().
+  it('re-evaluates freshness at READ time — flips to "none" once stale even with no further reload()', async () => {
+    const repoRoot = await freshRepo();
+    const store = new JigStore(repoRoot);
+    await store.init();
+
+    const paths = jigPaths(repoRoot);
+    await mkdir(paths.cache, { recursive: true });
+
+    vi.useFakeTimers();
+    const now = new Date().toISOString();
+    await writeFile(
+      join(paths.cache, 'shop.json'),
+      JSON.stringify({ client: 'Claude Code', pid: 1, connectedAt: now, lastSeen: now }),
+      'utf8',
+    );
+    await store.reload();
+    expect(store.getWiring().shop).toBe('wired');
+    expect(store.getShopInfo()).toEqual({ client: 'Claude Code', connectedAt: now });
+
+    // No further reload() call anywhere below — only (faked) time passing.
+    vi.advanceTimersByTime(SHOP_HEARTBEAT_STALE_MS + 1);
+
+    expect(store.getWiring().shop).toBe('none');
+    expect(store.getShopInfo()).toBeNull();
   });
 });

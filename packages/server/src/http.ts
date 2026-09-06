@@ -11,6 +11,7 @@ import { attachPlateRoute } from './plate/route.js';
 import type { PlateProxyHandle } from './plate/proxy.js';
 import { logger } from './logger.js';
 import { JigWatcher } from './watcher.js'; // S6
+import { watchShopFreshness, SHOP_FRESHNESS_TICK_MS } from './shop-freshness.js'; // S6 fix (wave-4 finding 3)
 // === S5 orders: imports (delimited block; owned by packages/server/src/orders/*) ===
 import { OrdersService } from './orders/service.js';
 import { OrderConflictError, OrderNotFoundError } from './orders/errors.js';
@@ -45,6 +46,10 @@ export interface CreateJigServerOptions {
    * `dev.ts`) never set this — omitting it keeps production behaviour byte-for-byte
    * identical to before this option existed. */
   drafters?: { ollama?: OllamaLike; shop?: AgentDrafter };
+  /** Test-only override — how often the periodic shop-freshness tick (wave-4 council
+   * finding 3) re-evaluates `wiring.shop` and broadcasts if it flipped. Production default:
+   * `SHOP_FRESHNESS_TICK_MS` (10s). */
+  shopFreshnessTickMs?: number;
 }
 
 /** True when `origin` is absent (a non-browser client — curl, an MCP client, the CLI itself
@@ -375,6 +380,13 @@ export async function createJigServer(options: CreateJigServerOptions): Promise<
   watcher.start();
   // -----------------------------------------------------------------------------------------
 
+  // --- S6 fix (wave-4 council finding 3): the shop-freshness tick — wiring.shop must go
+  // back to 'none' within one tick of the heartbeat going stale (an ungraceful agent exit
+  // leaves .jig/cache/shop.json on disk with nothing to delete it), even when no .jig/ file
+  // event or HTTP request happens to land afterward to notice on its own. -------------------
+  const shopFreshness = watchShopFreshness(store, () => broadcastState(wss, store), options.shopFreshnessTickMs ?? SHOP_FRESHNESS_TICK_MS);
+  // -----------------------------------------------------------------------------------------
+
   httpServer.on('upgrade', (req: IncomingMessage, socket, head) => {
     if (req.url !== '/ws') {
       socket.destroy();
@@ -417,6 +429,7 @@ export async function createJigServer(options: CreateJigServerOptions): Promise<
     benchServeMode,
     async close() {
       watcher.stop(); // S6
+      shopFreshness.stop(); // S6 fix (wave-4 finding 3)
       // wss was created with { noServer: true }, so close() alone won't drop connected
       // clients — terminate them explicitly or httpServer.close()'s callback never fires.
       for (const client of wss.clients as Set<WebSocket>) client.terminate();
