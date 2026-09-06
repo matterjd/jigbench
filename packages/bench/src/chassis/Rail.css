@@ -1,0 +1,88 @@
+.jig-rail {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 0;
+  height: 100%;
+  background: var(--bg1);
+}
+
+.jig-rail__tool {
+  position: relative;
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  border-radius: var(--r-inner);
+  color: var(--dim);
+  border: 1px solid transparent;
+}
+
+.jig-rail__tool svg {
+  width: 20px;
+  height: 20px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.jig-rail__tool:hover {
+  background: var(--bg2);
+  color: var(--ink);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .jig-rail__tool {
+    transition:
+      background var(--t-feather) var(--ease-standard),
+      color var(--t-feather) var(--ease-standard);
+  }
+}
+
+/* The active tool is lit with a storm HAIRLINE — never a fill — plus a position-based spine,
+   so the state never rests on colour alone (design floor item 6). */
+.jig-rail__tool--active {
+  background: var(--bg3);
+  color: var(--ink);
+  border-color: var(--line);
+}
+
+.jig-rail__tool--active::before {
+  content: '';
+  position: absolute;
+  left: -8px;
+  top: 8px;
+  bottom: 8px;
+  width: 2px;
+  border-radius: 2px;
+  background: var(--storm);
+}
+
+.jig-rail__key {
+  position: absolute;
+  right: 3px;
+  bottom: 2px;
+  font: 11px/1 var(--mono);
+  color: var(--faint); /* an echo of the aria-label's own shortcut letter — provenance only */
+}
+
+.jig-rail__tip {
+  position: absolute;
+  left: calc(100% + 8px);
+  top: 4px;
+  z-index: 20;
+  max-width: 240px;
+  padding: 6px 10px;
+  border-radius: var(--r-inner);
+  background: var(--bg2);
+  border: 1px solid var(--line);
+  color: var(--ink);
+  font-size: 12.5px;
+  line-height: 1.4;
+  text-align: left;
+  white-space: normal;
+  pointer-events: none;
+}

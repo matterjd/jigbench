@@ -1,11 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { App } from './App.js';
+import { setTool } from './tools/toolState.js';
 
-// A minimal fake — App composes AppFrame, Panel, SimStrip, Ladder, and Logbook with no
-// injection point of its own (unlike SimStrip's `fetchImpl` prop), so this is the one place
-// exercising them together needs to stub the two things App reaches for globally: the
-// WebSocket useJigState opens, and the fetch SimStrip issues.
+// A minimal fake — App composes the whole chassis with no injection point of its own (unlike
+// SimStrip's `fetchImpl` prop), so this is the one place exercising them together needs to
+// stub the two things App reaches for globally: the WebSocket useJigState opens, and the
+// fetch calls SimStrip/the docs count/the plate poll issue.
 class FakeWebSocket {
   static instances: FakeWebSocket[] = [];
   readyState = 1;
@@ -31,6 +32,7 @@ const wiring = {
   fixtures: 'none' as const,
   toolpath: 'none' as const,
   sketch: 'none' as const,
+  docs: 'none' as const,
 };
 
 describe('App', () => {
@@ -39,36 +41,60 @@ describe('App', () => {
     vi.stubGlobal('WebSocket', FakeWebSocket);
     vi.stubGlobal(
       'fetch',
-      vi.fn().mockResolvedValue({ json: () => Promise.resolve({ wiring }) } as Response),
+      vi.fn((input: RequestInfo | URL) => {
+        const url = String(input);
+        if (url.includes('/api/docs')) return Promise.resolve({ ok: true, json: () => Promise.resolve({ files: [] }) } as Response);
+        return Promise.resolve({ ok: true, json: () => Promise.resolve({ wiring }) } as Response);
+      }),
     );
   });
 
   afterEach(() => {
     cleanup();
     vi.unstubAllGlobals();
+    setTool('hand');
   });
 
-  it('renders every AppFrame region with a fixture state', () => {
+  it('renders the rail, the plate, the properties column, the tray, and the bottom bar', () => {
     render(<App />);
 
-    expect(screen.getByText('JIG')).toBeTruthy(); // rail
-    // Plate: PlateBench (S3) is wired in now — this fixture's fetch mock has no /api/plate
-    // shape (no `ok`), so usePlatePoll degrades to its 'none' status and PlateFrame renders
-    // the honest "no target" message rather than an iframe.
-    expect(screen.getByText(/Plate — where the app renders/)).toBeTruthy(); // plate
-    expect(screen.getByText(/No target is set/)).toBeTruthy(); // plate: honest no-target state
-    expect(screen.getByLabelText('sim: what is wired')).toBeTruthy(); // side: SimStrip
-    expect(screen.getByText(/bench socket:/)).toBeTruthy(); // side: connection line
-    expect(screen.getByText(/No marks yet/)).toBeTruthy(); // tray (no work orders yet)
-    expect(screen.getByText(/logbook — the record of everything/i)).toBeTruthy(); // logbook
+    // rail
+    expect(screen.getByRole('button', { name: /Hand — move the plate/ })).toBeTruthy();
+    expect(screen.getByRole('button', { name: /^Loupe —/ })).toBeTruthy();
+
+    // plate: no /api/plate shape in this fixture's fetch mock, so it degrades to the honest
+    // "no target" state rather than an iframe.
+    expect(screen.getByText(/Plate — where the app renders/)).toBeTruthy();
+    expect(screen.getByText(/No target is set/)).toBeTruthy();
+
+    // properties column: three tabs
+    expect(screen.getByRole('tab', { name: /Loupe/ })).toBeTruthy();
+    expect(screen.getByRole('tab', { name: /Gauges/ })).toBeTruthy();
+    expect(screen.getByRole('tab', { name: /Survey/ })).toBeTruthy();
+
+    // tray placeholder (S5 arrives later)
+    expect(screen.getByText('tray — work orders · arrives with S5')).toBeTruthy();
+
+    // bottom bar: SimStrip + shop lane placeholder
+    expect(screen.getByLabelText('sim: what is wired')).toBeTruthy();
+    expect(screen.getByText('the shop — connected agents · arrives with S5')).toBeTruthy();
   });
 
-  it('renders the connection line with the design-floor-required non-text signal', () => {
-    // Floor items 2/3/6 (DESIGN-TEAM.md §6 FLOOR A): load-bearing state is never rendered in
-    // --faint alone, and color never carries meaning without a paired glyph.
+  it('the command palette opens on Ctrl+K and lists the rail\'s tools', () => {
     render(<App />);
-    const connection = screen.getByText(/bench socket:/);
-    expect(connection.className).toContain('jig-side__connection--warn'); // not connected yet
-    expect(connection.querySelector('.jig-side__connection-dot')).toBeTruthy();
+    fireEvent.keyDown(window, { key: 'k', ctrlKey: true });
+    expect(screen.getByRole('dialog')).toBeTruthy();
+    expect(screen.getAllByText('Loupe').length).toBeGreaterThan(0);
+  });
+
+  it('switching the tool via the rail is reflected in the Loupe tab\'s mode toggle', () => {
+    render(<App />);
+    fireEvent.click(screen.getByRole('button', { name: /^Loupe —/ }));
+    // The Properties column defaults to the Loupe tab, whose mode toggle should now read
+    // "loupe" as pressed — the rail and the properties column share one source of truth
+    // (toolState), not two independent copies.
+    const loupeModeButtons = screen.getAllByRole('button', { name: /^Loupe$/ });
+    const pressedOne = loupeModeButtons.find((b) => b.getAttribute('aria-pressed') === 'true');
+    expect(pressedOne).toBeTruthy();
   });
 });

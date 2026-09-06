@@ -1,14 +1,5 @@
-.jig-rail__brand {
-  writing-mode: vertical-rl;
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.2em;
-  color: var(--dim);
-  margin-top: 12px;
-}
-
-.jig-side__connection {
-  margin-top: 10px;
+.jig-appbar__connection {
+  margin: 0;
   font-size: 11px;
   font-family: var(--mono);
   display: inline-flex;
@@ -16,7 +7,7 @@
   gap: 6px;
 }
 
-.jig-side__connection-dot {
+.jig-appbar__connection-dot {
   display: inline-block;
   width: 6px;
   height: 6px;
@@ -26,10 +17,10 @@
 
 /* Load-bearing connection state — floor items 2 and 6: never --faint (provenance-only), and
    color never carries the meaning alone, so a dot glyph pairs with the ok/warn tone. */
-.jig-side__connection--ok {
+.jig-appbar__connection--ok {
   color: var(--ok);
 }
 
-.jig-side__connection--warn {
+.jig-appbar__connection--warn {
   color: var(--warn);
 }
