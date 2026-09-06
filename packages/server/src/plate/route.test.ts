@@ -59,4 +59,43 @@ describe('attachPlateRoute', () => {
     const res = await fetch(`${url}/api/plate`);
     expect((await res.json()).status).toBe('none');
   });
+
+  // S7: F10 wants GET /api/plate to show "fixture: <name>|null" once a fixture can be
+  // loaded. With no getter supplied (every pre-S7 call site, and both tests above), the
+  // field is omitted entirely rather than sent as a literal null — this is what keeps the
+  // two tests above passing unchanged (an omitted key satisfies their exact `toEqual`).
+  it('has no "fixture" key at all when no getActiveFixture is supplied', async () => {
+    const app = express();
+    attachPlateRoute(app, fakePlate({ target: 'http://localhost:4200', port: 4601, status: 'up', changes: [] }));
+    const url = await serve(app);
+
+    const res = await fetch(`${url}/api/plate`);
+    expect(Object.keys(await res.json())).not.toContain('fixture');
+  });
+
+  it('reports the active fixture\'s name when a getActiveFixture getter is supplied', async () => {
+    const app = express();
+    attachPlateRoute(
+      app,
+      fakePlate({ target: 'http://localhost:4200', port: 4601, status: 'up', changes: [] }),
+      () => 'overdue-heavy',
+    );
+    const url = await serve(app);
+
+    const res = await fetch(`${url}/api/plate`);
+    expect((await res.json()).fixture).toBe('overdue-heavy');
+  });
+
+  it('omits the "fixture" key when the getter reports none loaded (never a literal null)', async () => {
+    const app = express();
+    attachPlateRoute(
+      app,
+      fakePlate({ target: 'http://localhost:4200', port: 4601, status: 'up', changes: [] }),
+      () => null,
+    );
+    const url = await serve(app);
+
+    const res = await fetch(`${url}/api/plate`);
+    expect(Object.keys(await res.json())).not.toContain('fixture');
+  });
 });

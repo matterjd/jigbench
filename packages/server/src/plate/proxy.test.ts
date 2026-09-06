@@ -237,6 +237,39 @@ describe('createPlateProxy — interceptor seam', () => {
     const res = await fetch(plate.url);
     expect(await res.text()).toBe('upstream body');
   });
+
+  // S7: the fixture interceptor is registered AFTER the plate is constructed (createJigServer
+  // needs a JigStore, which needs the plate as one of its own inputs — see http.ts) —
+  // addInterceptor() is the seam that lets a caller add one post-construction rather than
+  // only at createPlateProxy() time.
+  it('addInterceptor registers one after construction, and it participates like any other', async () => {
+    fakeUpstream = createHttpServer((_req, res) => {
+      res.writeHead(200, { 'content-type': 'text/plain' });
+      res.end('upstream body');
+    });
+    const port = await listen(fakeUpstream);
+    plate = await readyPlate({
+      benchOrigin: BENCH_ORIGIN,
+      target: `http://localhost:${port}`,
+      port: 0,
+    });
+
+    plate.addInterceptor?.((req) => {
+      if (new URL(req.url ?? '/', 'http://x').pathname === '/api/late') {
+        return new Response(JSON.stringify({ late: true }), {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        });
+      }
+      return undefined;
+    });
+
+    const intercepted = await fetch(`${plate.url}api/late`);
+    expect(await intercepted.json()).toEqual({ late: true });
+
+    const passthrough = await fetch(plate.url);
+    expect(await passthrough.text()).toBe('upstream body');
+  });
 });
 
 describe('createPlateProxy.start()', () => {

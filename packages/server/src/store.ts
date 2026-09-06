@@ -15,6 +15,7 @@ import {
   type MarkTarget,
   type Survey,
   type Wiring,
+  type WiringStatus,
   type WorkOrder,
 } from '@jigbench/core';
 import { atomicWriteFile } from './atomic-write.js';
@@ -48,6 +49,14 @@ export class JigStore {
   private workOrders: WorkOrder[] = [];
   private docsWired = false;
   private proxyWired = false;
+  // --- S7 (fixtures): activeFixture bridge --------------------------------------------
+  // Fixture data (generation, persistence, scrap/restore) lives entirely in
+  // packages/server/src/fixtures/* — this store never imports it (server's own store
+  // stays fixture-shape-agnostic, same reasoning as gauges/survey). FixtureStore calls
+  // these two setters on load/unload/create/scrap so getWiring() and GET /api/plate can
+  // report the active fixture without owning any fixture logic themselves.
+  private activeFixtureName: string | null = null;
+  private fixtureWiring: WiringStatus = 'none';
 
   constructor(repoRoot: string) {
     this.repoRoot = repoRoot;
@@ -148,13 +157,27 @@ export class JigStore {
     this.proxyWired = wired;
   }
 
+  // --- S7 (fixtures): activeFixture bridge --------------------------------------------
+  setActiveFixture(name: string | null): void {
+    this.activeFixtureName = name;
+  }
+
+  getActiveFixture(): string | null {
+    return this.activeFixtureName;
+  }
+
+  setFixtureWiring(status: WiringStatus): void {
+    this.fixtureWiring = status;
+  }
+  // --- end S7 fixtures bridge ----------------------------------------------------------
+
   getWiring(): Wiring {
     return {
       survey: this.survey.stub ? 'stub' : 'wired',
       proxy: this.proxyWired ? 'wired' : 'none',
       drafter: 'stub',
       shop: 'none',
-      fixtures: 'none',
+      fixtures: this.fixtureWiring, // S7
       toolpath: 'none',
       sketch: 'none',
       docs: this.docsWired ? 'wired' : 'none',

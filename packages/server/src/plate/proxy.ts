@@ -62,6 +62,12 @@ export interface PlateProxyHandle extends PlateHost {
    * and did, for the last successful probe. Never throws; an unreachable target is `'down'`,
    * not an error. */
   getStatus(): Promise<PlateStatus>;
+  /** Registers one more interceptor after construction (S7). `createJigServer` needs a
+   * `JigStore` before it can build the fixture interceptor, but the plate proxy is
+   * constructed first (the CLI passes an already-running plate INTO `createJigServer`) — this
+   * lets the caller add it once the store exists, rather than restructuring that ordering.
+   * Optional so every pre-S7 `PlateProxyHandle` consumer/fake stays valid unchanged. */
+  addInterceptor?(interceptor: PlateInterceptor): void;
   close(): Promise<void>;
 }
 
@@ -280,6 +286,9 @@ export function createPlateProxy(options: CreatePlateProxyOptions): PlateProxyHa
     async start(target: string): Promise<string> {
       currentTarget = target;
       return `http://localhost:${actualPort()}/`;
+    },
+    addInterceptor(interceptor: PlateInterceptor): void {
+      interceptors.push(interceptor);
     },
     async getStatus(): Promise<PlateStatus> {
       if (!currentTarget) {

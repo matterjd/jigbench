@@ -186,3 +186,42 @@ describe('JigStore.reload / a fresh process picking the store back up', () => {
     }
   }, 20000);
 });
+
+// --- S7 (fixtures): the activeFixture bridge -----------------------------------------------
+// FixtureStore (packages/server/src/fixtures/store.ts) owns fixture data; it calls these two
+// setters so getWiring()/GET /api/plate can report the active fixture without JigStore
+// knowing anything about fixture generation or persistence.
+describe('JigStore — S7 fixtures bridge', () => {
+  it('reports wiring.fixtures "none" until told otherwise', async () => {
+    const repoRoot = await freshRepo();
+    const store = new JigStore(repoRoot);
+    await store.init();
+    expect(store.getWiring().fixtures).toBe('none');
+    expect(store.getActiveFixture()).toBeNull();
+  });
+
+  it('setFixtureWiring flows through getWiring() and getState().wiring', async () => {
+    const repoRoot = await freshRepo();
+    const store = new JigStore(repoRoot);
+    await store.init();
+
+    store.setFixtureWiring('stub');
+    expect(store.getWiring().fixtures).toBe('stub');
+    expect(store.getState().wiring.fixtures).toBe('stub');
+
+    store.setFixtureWiring('wired');
+    expect(store.getWiring().fixtures).toBe('wired');
+  });
+
+  it('setActiveFixture records the loaded fixture\'s name; null means none loaded', async () => {
+    const repoRoot = await freshRepo();
+    const store = new JigStore(repoRoot);
+    await store.init();
+
+    store.setActiveFixture('overdue-heavy');
+    expect(store.getActiveFixture()).toBe('overdue-heavy');
+
+    store.setActiveFixture(null);
+    expect(store.getActiveFixture()).toBeNull();
+  });
+});

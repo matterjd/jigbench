@@ -1,10 +1,12 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import { mkdtemp } from 'node:fs/promises';
+import { createServer as createHttpServer, type Server as HttpServer } from 'node:http';
+import { mkdir, mkdtemp, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import WebSocket from 'ws';
+import { JIG_FORMAT, jigPaths } from '@jigbench/core';
 import { createJigServer, type JigServerHandle } from './http.js';
-import type { PlateProxyHandle, PlateStatus } from './plate/proxy.js';
+import { createPlateProxy, type PlateProxyHandle, type PlateStatus } from './plate/proxy.js';
 
 let handle: JigServerHandle | undefined;
 
@@ -238,5 +240,107 @@ describe('POST /api/marks', () => {
       body: JSON.stringify({ target: { nope: true }, prompt: 'hello' }),
     });
     expect(res.status).toBe(400);
+  });
+});
+
+// --- S7: fixtures wired end-to-end through the real server + a real plate proxy -----------
+// F10: "the proxy serves fixture responses for /api/* when a fixture is loaded". This is the
+// integration test named in the S7 brief — create -> load -> GET /api/plate shows it -> the
+// interceptor wins over a FAKE upstream that would answer differently -> unload -> the
+// upstream wins again.
+describe('S7 fixtures — end to end through createJigServer + a real plate proxy', () => {
+  let fakeUpstream: HttpServer | undefined;
+  let plate: PlateProxyHandle | undefined;
+
+  afterEach(async () => {
+    if (plate) {
+      await plate.close();
+      plate = undefined;
+    }
+    if (fakeUpstream) {
+      await new Promise<void>((resolve) => fakeUpstream!.close(() => resolve()));
+      fakeUpstream = undefined;
+    }
+  });
+
+  async function listen(server: HttpServer): Promise<number> {
+    await new Promise<void>((resolve) => server.listen(0, resolve));
+    const address = server.address();
+    if (typeof address !== 'object' || !address) throw new Error('no address');
+    return address.port;
+  }
+
+  it('a loaded fixture answers /api/invoices through the plate proxy; unloading restores the real upstream', async () => {
+    fakeUpstream = createHttpServer((_req, res) => {
+      res.writeHead(200, { 'content-type': 'application/json' });
+      res.end(JSON.stringify({ source: 'real-upstream' }));
+    });
+    const upstreamPort = await listen(fakeUpstream);
+
+    const repoRoot = await mkdtemp(join(tmpdir(), 'jig-http-fixtures-'));
+    const benchOrigin = 'http://localhost:4600';
+    plate = createPlateProxy({ target: `http://localhost:${upstreamPort}`, benchOrigin, port: 0 });
+
+    handle = await createJigServer({
+      repoRoot,
+      port: 0,
+      openBrowser: false,
+      benchDistDir: join(tmpdir(), 'jig-no-such-bench-dist'),
+      plate,
+    });
+
+    // Seed a real (non-stub) survey with one list endpoint, then reload so the running
+    // store — and the fixture route's getSurvey() thunk — see it.
+    const paths = jigPaths(repoRoot);
+    await mkdir(paths.survey, { recursive: true });
+    await writeFile(
+      join(paths.survey, 'survey.json'),
+      JSON.stringify({
+        jigFormat: JIG_FORMAT,
+        stack: ['dotnet'],
+        components: [],
+        routes: [],
+        endpoints: [
+          {
+            method: 'GET',
+            path: '/api/invoices',
+            responseSchema: { type: 'array', items: { type: 'object', properties: { id: { type: 'string' }, source: { type: 'string' } } } },
+          },
+        ],
+        schemas: [],
+        docs: [],
+        generatedAt: new Date().toISOString(),
+      }),
+      'utf8',
+    );
+    await handle.store.reload();
+
+    // Wait for the plate's real bind (createPlateProxy binds asynchronously — see proxy.test.ts).
+    for (let i = 0; i < 50 && plate.port === 0; i++) await new Promise((r) => setImmediate(r));
+
+    const createRes = await fetch(`${handle.url}/api/fixtures`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ name: 'overdue-heavy', seed: 1 }),
+    });
+    expect(createRes.status).toBe(201);
+
+    const loadRes = await fetch(`${handle.url}/api/fixtures/overdue-heavy/load`, { method: 'POST' });
+    expect(loadRes.status).toBe(200);
+
+    const plateStatus = await (await fetch(`${handle.url}/api/plate`)).json();
+    expect(plateStatus.fixture).toBe('overdue-heavy');
+
+    const fixturedRes = await fetch(`${plate.url}api/invoices`);
+    expect(fixturedRes.headers.get('x-jig-fixture')).toBe('overdue-heavy');
+    const fixturedBody = await fixturedRes.json();
+    expect(Array.isArray(fixturedBody)).toBe(true);
+    expect(fixturedBody).toHaveLength(8);
+
+    await fetch(`${handle.url}/api/fixtures/unload`, { method: 'POST' });
+
+    const realRes = await fetch(`${plate.url}api/invoices`);
+    expect(realRes.headers.get('x-jig-fixture')).toBeNull();
+    expect(await realRes.json()).toEqual({ source: 'real-upstream' });
   });
 });
