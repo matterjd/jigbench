@@ -430,3 +430,31 @@ describe('S7 fixtures — end to end through createJigServer + a real plate prox
     expect(await realRes.json()).toEqual({ source: 'real-upstream' });
   });
 });
+
+// --- S9: sketch wired end-to-end through the real server -----------------------------------
+// F9 brief: "wiring.sketch = 'wired' once the module is registered (currently 'none')" —
+// GET /api/state already asserts the honest 'none' default above; this proves the OTHER
+// half, the exact same shape S7's fixtures/S8's toolpath end-to-end tests already prove for
+// their own wiring flags: creating a sketch through the real server flips it to 'wired'.
+describe('S9 sketch — wired end-to-end through createJigServer', () => {
+  it('flips wiring.sketch to "wired" once a sketch exists, and the sketch round-trips', async () => {
+    const server = await freshServer();
+
+    const before = await (await fetch(`${server.url}/api/state`)).json();
+    expect(before.wiring.sketch).toBe('none');
+
+    const createRes = await fetch(`${server.url}/api/sketches`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ name: 'Overdue invoices', size: { w: 640, h: 480 } }),
+    });
+    expect(createRes.status).toBe(201);
+    const created = await createRes.json();
+
+    const after = await (await fetch(`${server.url}/api/state`)).json();
+    expect(after.wiring.sketch).toBe('wired');
+
+    const getRes = await fetch(`${server.url}/api/sketches/${created.id}`);
+    expect((await getRes.json()).name).toBe('Overdue invoices');
+  });
+});

@@ -66,6 +66,12 @@ export class JigStore {
   // so GET /api/state can report wiring.toolpath without owning any toolpath logic itself.
   private toolpathWiring: WiringStatus = 'none';
   // --- end S8 toolpath block --------------------------------------------------------------
+  // --- S9 (sketch): wiring bridge, same shape as the S7/S8 bridges above -----------------
+  // Sketch data/persistence lives entirely in packages/server/src/sketch/store.ts (this
+  // store never imports it) — SketchStore calls this setter on init/create so GET
+  // /api/state can report wiring.sketch without owning any sketch logic itself.
+  private sketchWiring: WiringStatus = 'none';
+  // --- end S9 sketch block -----------------------------------------------------------------
 
   constructor(repoRoot: string) {
     this.repoRoot = repoRoot;
@@ -211,6 +217,11 @@ export class JigStore {
     this.toolpathWiring = status;
   }
   // --- end S8 toolpath bridge ------------------------------------------------------------
+  // --- S9 (sketch): wiring setter, same shape as setFixtureWiring/setToolpathWiring above -
+  setSketchWiring(status: WiringStatus): void {
+    this.sketchWiring = status;
+  }
+  // --- end S9 sketch bridge ----------------------------------------------------------------
 
   getWiring(): Wiring {
     return {
@@ -220,7 +231,7 @@ export class JigStore {
       shop: 'none',
       fixtures: this.fixtureWiring, // S7
       toolpath: this.toolpathWiring, // S8
-      sketch: 'none',
+      sketch: this.sketchWiring, // S9
       docs: this.docsWired ? 'wired' : 'none',
     };
   }
