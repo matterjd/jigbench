@@ -126,7 +126,7 @@ function buildApp(
   trialFitMirror: TrialFitMirror, // S8
   snapshotStore: SnapshotStore, // S8
   sketchStore: SketchStore, // S9
-): { app: Express; benchServeMode: BenchServeMode } {
+): { app: Express; benchServeMode: BenchServeMode; orders: OrdersService } {
   const app = express();
   // 64kb: the bench's own request bodies (marks, work-order patches) are all small,
   // structured JSON — a generous cap on any single field lives closer to that field
@@ -331,7 +331,7 @@ function buildApp(
     res.status(status).json({ error: message });
   });
 
-  return { app, benchServeMode };
+  return { app, benchServeMode, orders };
 }
 
 export async function createJigServer(options: CreateJigServerOptions): Promise<JigServerHandle> {
@@ -368,7 +368,7 @@ export async function createJigServer(options: CreateJigServerOptions): Promise<
   // -------------------------------------------------------------------------------------------
 
   const wss = new WebSocketServer({ noServer: true });
-  const { app, benchServeMode } = buildApp(store, wss, options, fixtureStore, toolpathStore, trialFitMirror, snapshotStore, sketchStore);
+  const { app, benchServeMode, orders } = buildApp(store, wss, options, fixtureStore, toolpathStore, trialFitMirror, snapshotStore, sketchStore);
   const httpServer: HttpServer = createHttpServer(app);
 
   // --- S6: the .jig/ watcher — the MCP process (ADR-001) is a SEPARATE process from this
@@ -442,6 +442,7 @@ export async function createJigServer(options: CreateJigServerOptions): Promise<
       // clients — terminate them explicitly or httpServer.close()'s callback never fires.
       for (const client of wss.clients as Set<WebSocket>) client.terminate();
       wss.close();
+      await orders.close(); // finding 3 fix — drain any background auto-draft before the store goes away
       await trialFitMirror.close(); // S8 — the mirror's own listening socket, if started
       await new Promise<void>((resolve, reject) => {
         httpServer.close((err) => (err ? reject(err) : resolve()));
