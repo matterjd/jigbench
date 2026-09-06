@@ -196,28 +196,41 @@ describe('TrayRegion — jig:select-order', () => {
 });
 
 describe('TrayRegion — marks: the tool is "mark" and a pick arrives', () => {
-  it('opens a one-line prompt over the tray, then posts the mark and kicks off the draft', async () => {
-    const created = { mark: { id: 'm-0002' }, workOrder: wo({ id: '0002' }) };
-    const fetchImpl = vi.fn((url: string) => {
-      if (String(url) === '/api/marks') return Promise.resolve({ ok: true, status: 201, json: async () => created });
-      if (String(url).endsWith('/draft')) return Promise.resolve({ ok: true, status: 202, json: async () => ({ accepted: true }) });
-      return Promise.resolve({ ok: true, json: async () => ({}) });
-    }) as unknown as typeof fetch;
+  it(
+    'opens a one-line prompt over the tray, then posts the mark and lets the server auto-draft it ' +
+      '(seam 2: POST /api/marks itself now kicks off the draft — TrayRegion no longer calls /draft)',
+    async () => {
+      const created = { mark: { id: 'm-0002' }, workOrder: wo({ id: '0002' }) };
+      const fetchImpl = vi.fn((url: string) => {
+        if (String(url) === '/api/marks') return Promise.resolve({ ok: true, status: 201, json: async () => created });
+        if (String(url).endsWith('/draft')) return Promise.resolve({ ok: true, status: 202, json: async () => ({ accepted: true }) });
+        return Promise.resolve({ ok: true, json: async () => ({}) });
+      }) as unknown as typeof fetch;
 
-    setTool('mark');
-    const pick = { type: 'jig:pick' as const, path: 'body > app-invoice-list', tag: 'app-invoice-list', text: 'Invoices', component: 'InvoiceListComponent', rect: { x: 0, y: 0, width: 1, height: 1 } };
+      setTool('mark');
+      const pick = { type: 'jig:pick' as const, path: 'body > app-invoice-list', tag: 'app-invoice-list', text: 'Invoices', component: 'InvoiceListComponent', rect: { x: 0, y: 0, width: 1, height: 1 } };
 
-    render(<TrayRegion workOrders={[]} lastPick={pick} fetchImpl={fetchImpl} />);
+      render(<TrayRegion workOrders={[]} lastPick={pick} fetchImpl={fetchImpl} />);
 
-    const input = screen.getByPlaceholderText(/what should change here/i);
-    fireEvent.change(input, { target: { value: 'flag overdue rows' } });
-    fireEvent.submit(input.closest('form')!);
+      const input = screen.getByPlaceholderText(/what should change here/i);
+      fireEvent.change(input, { target: { value: 'flag overdue rows' } });
+      fireEvent.submit(input.closest('form')!);
 
-    await waitFor(() => expect(fetchImpl).toHaveBeenCalledWith('/api/marks', expect.objectContaining({ method: 'POST' })));
-    await waitFor(() =>
-      expect(fetchImpl).toHaveBeenCalledWith('/api/work-orders/0002/draft', expect.objectContaining({ method: 'POST' })),
-    );
-  });
+      await waitFor(() =>
+        expect(fetchImpl).toHaveBeenCalledWith(
+          '/api/marks',
+          expect.objectContaining({
+            method: 'POST',
+            body: JSON.stringify({ pick, prompt: 'flag overdue rows' }),
+          }),
+        ),
+      );
+      // The server (http.ts's POST /api/marks, seam 2) now fires the auto-draft itself right
+      // after responding 201 — TrayRegion must not ALSO call /draft, or a real server would
+      // draft the same order twice.
+      expect(fetchImpl).not.toHaveBeenCalledWith('/api/work-orders/0002/draft', expect.anything());
+    },
+  );
 
   it('does not open the prompt when the tool is not "mark"', () => {
     setTool('hand');

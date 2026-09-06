@@ -108,6 +108,14 @@ function buildApp(
 
   app.get('/api/docs', createDocsRoute(store.repoRoot)); // S2b — see docs/route.ts
 
+  // === S5 orders: work-order routes (delimited block; owned by packages/server/src/orders/*) ===
+  // A drafter attempt (Ollama especially) can legitimately take tens of seconds, so
+  // `/draft` is fire-and-forget (202) rather than blocking the request — the bench watches
+  // `/api/state` over WS for the transition, exactly as `orders/service.ts`'s own
+  // `createMark` already does for its own auto-draft. Declared here, above POST /api/marks,
+  // so the integrator's seam-2 auto-draft call below can use it directly.
+  const orders = new OrdersService({ store, notify: () => broadcastState(wss, store) });
+
   app.post('/api/marks', async (req, res, next) => {
     try {
       // S5: body may carry `pick` (the loupe's PlatePick shape) instead of `target` — the
@@ -128,17 +136,23 @@ function buildApp(
       const created = await store.createMarkAndWorkOrder({ target, prompt });
       broadcastState(wss, store);
       res.status(201).json(created);
+
+      // Integration seam 2 (wave-3 merge): the product flow is "mark -> drafting
+      // immediately, with its cost shown" (commission F7, CHASSIS.md) — fire the same
+      // auto-draft `OrdersService.createMark` already does for its own callers, but from
+      // this route too, since http.ts creates marks via `store.createMarkAndWorkOrder`
+      // directly rather than through `orders.createMark`. Opt out with `draft:false` in the
+      // body. Fire-and-forget, after the 201 has already gone out: a slow (or absent)
+      // drafter must never hold the mark-creation response open. Failure leaves the order
+      // `marked` with a logged `draft-failed` entry (orders/service.ts's own `draftOrder`
+      // never throws for a draft failure) — logged here too since nothing else awaits it.
+      if (req.body?.draft !== false) {
+        orders.draftOrder(created.workOrder.id).catch((err) => logger.warn('auto-draft failed', String(err)));
+      }
     } catch (err) {
       next(err);
     }
   });
-
-  // === S5 orders: work-order routes (delimited block; owned by packages/server/src/orders/*) ===
-  // A drafter attempt (Ollama especially) can legitimately take tens of seconds, so
-  // `/draft` is fire-and-forget (202) rather than blocking the request — the bench watches
-  // `/api/state` over WS for the transition, exactly as `orders/service.ts`'s own
-  // `createMark` already does for its own auto-draft.
-  const orders = new OrdersService({ store, notify: () => broadcastState(wss, store) });
 
   function mapOrderError(err: unknown, res: Response, next: NextFunction): void {
     if (err instanceof OrderNotFoundError) {

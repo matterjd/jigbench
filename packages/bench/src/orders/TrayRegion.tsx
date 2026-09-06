@@ -315,7 +315,9 @@ export function TrayRegion({ workOrders, lastPick, marks, iframeRef, plateOrigin
     });
     const created = (await res.json()) as { workOrder: WorkOrder };
     setSelectedId(created.workOrder.id);
-    await fetchImpl(`/api/work-orders/${created.workOrder.id}/draft`, { method: 'POST' });
+    // Integration seam 2 (wave-3 merge): POST /api/marks now kicks off the draft itself
+    // (server-side, fire-and-forget) right after it responds — the bench no longer calls
+    // /draft here, or a real server would draft the same order twice.
   }
 
   function cancelMark(): void {

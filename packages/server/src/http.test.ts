@@ -184,12 +184,38 @@ describe('same-origin protection', () => {
   });
 });
 
+interface StateMessage {
+  type: string;
+  state?: { workOrders: Array<{ id: string; state: string; log: Array<{ event: string }> }> };
+}
+
+/** Polls `/api/state` for `id` to leave `awayFrom` — used by seam-2's auto-draft tests
+ * instead of a fixed sleep, the same style `orders/http.orders.test.ts`'s own `waitForState`
+ * uses: on a desk where Ollama is reachable a real model call can take seconds, on one
+ * without it (or without a wired shop agent) HumanDrafter resolves near-instantly, and
+ * either way the ladder rule is "never a hard stop" (select-drafter.ts) — polling is
+ * correct under both. */
+async function waitUntilOrderLeavesState(url: string, id: string, awayFrom: string, timeoutMs = 60_000): Promise<string> {
+  const started = Date.now();
+  for (;;) {
+    const body = await (await fetch(`${url}/api/state`)).json();
+    const wo = body.workOrders.find((w: { id: string }) => w.id === id);
+    if (wo && wo.state !== awayFrom) return wo.state as string;
+    if (Date.now() - started > timeoutMs) {
+      throw new Error(`work order ${id} never left state ${awayFrom}; last seen: ${wo?.state}`);
+    }
+    await new Promise((r) => setTimeout(r, 50));
+  }
+}
+
 describe('POST /api/marks', () => {
-  it('creates a mark and a marked work order, then broadcasts the new state over WS', async () => {
+  it(
+    'creates a mark and a marked work order, then broadcasts state over WS for the mark and (seam 2) the auto-draft that follows',
+    async () => {
     const { url } = await freshServer();
 
     const ws = new WebSocket(url.replace('http', 'ws') + '/ws');
-    const messages: unknown[] = [];
+    const messages: StateMessage[] = [];
     ws.on('message', (data) => messages.push(JSON.parse(data.toString())));
     await new Promise<void>((resolve, reject) => {
       ws.on('open', resolve);
@@ -213,13 +239,57 @@ describe('POST /api/marks', () => {
     expect(created.mark.id).toBe('m-0001');
     expect(created.workOrder.state).toBe('marked');
 
+    // The immediate broadcast for the mark's own creation — asserted on CONTENT (the same
+    // work order, freshly `marked`), not a fixed total message count. Seam 2 (jigbench
+    // wave-3 integration) makes POST /api/marks kick off an auto-draft right after
+    // responding, so — unlike before this integration — a second (drafted/draft-failed)
+    // broadcast can legitimately arrive in the same window as this one, and the exact
+    // total is no longer a stable thing to assert on.
     await new Promise((r) => setTimeout(r, 50));
-    expect(messages).toHaveLength(2);
-    const last = messages[1] as { type: string; state: { workOrders: unknown[] } };
-    expect(last.type).toBe('state');
-    expect(last.state.workOrders).toHaveLength(1);
+    const markedBroadcast = messages.find((m) =>
+      m.type === 'state' && m.state?.workOrders.some((w) => w.id === created.workOrder.id && w.state === 'marked'),
+    );
+    expect(markedBroadcast).toBeTruthy();
+
+    // Seam 2 itself: the SAME order leaves `marked` without the bench ever calling
+    // POST /api/work-orders/:id/draft — proof the auto-draft actually fired, over the same
+    // WS channel the bench watches (not just a REST poll).
+    await waitUntilOrderLeavesState(url, created.workOrder.id, 'marked');
+    const nonMarkedBroadcast = messages.find((m) =>
+      m.type === 'state' && m.state?.workOrders.some((w) => w.id === created.workOrder.id && w.state !== 'marked'),
+    );
+    expect(nonMarkedBroadcast).toBeTruthy();
 
     ws.close();
+    },
+    70_000,
+  );
+
+  it('seam 2: does NOT auto-draft when the body carries draft:false — the order stays marked', async () => {
+    const { url } = await freshServer();
+
+    const res = await fetch(`${url}/api/marks`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        target: { path: 'body > invoice-list', component: 'InvoiceListComponent' },
+        prompt: 'highlight the due date when overdue',
+        draft: false,
+      }),
+    });
+    expect(res.status).toBe(201);
+    const created = await res.json();
+    expect(created.workOrder.state).toBe('marked');
+
+    // Give a real auto-draft every chance to have fired if the `draft:false` opt-out were
+    // ignored, then confirm it did not: no drafted/draft-failed log entry, still `marked`.
+    await new Promise((r) => setTimeout(r, 300));
+    const state = await (await fetch(`${url}/api/state`)).json();
+    const wo = state.workOrders.find((w: { id: string }) => w.id === created.workOrder.id);
+    expect(wo.state).toBe('marked');
+    expect(wo.log.some((l: { event: string }) => l.event === 'drafted' || l.event === 'draft-failed' || l.event === 'queued-to-shop')).toBe(
+      false,
+    );
   });
 
   it('rejects a mark with no prompt', async () => {
