@@ -1,9 +1,12 @@
+import { readFile } from 'node:fs/promises';
+import { join } from 'node:path';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { Implementation } from '@modelcontextprotocol/sdk/types.js';
-import type { DocsIndex } from '@jigbench/core';
+import { DocsIndexSchema, jigPaths, type DocsIndex } from '@jigbench/core';
 import type { JigStore } from '../store.js';
 import type { OrdersService } from '../orders/service.js';
 import type { FixtureStore } from '../fixtures/store.js';
+import { pathExists } from '../fs-util.js';
 import { logger } from '../logger.js';
 import { ShopHeartbeat } from './heartbeat.js';
 import { registerJigTools } from './tools.js';
@@ -46,6 +49,22 @@ export function formatClientLabel(clientInfo: Implementation | undefined, fallba
   return clientInfo.version ? `${clientInfo.name} ${clientInfo.version}` : clientInfo.name;
 }
 
+/** The default `docs` loader when a caller doesn't supply its own — reads
+ * `.jig/survey/docs.json` fresh on every call, same shape as `orders/service.ts`'s own
+ * private `loadDocsIndex` and `docs/route.ts`'s `loadDocsIndex` (each package boundary
+ * keeps its own copy of this small read; there is no I/O-free place to share it from
+ * without server importing core AND doing disk reads, which core deliberately never does). */
+async function loadDocsIndexFromRepo(repoRoot: string): Promise<DocsIndex | undefined> {
+  const file = join(jigPaths(repoRoot).survey, 'docs.json');
+  if (!(await pathExists(file))) return undefined;
+  try {
+    return DocsIndexSchema.parse(JSON.parse(await readFile(file, 'utf8')));
+  } catch (err) {
+    logger.warn('docs.json failed to parse; jig_docs will report an empty index', String(err));
+    return undefined;
+  }
+}
+
 export function createJigMcpServer(options: CreateJigMcpServerOptions): McpServer {
   const mcpServer = new McpServer({ name: SERVER_NAME, version: SERVER_VERSION });
   const heartbeat = new ShopHeartbeat(options.repoRoot);
@@ -56,7 +75,7 @@ export function createJigMcpServer(options: CreateJigMcpServerOptions): McpServe
     store: options.store,
     orders: options.orders,
     fixtures: options.fixtures,
-    loadDocsIndex: options.docs ?? (async () => undefined),
+    loadDocsIndex: options.docs ?? (() => loadDocsIndexFromRepo(options.repoRoot)),
     clientLabel: () => formatClientLabel(mcpServer.server.getClientVersion(), fallbackLabel),
   };
 

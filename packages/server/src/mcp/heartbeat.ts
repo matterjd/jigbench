@@ -81,19 +81,22 @@ export class ShopHeartbeat {
   async start(client: string): Promise<void> {
     this.client = client;
     this.connectedAt = new Date().toISOString();
-    await this.write();
+    // The very first write's lastSeen is EXACTLY connectedAt (one timestamp, not two
+    // independent `new Date()` calls a fraction of a millisecond apart) — both mean "the
+    // handshake just completed", so they should never be observably different.
+    await this.write(this.connectedAt);
     this.timer = setInterval(() => {
       this.pendingWrite = this.write().catch((err) => logger.warn('shop heartbeat refresh failed', String(err)));
     }, this.refreshMs);
     this.timer.unref?.();
   }
 
-  private async write(): Promise<void> {
+  private async write(lastSeen: string = new Date().toISOString()): Promise<void> {
     const payload: ShopHeartbeatFile = {
       client: this.client,
       pid: process.pid,
       connectedAt: this.connectedAt,
-      lastSeen: new Date().toISOString(),
+      lastSeen,
     };
     await atomicWriteFile(shopHeartbeatFile(this.repoRoot), JSON.stringify(payload, null, 2) + '\n');
   }
