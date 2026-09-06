@@ -10,6 +10,7 @@ import { createDocsRoute } from './docs/route.js';
 import { attachPlateRoute } from './plate/route.js';
 import type { PlateProxyHandle } from './plate/proxy.js';
 import { logger } from './logger.js';
+import { JigWatcher } from './watcher.js'; // S6
 // === S5 orders: imports (delimited block; owned by packages/server/src/orders/*) ===
 import { OrdersService } from './orders/service.js';
 import { OrderConflictError, OrderNotFoundError } from './orders/errors.js';
@@ -97,8 +98,16 @@ function defaultBenchDistDir(): string {
   return fileURLToPath(new URL('../../bench/dist', import.meta.url));
 }
 
+// S6: GET /api/state and every WS 'state' broadcast carry the same composed shape — the core
+// JigState plus a top-level `shop` (the connected agent's own name/connectedAt, or null),
+// which `wiring.shop`'s wired/none alone can't say. One function so the two call sites never
+// drift apart.
+function composedState(store: JigStore): ReturnType<JigStore['getState']> & { shop: ReturnType<JigStore['getShopInfo']> } {
+  return { ...store.getState(), shop: store.getShopInfo() };
+}
+
 function broadcastState(wss: WebSocketServer, store: JigStore): void {
-  const payload = JSON.stringify({ type: 'state', state: store.getState() });
+  const payload = JSON.stringify({ type: 'state', state: composedState(store) });
   for (const client of wss.clients as Set<WebSocket>) {
     if (client.readyState === client.OPEN) client.send(payload);
   }
@@ -139,7 +148,7 @@ function buildApp(
   });
 
   app.get('/api/state', (_req, res) => {
-    res.json(store.getState());
+    res.json(composedState(store));
   });
 
   app.get('/api/docs', createDocsRoute(store.repoRoot)); // S2b — see docs/route.ts
@@ -350,6 +359,22 @@ export async function createJigServer(options: CreateJigServerOptions): Promise<
   const { app, benchServeMode } = buildApp(store, wss, options, fixtureStore, toolpathStore, trialFitMirror, snapshotStore);
   const httpServer: HttpServer = createHttpServer(app);
 
+  // --- S6: the .jig/ watcher — the MCP process (ADR-001) is a SEPARATE process from this
+  // one, so a jig_draft/jig_claim/jig_report tool call writes a file this server never
+  // touched directly. Reload the store and broadcast so a connected bench sees it within a
+  // second, same as any change this server made itself. ---------------------------------
+  const watcher = new JigWatcher({
+    repoRoot,
+    onChange: () => {
+      store
+        .reload()
+        .then(() => broadcastState(wss, store))
+        .catch((err: unknown) => logger.warn('jig watcher: reload after an external .jig/ change failed', String(err)));
+    },
+  });
+  watcher.start();
+  // -----------------------------------------------------------------------------------------
+
   httpServer.on('upgrade', (req: IncomingMessage, socket, head) => {
     if (req.url !== '/ws') {
       socket.destroy();
@@ -365,7 +390,7 @@ export async function createJigServer(options: CreateJigServerOptions): Promise<
   });
 
   wss.on('connection', (ws: WebSocket) => {
-    ws.send(JSON.stringify({ type: 'state', state: store.getState() }));
+    ws.send(JSON.stringify({ type: 'state', state: composedState(store) }));
   });
 
   await new Promise<void>((resolve) => httpServer.listen(port, host, resolve));
@@ -391,6 +416,7 @@ export async function createJigServer(options: CreateJigServerOptions): Promise<
     snapshotStore, // S8
     benchServeMode,
     async close() {
+      watcher.stop(); // S6
       // wss was created with { noServer: true }, so close() alone won't drop connected
       // clients — terminate them explicitly or httpServer.close()'s callback never fires.
       for (const client of wss.clients as Set<WebSocket>) client.terminate();

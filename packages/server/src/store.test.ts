@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { cp, mkdtemp, readFile, rm, stat } from 'node:fs/promises';
+import { cp, mkdir, mkdtemp, readFile, rm, stat, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { join } from 'node:path';
@@ -234,5 +234,76 @@ describe('JigStore — S7 fixtures bridge', () => {
 
     store.setActiveFixture(null);
     expect(store.getActiveFixture()).toBeNull();
+  });
+});
+
+// --- S6 (EXECUTION-PLAN.md §4 S6): the shop wiring bridge ----------------------------------
+// mcp/heartbeat.ts's ShopHeartbeat (a SEPARATE process — ADR-001) owns writing
+// .jig/cache/shop.json; JigStore only reads it back (via reload()) to answer
+// getWiring().shop and getShopInfo() honestly, the same read-only relationship it already
+// has with .jig/survey/docs.json for wiring.docs.
+describe('JigStore — S6 shop wiring bridge', () => {
+  it('reports wiring.shop "none" and getShopInfo() null when no heartbeat file exists', async () => {
+    const repoRoot = await freshRepo();
+    const store = new JigStore(repoRoot);
+    await store.init();
+    expect(store.getWiring().shop).toBe('none');
+    expect(store.getShopInfo()).toBeNull();
+  });
+
+  it('reports wiring.shop "wired" and getShopInfo() once a fresh heartbeat file appears', async () => {
+    const repoRoot = await freshRepo();
+    const store = new JigStore(repoRoot);
+    await store.init();
+
+    const paths = jigPaths(repoRoot);
+    await mkdir(paths.cache, { recursive: true });
+    const now = new Date().toISOString();
+    await writeFile(
+      join(paths.cache, 'shop.json'),
+      JSON.stringify({ client: 'Claude Code 2.1.259', pid: 1234, connectedAt: now, lastSeen: now }),
+      'utf8',
+    );
+
+    await store.reload();
+    expect(store.getWiring().shop).toBe('wired');
+    expect(store.getShopInfo()).toEqual({ client: 'Claude Code 2.1.259', connectedAt: now });
+  });
+
+  it('reports wiring.shop "none" when the heartbeat file is stale', async () => {
+    const repoRoot = await freshRepo();
+    const store = new JigStore(repoRoot);
+    await store.init();
+
+    const paths = jigPaths(repoRoot);
+    await mkdir(paths.cache, { recursive: true });
+    const stale = new Date(Date.now() - 60_000).toISOString(); // well past the 30s threshold
+    await writeFile(
+      join(paths.cache, 'shop.json'),
+      JSON.stringify({ client: 'gone', pid: 1234, connectedAt: stale, lastSeen: stale }),
+      'utf8',
+    );
+
+    await store.reload();
+    expect(store.getWiring().shop).toBe('none');
+    expect(store.getShopInfo()).toBeNull();
+  });
+
+  it('goes back to "none" once the heartbeat file is removed and the store reloads', async () => {
+    const repoRoot = await freshRepo();
+    const store = new JigStore(repoRoot);
+    await store.init();
+
+    const paths = jigPaths(repoRoot);
+    await mkdir(paths.cache, { recursive: true });
+    const shopFile = join(paths.cache, 'shop.json');
+    const now = new Date().toISOString();
+    await writeFile(shopFile, JSON.stringify({ client: 'Claude Code', pid: 1, connectedAt: now, lastSeen: now }), 'utf8');
+    await store.reload();
+    expect(store.getWiring().shop).toBe('wired');
+
+    await rm(shopFile);
+    await store.reload();
+    expect(store.getWiring().shop).toBe('none');
   });
 });

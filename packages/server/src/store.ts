@@ -21,6 +21,7 @@ import {
 import { atomicWriteFile } from './atomic-write.js';
 import { pathExists } from './fs-util.js';
 import { logger } from './logger.js';
+import { readShopHeartbeat } from './mcp/heartbeat.js';
 
 // JigState/Wiring/WiringStatus are defined in @jigbench/core (jig-state.ts), not here —
 // bench needs this exact shape and may only import core's types, never server's.
@@ -49,6 +50,12 @@ export class JigStore {
   private workOrders: WorkOrder[] = [];
   private docsWired = false;
   private proxyWired = false;
+  // === S6 (EXECUTION-PLAN.md §4 S6): the shop wiring bridge — read-only from JigStore's
+  // side. mcp/heartbeat.ts's ShopHeartbeat (a SEPARATE process, ADR-001) owns writing
+  // .jig/cache/shop.json; this just reads it back on reload(), the same relationship
+  // docsWired already has with .jig/survey/docs.json above. ===
+  private shopInfo: { client: string; connectedAt: string } | null = null;
+  // === end S6 block ===
   // === S5 orders: drafter wiring (delimited block; owned by packages/server/src/orders/*) ===
   private drafterWiring: WiringStatus = 'stub';
   // === end S5 orders block ===
@@ -93,6 +100,7 @@ export class JigStore {
     this.workOrders = await this.loadWorkOrders();
     this.marks = await this.loadMarksCache();
     this.docsWired = await this.loadDocsWiring();
+    this.shopInfo = await readShopHeartbeat(this.repoRoot); // S6
   }
 
   private async loadSurvey(): Promise<Survey> {
@@ -194,6 +202,14 @@ export class JigStore {
   }
   // === end S5 orders block ===
   // --- S7 (fixtures): activeFixture bridge --------------------------------------------
+  // === S6 (EXECUTION-PLAN.md §4 S6): the shop's own name/connectedAt, when wired — exposed
+  // for `http.ts` to fold into `GET /api/state`'s `shop` field so the bench's ShopLane can
+  // show WHO is connected, not just whether `wiring.shop === 'wired'`. ===
+  getShopInfo(): { client: string; connectedAt: string } | null {
+    return this.shopInfo;
+  }
+  // === end S6 block ===
+
   setActiveFixture(name: string | null): void {
     this.activeFixtureName = name;
   }
@@ -217,7 +233,7 @@ export class JigStore {
       survey: this.survey.stub ? 'stub' : 'wired',
       proxy: this.proxyWired ? 'wired' : 'none',
       drafter: this.drafterWiring,
-      shop: 'none',
+      shop: this.shopInfo ? 'wired' : 'none', // S6
       fixtures: this.fixtureWiring, // S7
       toolpath: this.toolpathWiring, // S8
       sketch: 'none',
