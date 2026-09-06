@@ -41,6 +41,20 @@ const SERVER_NAME = 'jig';
 const SERVER_VERSION = '0.1.0';
 const DEFAULT_CLIENT_LABEL = 'an MCP client';
 
+/** `JIG_HEARTBEAT_MS` — test-only override for the shop heartbeat's refresh interval
+ * (`ShopHeartbeat`'s own default is `SHOP_HEARTBEAT_REFRESH_MS`, ~10s). Exists so
+ * `scripts/stdout-guard.sh`'s red control (wave-4 council finding 1) can run the heartbeat
+ * fast enough (e.g. `JIG_HEARTBEAT_MS=50`) to prove a stray write from its tick would be
+ * caught by the guard within a short-lived process, without slowing down the real default.
+ * Absent, empty, non-numeric, or non-positive all fall through to `ShopHeartbeat`'s own
+ * default — this never widens what a malformed env value can do. */
+export function heartbeatRefreshMsFromEnv(env: NodeJS.ProcessEnv = process.env): number | undefined {
+  const raw = env.JIG_HEARTBEAT_MS;
+  if (!raw) return undefined;
+  const n = Number(raw);
+  return Number.isFinite(n) && n > 0 ? n : undefined;
+}
+
 /** Pure — `getClientVersion()`'s shape (or `undefined` before/without a handshake) plus the
  * configured fallback, in with one rule: prefer the real client's own name (+ version, when
  * given), fall back only when the SDK hasn't reported one at all. */
@@ -67,7 +81,7 @@ async function loadDocsIndexFromRepo(repoRoot: string): Promise<DocsIndex | unde
 
 export function createJigMcpServer(options: CreateJigMcpServerOptions): McpServer {
   const mcpServer = new McpServer({ name: SERVER_NAME, version: SERVER_VERSION });
-  const heartbeat = new ShopHeartbeat(options.repoRoot);
+  const heartbeat = new ShopHeartbeat(options.repoRoot, heartbeatRefreshMsFromEnv());
   const fallbackLabel = options.clientName ?? DEFAULT_CLIENT_LABEL;
 
   const ctx: JigMcpContext = {

@@ -8,8 +8,9 @@ import { JigStore } from '../store.js';
 import { OrdersService } from '../orders/service.js';
 import { OllamaDrafter } from '../orders/drafters/ollama.js';
 import { FixtureStore } from '../fixtures/store.js';
-import { readShopHeartbeat } from './heartbeat.js';
-import { createJigMcpServer, formatClientLabel } from './server.js';
+import { readFile } from 'node:fs/promises';
+import { shopHeartbeatFile, readShopHeartbeat } from './heartbeat.js';
+import { createJigMcpServer, formatClientLabel, heartbeatRefreshMsFromEnv } from './server.js';
 
 /**
  * S6 — the MCP server core (EXECUTION-PLAN.md §4 S6, ADR-001). This covers only what
@@ -97,5 +98,49 @@ describe('createJigMcpServer', () => {
     await client.close();
 
     await vi.waitFor(async () => expect(await readShopHeartbeat(repoRoot)).toBeNull());
+  });
+
+  // Finding 1 (wave-4 council)'s red control needs a fast heartbeat tick to prove
+  // scripts/stdout-guard.sh actually reads the WHOLE run, not just two lines — this is the
+  // plumbing that lets JIG_HEARTBEAT_MS reach the real ShopHeartbeat the MCP server starts.
+  it('JIG_HEARTBEAT_MS threads through to the shop heartbeat, refreshing lastSeen on that interval', async () => {
+    const { repoRoot, store, orders, fixtures } = await freshRig();
+    const prior = process.env.JIG_HEARTBEAT_MS;
+    process.env.JIG_HEARTBEAT_MS = '20';
+    try {
+      const mcpServer = createJigMcpServer({ repoRoot, store, orders, fixtures });
+      const [serverTransport, clientTransport] = InMemoryTransport.createLinkedPair();
+      const client = new Client({ name: 'test-client', version: '1.0.0' });
+      await Promise.all([mcpServer.connect(serverTransport), client.connect(clientTransport)]);
+
+      const first = await vi.waitFor(async () => {
+        const raw = JSON.parse(await readFile(shopHeartbeatFile(repoRoot), 'utf8'));
+        expect(raw.lastSeen).toBeTruthy();
+        return raw;
+      });
+      await vi.waitFor(async () => {
+        const raw = JSON.parse(await readFile(shopHeartbeatFile(repoRoot), 'utf8'));
+        expect(raw.lastSeen).not.toBe(first.lastSeen);
+      });
+
+      await client.close();
+    } finally {
+      if (prior === undefined) delete process.env.JIG_HEARTBEAT_MS;
+      else process.env.JIG_HEARTBEAT_MS = prior;
+    }
+  });
+});
+
+describe('heartbeatRefreshMsFromEnv', () => {
+  it('parses a positive numeric JIG_HEARTBEAT_MS', () => {
+    expect(heartbeatRefreshMsFromEnv({ JIG_HEARTBEAT_MS: '50' })).toBe(50);
+  });
+
+  it('falls back to undefined (ShopHeartbeat\'s own default) when unset, empty, non-numeric, or non-positive', () => {
+    expect(heartbeatRefreshMsFromEnv({})).toBeUndefined();
+    expect(heartbeatRefreshMsFromEnv({ JIG_HEARTBEAT_MS: '' })).toBeUndefined();
+    expect(heartbeatRefreshMsFromEnv({ JIG_HEARTBEAT_MS: 'nope' })).toBeUndefined();
+    expect(heartbeatRefreshMsFromEnv({ JIG_HEARTBEAT_MS: '0' })).toBeUndefined();
+    expect(heartbeatRefreshMsFromEnv({ JIG_HEARTBEAT_MS: '-5' })).toBeUndefined();
   });
 });
