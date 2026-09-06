@@ -22,26 +22,52 @@ Jig never edits application source. It only writes files under `.jig/` in the re
 
 ## 60-second quick start
 
+No install, no admin, no global anything — `npx` fetches and runs `jigbench` from your own npm
+cache.
+
 ```bash
 cd your-app-repo
 npx jigbench
 ```
 
-This starts the local server and opens the bench in your browser at `http://localhost:<port>`.
+This starts the local server, clamps the current repo, and opens the bench in your browser at
+`http://localhost:4600` (the plate — where a clamped app renders — proxies through `4601`; both
+are configurable with `--port`/`--plate-port` and bind to loopback only unless you pass `--host`).
 
-To wire up an agent:
+To wire up Claude Code:
 
 ```bash
 npx jigbench init
 ```
 
-This writes `.mcp.json` (so Claude Code registers Jig as a local MCP server on stdio) and creates
-the `.jig/` folder in your repo. Claude Desktop needs the matching entry in its own config file;
-`jigbench init` prints how to add it.
+This writes `.mcp.json` at the repo root (so Claude Code registers `jig` as a local MCP server on
+stdio, launched as `npx jigbench mcp`) and creates the `.jig/` folder. Open the repo in Claude
+Code — it reads `.mcp.json` automatically, connects to Jig over stdio, lists the open work orders
+as MCP resources, and can claim and implement one. When it reports a work order done, the bench
+shows the trial fit.
 
-Once a work order exists under `.jig/work-orders/`, open the repo in Claude Code. Claude Code
-reads `.mcp.json`, connects to Jig over stdio, lists the open work orders as MCP resources, and
-can claim and implement one. When it reports the work order done, the bench shows the trial fit.
+Claude Desktop has no per-project `.mcp.json` of its own, so it needs a separate step:
+
+```bash
+npx jigbench mcp install --claude-desktop
+```
+
+This prints the diff to Claude Desktop's `claude_desktop_config.json` without writing anything;
+add `--yes` to actually write it.
+
+### Ollama (optional, local drafting)
+
+Jig drafts a work order's human face itself when a local model is reachable — no agent required
+to get a first draft. Install [Ollama](https://ollama.com) (no admin needed on Windows), then:
+
+```bash
+ollama pull qwen2.5-coder:7b
+```
+
+Jig looks for Ollama at `http://127.0.0.1:11434` by default (override with `JIG_OLLAMA_URL`). If
+Ollama isn't reachable, Jig falls back to a connected agent (`jig_draft` over MCP), then to a
+human filling the work order by hand — always something, never a hard stop. Set `JIG_NO_MODEL=1`
+to skip the Ollama probe entirely (used by this repo's own CI and tests, never needed day to day).
 
 ## The tongue
 
@@ -91,6 +117,11 @@ See `MAP.md` for the full repo map and what each folder is the source of truth f
 
 Angular (frontend) and .NET 10 (APIs and backend). Other stacks are adapters behind the same
 `SurveyAdapter` interface; see `CONTRIBUTING.md` for how to add one.
+
+## Learn it end to end
+
+`docs/USING.md` walks the whole loop in Jig's own words — clamp, survey, the plate and the
+loupe, a mark, a work order, release, the shop, the trial fit — against the `examples/` app.
 
 ## License and community
 

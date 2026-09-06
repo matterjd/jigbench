@@ -28,13 +28,17 @@ packages/adapters/dotnet      SurveyAdapter for .NET 10; imports core interfaces
 examples/                     a tiny Angular app + a tiny .NET 10 app; not a workspace package.
                               Source of truth for: the fixture every adapter's tests run against.
 
-docs/                         Source of truth for: the execution plan, ADRs, and the v0.1 team
-                              plan.
+docs/                         Source of truth for: the execution plan, ADRs, the v0.1 team plan,
+                              and `USING.md` (the end-to-end walkthrough in Jig's own words).
 
 scripts/                      Source of truth for: repo-level verification scripts run by npm
-                              (e.g. `check:stdout`) — not application code.
+                              (e.g. `check:stdout`) or directly (`npx-control.sh`,
+                              `check-dco.sh`) — not application code.
 
-.github/                      Source of truth for: issue templates, the PR template, and CI.
+.github/                      Source of truth for: issue templates, the PR template, and CI —
+                              `workflows/ci.yml` (the Windows + Ubuntu gate matrix, plus the DCO
+                              check) and `workflows/release.yml` (manual, builds + packs +
+                              uploads the tarball artifact; never publishes).
 ```
 
 ## Root files
@@ -48,8 +52,9 @@ scripts/                      Source of truth for: repo-level verification scrip
 | `MAP.md` | this file |
 | `QUALITY.md` | the living quality dashboard (QA-owned) |
 | `HANDOFF.md` | the session baton |
-| `CONTRIBUTING.md` | how to build, test, and submit a change |
+| `CONTRIBUTING.md` | how to build, test, and submit a change — env switches, the smoke scripts, the release build |
 | `SECURITY.md` | how to report a vulnerability |
 | `CODE_OF_CONDUCT.md` | the community standard |
 | `LICENSE` | Apache-2.0 |
+| `CHANGELOG.md` | what shipped in each version (Keep a Changelog) |
 | `.gitignore` | what never gets committed |
