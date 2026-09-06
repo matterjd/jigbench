@@ -21,6 +21,7 @@ import {
 import { atomicWriteFile } from './atomic-write.js';
 import { pathExists } from './fs-util.js';
 import { logger } from './logger.js';
+import { isHeartbeatFresh, readShopHeartbeatRaw, type ShopHeartbeatFile } from './mcp/heartbeat.js';
 
 // JigState/Wiring/WiringStatus are defined in @jigbench/core (jig-state.ts), not here —
 // bench needs this exact shape and may only import core's types, never server's.
@@ -49,6 +50,16 @@ export class JigStore {
   private workOrders: WorkOrder[] = [];
   private docsWired = false;
   private proxyWired = false;
+  // === S6 (EXECUTION-PLAN.md §4 S6): the shop wiring bridge — read-only from JigStore's
+  // side. mcp/heartbeat.ts's ShopHeartbeat (a SEPARATE process, ADR-001) owns writing
+  // .jig/cache/shop.json; reload() re-reads it, the same relationship docsWired already has
+  // with .jig/survey/docs.json above. Wave-4 council finding 3 (HIGH): this caches the RAW
+  // record (including lastSeen), UNFILTERED by freshness — getWiring()/getShopInfo() below
+  // re-run isHeartbeatFresh() against it on every call, so "the agent crashed and never
+  // wrote again" goes back to 'none' the moment something asks, not only the next time a
+  // .jig/ file event happens to trigger another reload(). ===
+  private shopHeartbeat: ShopHeartbeatFile | null = null;
+  // === end S6 block ===
   // === S5 orders: drafter wiring (delimited block; owned by packages/server/src/orders/*) ===
   private drafterWiring: WiringStatus = 'stub';
   // === end S5 orders block ===
@@ -93,6 +104,7 @@ export class JigStore {
     this.workOrders = await this.loadWorkOrders();
     this.marks = await this.loadMarksCache();
     this.docsWired = await this.loadDocsWiring();
+    this.shopHeartbeat = await readShopHeartbeatRaw(this.repoRoot); // S6
   }
 
   private async loadSurvey(): Promise<Survey> {
@@ -194,6 +206,19 @@ export class JigStore {
   }
   // === end S5 orders block ===
   // --- S7 (fixtures): activeFixture bridge --------------------------------------------
+  // === S6 (EXECUTION-PLAN.md §4 S6): the shop's own name/connectedAt, when wired — exposed
+  // for `http.ts` to fold into `GET /api/state`'s `shop` field so the bench's ShopLane can
+  // show WHO is connected, not just whether `wiring.shop === 'wired'`. ===
+  getShopInfo(): { client: string; connectedAt: string } | null {
+    // Freshness is judged HERE, at call time, against the CURRENT clock — not baked in at
+    // the last reload() (finding 3). A crashed agent's stale file still sits on disk until
+    // something removes it, but it stops counting as "connected" the instant it goes stale,
+    // with no further reload() required.
+    if (!this.shopHeartbeat || !isHeartbeatFresh(this.shopHeartbeat.lastSeen)) return null;
+    return { client: this.shopHeartbeat.client, connectedAt: this.shopHeartbeat.connectedAt };
+  }
+  // === end S6 block ===
+
   setActiveFixture(name: string | null): void {
     this.activeFixtureName = name;
   }
@@ -217,7 +242,7 @@ export class JigStore {
       survey: this.survey.stub ? 'stub' : 'wired',
       proxy: this.proxyWired ? 'wired' : 'none',
       drafter: this.drafterWiring,
-      shop: 'none',
+      shop: this.getShopInfo() ? 'wired' : 'none', // S6
       fixtures: this.fixtureWiring, // S7
       toolpath: this.toolpathWiring, // S8
       sketch: 'none',

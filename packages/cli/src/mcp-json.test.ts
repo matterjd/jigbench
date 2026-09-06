@@ -38,6 +38,21 @@ describe('mergeMcpJson', () => {
     expect(changed).toBe(true);
     expect(merged.mcpServers).toEqual({ jig: JIG_MCP_ENTRY });
   });
+
+  // S6: "add --repo when init is run from outside the repo root" — an explicit repoRoot
+  // option adds `--repo <path>` to the entry's args; omitted (the default), the plain
+  // JIG_MCP_ENTRY is unchanged from before S6.
+  it('adds --repo <path> to args when a repoRoot is given', () => {
+    const { merged, changed } = mergeMcpJson(undefined, { repoRoot: '/some/other/repo' });
+    expect(changed).toBe(true);
+    expect(merged).toEqual({ mcpServers: { jig: { command: 'npx', args: ['jigbench', 'mcp', '--repo', '/some/other/repo'] } } });
+  });
+
+  it('reports unchanged when the --repo entry already matches exactly', () => {
+    const existing = { mcpServers: { jig: { command: 'npx', args: ['jigbench', 'mcp', '--repo', '/some/other/repo'] } } };
+    const { changed } = mergeMcpJson(existing, { repoRoot: '/some/other/repo' });
+    expect(changed).toBe(false);
+  });
 });
 
 describe('formatMcpJsonDiff', () => {

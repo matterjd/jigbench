@@ -15,16 +15,26 @@ export interface ShopLaneProps {
 
 export function ShopLane({ workOrders, fetchImpl = fetch }: ShopLaneProps) {
   const [connected, setConnected] = useState(false);
+  // S6 exposed /api/state's top-level `shop: {client, connectedAt}` (http.ts's
+  // composedState) but nothing rendered WHO is connected — only wired/none. null covers both
+  // "not connected" and "connected but the server didn't name a client" (falls back to a
+  // plain "connected" below).
+  const [clientName, setClientName] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
     fetchImpl('/api/state')
       .then((res) => res.json())
-      .then((data: { wiring?: { shop?: string } }) => {
-        if (!cancelled) setConnected(data.wiring?.shop === 'wired');
+      .then((data: { wiring?: { shop?: string }; shop?: { client?: string } | null }) => {
+        if (cancelled) return;
+        setConnected(data.wiring?.shop === 'wired');
+        setClientName(typeof data.shop?.client === 'string' ? data.shop.client : null);
       })
       .catch(() => {
-        if (!cancelled) setConnected(false);
+        if (!cancelled) {
+          setConnected(false);
+          setClientName(null);
+        }
       });
     return () => {
       cancelled = true;
@@ -40,7 +50,7 @@ export function ShopLane({ workOrders, fetchImpl = fetch }: ShopLaneProps) {
 
       <div className="jig-shop__status">
         <span aria-hidden="true" className="jig-shop__dot" />
-        {connected ? 'connected' : 'none connected'}
+        {connected ? (clientName ? `connected · ${clientName}` : 'connected') : 'none connected'}
       </div>
 
       <div className="jig-shop__released">

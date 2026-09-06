@@ -10,6 +10,8 @@ import { createDocsRoute } from './docs/route.js';
 import { attachPlateRoute } from './plate/route.js';
 import type { PlateProxyHandle } from './plate/proxy.js';
 import { logger } from './logger.js';
+import { JigWatcher } from './watcher.js'; // S6
+import { watchShopFreshness, SHOP_FRESHNESS_TICK_MS } from './shop-freshness.js'; // S6 fix (wave-4 finding 3)
 // === S5 orders: imports (delimited block; owned by packages/server/src/orders/*) ===
 import { OrdersService } from './orders/service.js';
 import { OrderConflictError, OrderNotFoundError } from './orders/errors.js';
@@ -44,6 +46,10 @@ export interface CreateJigServerOptions {
    * `dev.ts`) never set this — omitting it keeps production behaviour byte-for-byte
    * identical to before this option existed. */
   drafters?: { ollama?: OllamaLike; shop?: AgentDrafter };
+  /** Test-only override — how often the periodic shop-freshness tick (wave-4 council
+   * finding 3) re-evaluates `wiring.shop` and broadcasts if it flipped. Production default:
+   * `SHOP_FRESHNESS_TICK_MS` (10s). */
+  shopFreshnessTickMs?: number;
 }
 
 /** True when `origin` is absent (a non-browser client — curl, an MCP client, the CLI itself
@@ -97,8 +103,16 @@ function defaultBenchDistDir(): string {
   return fileURLToPath(new URL('../../bench/dist', import.meta.url));
 }
 
+// S6: GET /api/state and every WS 'state' broadcast carry the same composed shape — the core
+// JigState plus a top-level `shop` (the connected agent's own name/connectedAt, or null),
+// which `wiring.shop`'s wired/none alone can't say. One function so the two call sites never
+// drift apart.
+function composedState(store: JigStore): ReturnType<JigStore['getState']> & { shop: ReturnType<JigStore['getShopInfo']> } {
+  return { ...store.getState(), shop: store.getShopInfo() };
+}
+
 function broadcastState(wss: WebSocketServer, store: JigStore): void {
-  const payload = JSON.stringify({ type: 'state', state: store.getState() });
+  const payload = JSON.stringify({ type: 'state', state: composedState(store) });
   for (const client of wss.clients as Set<WebSocket>) {
     if (client.readyState === client.OPEN) client.send(payload);
   }
@@ -139,7 +153,7 @@ function buildApp(
   });
 
   app.get('/api/state', (_req, res) => {
-    res.json(store.getState());
+    res.json(composedState(store));
   });
 
   app.get('/api/docs', createDocsRoute(store.repoRoot)); // S2b — see docs/route.ts
@@ -350,6 +364,29 @@ export async function createJigServer(options: CreateJigServerOptions): Promise<
   const { app, benchServeMode } = buildApp(store, wss, options, fixtureStore, toolpathStore, trialFitMirror, snapshotStore);
   const httpServer: HttpServer = createHttpServer(app);
 
+  // --- S6: the .jig/ watcher — the MCP process (ADR-001) is a SEPARATE process from this
+  // one, so a jig_draft/jig_claim/jig_report tool call writes a file this server never
+  // touched directly. Reload the store and broadcast so a connected bench sees it within a
+  // second, same as any change this server made itself. ---------------------------------
+  const watcher = new JigWatcher({
+    repoRoot,
+    onChange: () => {
+      store
+        .reload()
+        .then(() => broadcastState(wss, store))
+        .catch((err: unknown) => logger.warn('jig watcher: reload after an external .jig/ change failed', String(err)));
+    },
+  });
+  watcher.start();
+  // -----------------------------------------------------------------------------------------
+
+  // --- S6 fix (wave-4 council finding 3): the shop-freshness tick — wiring.shop must go
+  // back to 'none' within one tick of the heartbeat going stale (an ungraceful agent exit
+  // leaves .jig/cache/shop.json on disk with nothing to delete it), even when no .jig/ file
+  // event or HTTP request happens to land afterward to notice on its own. -------------------
+  const shopFreshness = watchShopFreshness(store, () => broadcastState(wss, store), options.shopFreshnessTickMs ?? SHOP_FRESHNESS_TICK_MS);
+  // -----------------------------------------------------------------------------------------
+
   httpServer.on('upgrade', (req: IncomingMessage, socket, head) => {
     if (req.url !== '/ws') {
       socket.destroy();
@@ -365,7 +402,7 @@ export async function createJigServer(options: CreateJigServerOptions): Promise<
   });
 
   wss.on('connection', (ws: WebSocket) => {
-    ws.send(JSON.stringify({ type: 'state', state: store.getState() }));
+    ws.send(JSON.stringify({ type: 'state', state: composedState(store) }));
   });
 
   await new Promise<void>((resolve) => httpServer.listen(port, host, resolve));
@@ -391,6 +428,8 @@ export async function createJigServer(options: CreateJigServerOptions): Promise<
     snapshotStore, // S8
     benchServeMode,
     async close() {
+      watcher.stop(); // S6
+      shopFreshness.stop(); // S6 fix (wave-4 finding 3)
       // wss was created with { noServer: true }, so close() alone won't drop connected
       // clients — terminate them explicitly or httpServer.close()'s callback never fires.
       for (const client of wss.clients as Set<WebSocket>) client.terminate();

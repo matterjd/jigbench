@@ -275,6 +275,35 @@ export class OrdersService {
     return this.draftOrder(id);
   }
 
+  // === S6 (EXECUTION-PLAN.md §4 row S6, ADR-001 "the agent pulls"): `jig_draft` MCP tool ===
+  /** The agent hands back a COMPLETED human face for an order sitting in `marked` — whether
+   * it got there fresh off a mark, or via `draftOrder`'s own "queued for the shop" path
+   * (`orders/drafters/shop.ts`'s `AgentDrafter`, selected when `wiring.shop === 'wired'`),
+   * which never advances the ladder off `marked` in the first place. Both cases are exactly
+   * the same precondition — `order.state === 'marked'` — so there is only one check here.
+   * Unlike `draftOrder`, this never invents anything: `human` is the agent's own answer,
+   * validated against the same core schema `editHumanFace` uses, and `draftedBy` is always
+   * `'shop'` since only an agent calls this. `clientLabel` is the MCP handshake's own
+   * client name/version (see `mcp/server.ts`'s `formatClientLabel`) — logged as the note so
+   * the logbook says WHICH agent drafted it, the same way `claim`'s `by` does. */
+  async draftByAgent(id: string, human: WorkOrderHuman, clientLabel: string): Promise<WorkOrder> {
+    const order = this.require(id);
+    if (order.state !== 'marked') {
+      throw new OrderConflictError(`work order ${id} is ${order.state}, not marked — cannot draft`);
+    }
+    const validated = WorkOrderHumanSchema.parse(human);
+    const nextState = transition(order.state, 'draft')!; // legal by construction: state is 'marked'
+    const next: WorkOrder = {
+      ...order,
+      state: nextState,
+      human: { ...order.human, ...validated },
+      draftedBy: 'shop',
+      log: [...order.log, { at: this.now(), actor: 'shop', event: 'drafted', ref: id, note: clientLabel }],
+    };
+    return this.persist(next);
+  }
+  // === end S6 block ===
+
   /** The human face stays editable before release ("released — the file is written; a
    * change now is a new work order", concept B F6) — `marked` and `drafted` only.
    *

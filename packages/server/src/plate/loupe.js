@@ -646,17 +646,65 @@
     return true;
   }
 
+  /** True when `value` (an href/src/action) starts with a scheme that would run script or
+   * load active content the moment the snapshot is opened — `javascript:` (runs immediately)
+   * or `data:text/html` (a same-origin-equivalent document the browser will render/execute).
+   * Strips whitespace/control characters first so a trivial `"java\tscript:"`-style evasion
+   * doesn't slip through; deliberately conservative like the rest of this function — when in
+   * doubt, strip (wave-4 council finding 4). */
+  function isDangerousUrl(value) {
+    var normalized = String(value || '')
+      .replace(/\s+/g, '')
+      .toLowerCase();
+    return normalized.indexOf('javascript:') === 0 || normalized.indexOf('data:text/html') === 0;
+  }
+
+  /** Client-side half of the snapshot's sanitization (the server-side half —
+   * packages/server/src/trialfit/sanitize-snapshot.ts — sanitizes again on save/serve, since
+   * this script runs inside the TARGET page and its own DOM is exactly the thing that may
+   * already carry attacker-controlled markup, e.g. unsanitized user content the target app
+   * itself rendered). Operates on the CLONE only, via real DOM APIs rather than string/regex
+   * surgery, since a live DOM tree is already in hand at this point: removes every
+   * <script>/<iframe>/<object>/<embed>, every <meta http-equiv="refresh"> redirect, every
+   * on*= handler attribute, and neutralizes javascript:/data:text/html URLs in href/src/action
+   * to "#". Wave-4 council finding 4 — stripping <script> alone left all of the above intact. */
+  function sanitizeSnapshotClone(root) {
+    var removable = root.querySelectorAll('script, iframe, object, embed');
+    for (var i = removable.length - 1; i >= 0; i--) {
+      if (removable[i].parentNode) removable[i].parentNode.removeChild(removable[i]);
+    }
+
+    var metas = root.querySelectorAll('meta');
+    for (var m = 0; m < metas.length; m++) {
+      var httpEquiv = (metas[m].getAttribute('http-equiv') || '').toLowerCase();
+      if (httpEquiv === 'refresh' && metas[m].parentNode) metas[m].parentNode.removeChild(metas[m]);
+    }
+
+    var all = root.querySelectorAll('*');
+    for (var e = 0; e < all.length; e++) {
+      var el = all[e];
+      var attrs = el.attributes ? Array.prototype.slice.call(el.attributes) : [];
+      for (var a = 0; a < attrs.length; a++) {
+        var name = attrs[a].name;
+        var lower = name.toLowerCase();
+        if (lower.length > 2 && lower.indexOf('on') === 0) {
+          el.removeAttribute(name);
+        } else if ((lower === 'href' || lower === 'src' || lower === 'action') && isDangerousUrl(attrs[a].value)) {
+          el.setAttribute(name, '#');
+        }
+      }
+    }
+  }
+
   /** A standalone copy of the current document for the trial-fit mirror's "before" frame: a
-   * deep clone (the live DOM is never touched) with every `<script>` removed — the snapshot
-   * is served later, from a different port, and must never re-execute this page's scripts —
-   * and a `<base>` pointing at the page's own URL prepended to `<head>` so the snapshot's own
-   * relative asset/link URLs keep resolving once it is no longer served from here. */
+   * sanitized deep clone (the live DOM is never touched — see `sanitizeSnapshotClone` above)
+   * — the snapshot is served later, from a different port, and must never carry anything that
+   * could run script or navigate away on its own — and a `<base>` pointing at the page's own
+   * URL prepended to `<head>` so the snapshot's own relative asset/link URLs keep resolving
+   * once it is no longer served from here. */
   function captureSnapshot() {
     var clone = document.documentElement.cloneNode(true);
-    var scripts = clone.querySelectorAll('script');
-    for (var i = scripts.length - 1; i >= 0; i--) {
-      if (scripts[i].parentNode) scripts[i].parentNode.removeChild(scripts[i]);
-    }
+    sanitizeSnapshotClone(clone);
     var head = clone.querySelector('head');
     if (!head) {
       head = document.createElement('head');

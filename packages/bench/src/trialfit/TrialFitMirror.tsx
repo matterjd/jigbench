@@ -142,7 +142,20 @@ export function TrialFitMirror({ workOrders, fetchImpl = fetch, onPrinted }: Tri
       <div className="jig-trialfit__frames">
         <div className="jig-trialfit__frame">
           <p className="jig-trialfit__label">before · snapshot at release</p>
-          <iframe ref={leftRef} className="jig-trialfit__iframe" title="before — the app at release" src={`/api/plate/snapshot/${selected.id}`} />
+          {/* Wave-4 council finding 4 (MEDIUM): the snapshot HTML is sanitized twice
+              (loupe.js client-side, sanitize-snapshot.ts server-side on save) — this sandbox
+              is the third, browser-enforced layer, in case anything still slips through.
+              `allow-same-origin` (with NO `allow-scripts`) keeps `contentDocument` readable
+              for snapshotHighlight.ts (the snapshot is genuinely served from this bench's own
+              origin) while disabling script execution entirely — an empty/no `sandbox` at all
+              would let any surviving <script> run at full trust in the bench's own origin. */}
+          <iframe
+            ref={leftRef}
+            className="jig-trialfit__iframe"
+            title="before — the app at release"
+            src={`/api/plate/snapshot/${selected.id}`}
+            sandbox="allow-same-origin"
+          />
         </div>
         <div className="jig-trialfit__frame">
           <p className="jig-trialfit__label">after · live</p>

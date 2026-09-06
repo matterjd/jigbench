@@ -1,6 +1,6 @@
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createServer as createHttpServer, type Server as HttpServer } from 'node:http';
-import { mkdir, mkdtemp, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import WebSocket from 'ws';
@@ -65,6 +65,105 @@ describe('GET /api/state', () => {
       sketch: 'none',
       docs: 'none',
     });
+    expect(body.shop).toBeNull();
+  });
+
+  // S6: "extend /api/state with shop: {client, connectedAt}" — so the bench can show WHO is
+  // connected, not just wiring.shop's wired/none. store.reload() is called directly here
+  // (deterministic) rather than relying on the watcher's own timing, which the dedicated
+  // ".jig/ watcher" tests below cover.
+  it('reports shop: {client, connectedAt} once a fresh heartbeat file is on disk and reloaded', async () => {
+    const { url, store } = await freshServer();
+    const paths = jigPaths(store.repoRoot);
+    await mkdir(paths.cache, { recursive: true });
+    const now = new Date().toISOString();
+    await writeFile(
+      join(paths.cache, 'shop.json'),
+      JSON.stringify({ client: 'Claude Code 2.1.259', pid: 1, connectedAt: now, lastSeen: now }),
+      'utf8',
+    );
+    await store.reload();
+
+    const body = await (await fetch(`${url}/api/state`)).json();
+    expect(body.shop).toEqual({ client: 'Claude Code 2.1.259', connectedAt: now });
+    expect(body.wiring.shop).toBe('wired');
+  });
+});
+
+// S6 — the bench sees the shop's writes even though the MCP process (ADR-001) is a separate
+// process: JigWatcher (wired into createJigServer) notices a direct file change under .jig/
+// and broadcasts the reloaded state over WS, without any HTTP request driving it.
+describe('the .jig/ watcher (S6) — a write from outside this process reaches connected WS clients', () => {
+  it('a direct edit to a work order\'s frontmatter broadcasts the new state', async () => {
+    const { url, store } = await freshServer();
+
+    const created = await (
+      await fetch(`${url}/api/marks`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ target: { path: 'body > x' }, prompt: 'x', draft: false }),
+      })
+    ).json();
+    const id = created.workOrder.id as string;
+
+    const ws = new WebSocket(url.replace('http', 'ws') + '/ws');
+    const messages: StateMessage[] = [];
+    ws.on('message', (data) => messages.push(JSON.parse(data.toString())));
+    await new Promise<void>((resolve, reject) => {
+      ws.on('open', resolve);
+      ws.on('error', reject);
+    });
+    await new Promise((r) => setTimeout(r, 50));
+    messages.length = 0; // drop the initial connection-state push
+
+    // Simulate what an MCP tool call in a SEPARATE process does — edit the file directly,
+    // never through this server's own HTTP routes.
+    const filePath = join(jigPaths(store.repoRoot).workOrders, `${id}-${created.workOrder.slug}.md`);
+    const original = await readFile(filePath, 'utf8');
+    const rewritten = original.replace('state: marked', 'state: drafted').replace('draftedBy: person', 'draftedBy: shop');
+    expect(rewritten).not.toBe(original); // sanity: the replace actually matched something
+    await writeFile(filePath, rewritten, 'utf8');
+
+    await vi.waitFor(
+      () => {
+        const broadcast = messages.find(
+          (m) => m.type === 'state' && m.state?.workOrders.some((w) => w.id === id && w.state === 'drafted'),
+        );
+        expect(broadcast).toBeTruthy();
+      },
+      { timeout: 3000 },
+    );
+
+    ws.close();
+  });
+
+  it('the shop heartbeat appearing under .jig/cache also triggers a broadcast (wiring.shop flips to wired)', async () => {
+    const { url, store } = await freshServer();
+
+    const ws = new WebSocket(url.replace('http', 'ws') + '/ws');
+    const messages: StateMessage[] = [];
+    ws.on('message', (data) => messages.push(JSON.parse(data.toString())));
+    await new Promise<void>((resolve, reject) => {
+      ws.on('open', resolve);
+      ws.on('error', reject);
+    });
+    await new Promise((r) => setTimeout(r, 50));
+    messages.length = 0;
+
+    const paths = jigPaths(store.repoRoot);
+    await mkdir(paths.cache, { recursive: true });
+    const now = new Date().toISOString();
+    await writeFile(join(paths.cache, 'shop.json'), JSON.stringify({ client: 'Claude Code', pid: 1, connectedAt: now, lastSeen: now }), 'utf8');
+
+    await vi.waitFor(
+      () => {
+        const broadcast = messages.find((m: { type: string; state?: { wiring?: { shop?: string } } }) => m.type === 'state' && m.state?.wiring?.shop === 'wired');
+        expect(broadcast).toBeTruthy();
+      },
+      { timeout: 3000 },
+    );
+
+    ws.close();
   });
 });
 
