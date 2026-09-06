@@ -123,12 +123,35 @@ describe('GaugesPanel', () => {
   it('the printed affordance appears only once a gauge is lit, and clears it', () => {
     const onClearHighlight = vi.fn();
     render(<GaugesPanel gauges={[gauge()]} survey={survey} onHighlight={() => {}} onClearHighlight={onClearHighlight} />);
-    expect(screen.queryByRole('button', { name: /^printed$/i })).toBeNull();
+    expect(screen.queryByRole('button', { name: /printed/i })).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: /--lg-primary/ }));
-    const printed = screen.getByRole('button', { name: /^printed$/i });
+    const printed = screen.getByRole('button', { name: /printed/i });
     fireEvent.click(printed);
     expect(onClearHighlight).toHaveBeenCalled();
-    expect(screen.queryByRole('button', { name: /^printed$/i })).toBeNull();
+    expect(screen.queryByRole('button', { name: /printed/i })).toBeNull();
+  });
+
+  // Finding 7 (wave-3 council, spec medium): CHASSIS.md's floor list says "every filtered
+  // or resized surface has one `printed` affordance" — singular. This panel used to render
+  // TWO independent ones (a filter-row one clearing only the filter, a footer one clearing
+  // only the lit gauge) — with both a filter typed AND a gauge lit, both were on screen at
+  // once. There must be exactly one, and it must clear both bits of state together.
+  it('renders exactly one printed affordance even when the filter is set AND a gauge is lit — and it clears both', () => {
+    const onClearHighlight = vi.fn();
+    const gauges = [gauge({ name: '--lg-primary', $value: '#1a56db' }), gauge({ name: '--lg-danger', $value: '#b42318' })];
+    render(<GaugesPanel gauges={gauges} survey={survey} onHighlight={() => {}} onClearHighlight={onClearHighlight} />);
+
+    fireEvent.change(screen.getByRole('searchbox', { name: /filter gauges/i }), { target: { value: 'danger' } });
+    fireEvent.click(screen.getByRole('button', { name: /--lg-danger/ }));
+
+    expect(screen.getAllByRole('button', { name: /printed/i })).toHaveLength(1);
+
+    fireEvent.click(screen.getByRole('button', { name: /printed/i }));
+
+    expect(onClearHighlight).toHaveBeenCalled();
+    expect(screen.queryByRole('button', { name: /printed/i })).toBeNull();
+    expect((screen.getByRole('searchbox', { name: /filter gauges/i }) as HTMLInputElement).value).toBe('');
+    expect(screen.getByText('--lg-primary')).toBeTruthy(); // the filter is gone -- both gauges show again
   });
 
   it('lights the gauges a picked component uses, without posting anything back to the plate', () => {
@@ -146,7 +169,7 @@ describe('GaugesPanel', () => {
     expect(onHighlight).not.toHaveBeenCalled();
   });
 
-  it('filters gauges by name or value, with its own printed to clear the filter', () => {
+  it('filters gauges by name or value, with the one panel-level printed clearing it', () => {
     const gauges = [gauge({ name: '--lg-primary', $value: '#1a56db' }), gauge({ name: '--lg-danger', $value: '#b42318' })];
     render(<GaugesPanel gauges={gauges} survey={survey} onHighlight={() => {}} onClearHighlight={() => {}} />);
     const filterBox = screen.getByRole('searchbox', { name: /filter gauges/i });
@@ -154,7 +177,7 @@ describe('GaugesPanel', () => {
     expect(screen.queryByText('--lg-primary')).toBeNull();
     expect(screen.getByText('--lg-danger')).toBeTruthy();
 
-    fireEvent.click(screen.getByRole('button', { name: /printed — clear the filter/i }));
+    fireEvent.click(screen.getByRole('button', { name: /printed/i }));
     expect((filterBox as HTMLInputElement).value).toBe('');
     expect(screen.getByText('--lg-primary')).toBeTruthy();
   });

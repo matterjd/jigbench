@@ -75,7 +75,12 @@ export function GaugesPanel({ gauges, survey, pickedComponent, onHighlight, onCl
     onHighlight(selectorsForGauge(gauge, survey?.components ?? []));
   }
 
+  // Finding 7 (wave-3 council, spec medium): CHASSIS.md's floor list is explicit — "every
+  // filtered or resized surface has one `printed` affordance" — singular. This panel is ONE
+  // surface with two independently-resettable bits of state (the name/value filter, the lit
+  // gauge); one `printed` clears both, rather than each bit growing its own.
   function clearAll(): void {
+    setFilter('');
     setLitGauge(null);
     onClearHighlight();
   }
@@ -94,16 +99,6 @@ export function GaugesPanel({ gauges, survey, pickedComponent, onHighlight, onCl
           onChange={(e) => setFilter(e.target.value)}
           placeholder="filter by name or value"
         />
-        {filter && (
-          <button
-            type="button"
-            className="jig-gauges__printed"
-            onClick={() => setFilter('')}
-            aria-label="printed — clear the filter"
-          >
-            printed
-          </button>
-        )}
       </div>
 
       {!anyMatch && filter && <p className="jig-gauges__empty">no gauges match &ldquo;{filter}&rdquo;</p>}
@@ -149,8 +144,13 @@ export function GaugesPanel({ gauges, survey, pickedComponent, onHighlight, onCl
         );
       })}
 
-      {litGauge && (
-        <button type="button" className="jig-gauges__printed jig-gauges__printed--foot" onClick={clearAll}>
+      {(filter || litGauge) && (
+        <button
+          type="button"
+          className="jig-gauges__printed jig-gauges__printed--foot"
+          onClick={clearAll}
+          aria-label="printed — clear the filter and the lit gauge"
+        >
           printed
         </button>
       )}

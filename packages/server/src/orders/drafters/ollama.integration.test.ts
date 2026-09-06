@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { stubSurvey } from '@jigbench/core';
 import { OllamaDrafter } from './ollama.js';
+import { logger } from '../../logger.js';
 
 /**
  * The one REAL round trip against the desk's actual Ollama (decision 16: installed,
@@ -52,8 +53,10 @@ describe.runIf(RUN_REAL_OLLAMA)('OllamaDrafter — real ollama (JIG_OLLAMA=1)', 
 
       const result = await drafter.draftWithMeta(mark, { survey });
 
-      // eslint-disable-next-line no-console
-      console.log(`[JIG_OLLAMA] model=${result.model} elapsedMs=${result.elapsedMs} face=${JSON.stringify(result.human)}`);
+      // Finding 6 (wave-3 council, standards medium): stdout is reserved for MCP's
+      // JSON-RPC stream (logger.ts's own header comment) -- console.log writes to stdout,
+      // so even a test-only diagnostic line must go through the stderr logger instead.
+      logger.info('[JIG_OLLAMA]', { model: result.model, elapsedMs: result.elapsedMs, face: result.human });
 
       expect(result.model).toBe('qwen2.5-coder:7b');
       expect(result.elapsedMs).toBeGreaterThan(0);
