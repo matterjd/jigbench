@@ -1,0 +1,39 @@
+name: Release (build artifact only)
+
+# Manual only, on purpose (EXECUTION-PLAN.md §4 S10 / decision 12): this builds and packs the
+# jigbench tarball and uploads it as a workflow artifact for a human to download and inspect.
+# It never runs `npm publish` — v0.1 is a manual, by-hand publish on Matter's own explicit
+# word, and this workflow needs no npm token / OIDC / secret of any kind to do its job.
+on:
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: npm ci
+        run: npm ci
+
+      - name: build:release (bundle jigbench)
+        run: npm run build:release
+
+      - name: pack:release (npm pack -> jigbench-<version>.tgz)
+        run: npm run pack:release
+
+      - name: npm pack --dry-run file list (recorded in the run log)
+        run: npm pack --workspace=jigbench --dry-run
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: jigbench-tarball
+          path: jigbench-*.tgz
+          if-no-files-found: error

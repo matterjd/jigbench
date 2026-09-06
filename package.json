@@ -16,7 +16,9 @@
     "typecheck": "npm run build --workspace=@jigbench/core && npm run build --workspace=@jigbench/adapter-angular --workspace=@jigbench/adapter-dotnet && npm run build --workspace=@jigbench/server && npm run typecheck --workspaces --if-present",
     "dev": "concurrently -k -n server,bench \"npm run dev --workspace=@jigbench/server\" \"npm run dev --workspace=@jigbench/bench\"",
     "check:stdout": "bash scripts/stdout-guard.sh",
-    "check:mcp-smoke": "bash scripts/mcp-smoke.sh"
+    "check:mcp-smoke": "bash scripts/mcp-smoke.sh",
+    "build:release": "npm run build --workspace=@jigbench/core && npm run build --workspace=@jigbench/adapter-angular --workspace=@jigbench/adapter-dotnet && npm run build --workspace=@jigbench/server && npm run build --workspace=@jigbench/bench && npm run build:release --workspace=jigbench",
+    "pack:release": "npm pack --workspace=jigbench --pack-destination ."
   },
   "devDependencies": {
     "concurrently": "^10.0.5",

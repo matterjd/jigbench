@@ -1,0 +1,85 @@
+name: CI
+
+# No secrets required anywhere in this workflow (S10 / EXECUTION-PLAN.md §4 S10). Publishing
+# to npm and flipping this repo public are Matter's own manual, explicit y/n at ship time —
+# nothing here does either.
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: test (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: npm ci
+        run: npm ci
+
+      - name: typecheck
+        run: npm run typecheck
+
+      # JIG_NO_MODEL=1 (never a real Ollama probe) and an unreachable JIG_OLLAMA_URL make this
+      # deterministic regardless of what happens to be installed/running on the runner — the
+      # same fresh-checkout control HANDOFF.md records for this desk. `env:`, not an inline
+      # `VAR=val` prefix, so this works identically under bash (ubuntu-latest) and pwsh
+      # (windows-latest's default shell for `run:` steps).
+      - name: test (JIG_NO_MODEL=1)
+        run: npm test
+        env:
+          JIG_NO_MODEL: '1'
+          JIG_OLLAMA_URL: 'http://127.0.0.1:9'
+
+      - name: build (workspace)
+        run: npm run build
+
+      # Git Bash ships on windows-latest runners and is resolvable as `bash` on PATH, same as
+      # a contributor's own machine (AGENTS.md "Dev environment" / "Shell environment") — no
+      # `shell: bash` override needed since the script content itself invokes bash.
+      - name: check stdout purity (stdio carries MCP JSON-RPC only)
+        run: npm run check:stdout
+
+      - name: build:release (bundle jigbench)
+        run: npm run build:release
+
+      - name: pack:release (npm pack -> jigbench-<version>.tgz)
+        run: npm run pack:release
+
+      - name: npm pack --dry-run file list (recorded for the PR log)
+        shell: bash
+        run: npm pack --workspace=jigbench --dry-run
+
+      # The decisive S10 gate: `npx jigbench` from the packed tarball, in a clean directory
+      # OUTSIDE this repo, against copies of examples/ledger-angular (source only) and
+      # examples/ledger-api. Never runs `ng build` / `npm install` in the Angular fixture —
+      # its node_modules would be heavy and this only needs to survey the source.
+      - name: npx control (survey / init / serve / mcp against the packed tarball)
+        shell: bash
+        run: |
+          TARBALL="$(ls jigbench-*.tgz | head -1)"
+          bash scripts/npx-control.sh "$(pwd)/$TARBALL"
+
+  dco:
+    name: DCO sign-off
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: every commit carries a Signed-off-by trailer (CONTRIBUTING.md)
+        run: bash scripts/check-dco.sh "${{ github.event.pull_request.base.sha }}" "${{ github.event.pull_request.head.sha }}"

@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -9,7 +9,27 @@ import { OrderConflictError, OrderNotFoundError } from './errors.js';
 
 const tempDirs: string[] = [];
 
+// This suite drives `selectDrafter` (via `OrdersService.draftOrder`) entirely through
+// `OllamaDrafter.available()` mocks (see `ollamaAvailable`/`ollamaThatIs` below) — it needs
+// its mocked answer to be the one that decides the driver. `select-drafter.ts` deliberately
+// makes `JIG_NO_MODEL=1` override that mock unconditionally (see `select-drafter.test.ts`'s
+// own "JIG_NO_MODEL" describe block, which owns that contract), so this suite must not
+// inherit whatever the ambient environment happens to set — `JIG_NO_MODEL=1 npm test` (the
+// CI/S10 command; scripts/ci gates) would otherwise force every `available: true` mock in
+// this file straight past the model and fail 8 assertions that have nothing to do with the
+// env-var feature itself. Snapshot and clear it before each test, restore after — the same
+// isolation pattern `select-drafter.test.ts` already uses per-test, just at the suite level
+// since nothing here is testing the switch.
+let priorJigNoModel: string | undefined;
+
+beforeEach(() => {
+  priorJigNoModel = process.env.JIG_NO_MODEL;
+  delete process.env.JIG_NO_MODEL;
+});
+
 afterEach(async () => {
+  if (priorJigNoModel === undefined) delete process.env.JIG_NO_MODEL;
+  else process.env.JIG_NO_MODEL = priorJigNoModel;
   vi.restoreAllMocks();
   await Promise.all(tempDirs.splice(0).map((d) => rm(d, { recursive: true, force: true })));
 });
