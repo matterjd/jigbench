@@ -405,5 +405,141 @@
     },
   };
 
+  // --- S7 (fixtures): jig:fill / jig:fill-probe -------------------------------------------
+  // F10: "the loupe fills forms by dispatching the input events Angular honours". A separate,
+  // additive `message` listener (siblings to the one above, never touching it) so this block
+  // stays a clean delimited diff:
+  //   bench -> plate  {type:'jig:fill-probe', formPath?}
+  //   plate -> bench  {type:'jig:fill-fields', formPath: string|null, names: string[]}
+  //   bench -> plate  {type:'jig:fill', formPath?, fields:[{selector?, name?, path?, value}]}
+  //   plate -> bench  {type:'jig:filled', filled: string[], missing: string[]}
+  // `formPath` in both directions is any element inside the target form (typically the
+  // loupe's last `jig:pick`), resolved with the SAME resolveDomPath() the highlight/pick
+  // code above already uses — this block never introduces a second path convention.
+
+  function nearestForm(formPath) {
+    if (formPath) {
+      var el = resolveDomPath(formPath);
+      var form = el && el.closest ? el.closest('form') : null;
+      if (form) return form;
+    }
+    return document.querySelector('form');
+  }
+
+  function fieldNamesOf(form) {
+    var names = [];
+    var els = form.querySelectorAll('[name]');
+    for (var i = 0; i < els.length; i++) {
+      var name = els[i].getAttribute('name');
+      if (name && names.indexOf(name) === -1) names.push(name);
+    }
+    return names;
+  }
+
+  function nativeValueSetterFor(el) {
+    var proto = el.tagName === 'TEXTAREA' ? window.HTMLTextAreaElement.prototype : window.HTMLInputElement.prototype;
+    var descriptor = Object.getOwnPropertyDescriptor(proto, 'value');
+    return descriptor && descriptor.set;
+  }
+
+  /** Sets one field's value through the setter React/Angular actually observe (a plain
+   * `el.value = x` is invisible to React's value tracker — it patches the SAME prototype
+   * setter this grabs first, via Object.getOwnPropertyDescriptor), then dispatches real
+   * `input`/`change` events so both frameworks' reactive/controlled forms pick it up.
+   * Returns false (never throws) when the element/kind isn't handled, so a missing field is
+   * reported rather than crashing the whole fill. */
+  function setFieldValue(el, value) {
+    if (!el) return false;
+    if (el.tagName === 'INPUT' && (el.type === 'checkbox' || el.type === 'radio')) {
+      var shouldCheck = Boolean(value);
+      if (el.checked !== shouldCheck) el.click();
+      return true;
+    }
+    if (el.tagName === 'SELECT') {
+      var target = value === null || value === undefined ? '' : String(value);
+      var options = el.options;
+      var index = -1;
+      for (var i = 0; i < options.length; i++) {
+        if (options[i].value === target || options[i].textContent === target) {
+          index = i;
+          break;
+        }
+      }
+      if (index === -1) return false;
+      el.selectedIndex = index;
+      el.dispatchEvent(new Event('input', { bubbles: true }));
+      el.dispatchEvent(new Event('change', { bubbles: true }));
+      return true;
+    }
+    var setter = nativeValueSetterFor(el);
+    var stringValue = value === null || value === undefined ? '' : String(value);
+    if (setter) {
+      setter.call(el, stringValue);
+    } else {
+      el.value = stringValue;
+    }
+    el.dispatchEvent(new Event('input', { bubbles: true }));
+    el.dispatchEvent(new Event('change', { bubbles: true }));
+    return true;
+  }
+
+  function findFieldElement(root, field) {
+    if (field.name) {
+      try {
+        var byName = root.querySelector('[name="' + String(field.name).replace(/"/g, '\\"') + '"]');
+        if (byName) return byName;
+      } catch (err) {
+        // an unusual field name isn't a valid attribute-selector literal — fall through.
+      }
+    }
+    if (field.selector) {
+      try {
+        var bySelector = root.querySelector(field.selector);
+        if (bySelector) return bySelector;
+      } catch (err) {
+        // not every provided selector is valid CSS — fall through to the DOM-path fallback.
+      }
+    }
+    if (field.path) {
+      var byPath = resolveDomPath(field.path);
+      if (byPath) return byPath;
+    }
+    return null;
+  }
+
+  window.addEventListener('message', function (event) {
+    var data = event.data;
+    if (!data || typeof data.type !== 'string') return;
+
+    if (data.type === 'jig:fill-probe') {
+      var form = nearestForm(data.formPath);
+      post({
+        type: 'jig:fill-fields',
+        formPath: form ? buildDomPath(form) : null,
+        names: form ? fieldNamesOf(form) : [],
+      });
+      return;
+    }
+
+    if (data.type === 'jig:fill') {
+      var root = (data.formPath && resolveDomPath(data.formPath)) || document;
+      var fields = Array.isArray(data.fields) ? data.fields : [];
+      var filled = [];
+      var missing = [];
+      for (var i = 0; i < fields.length; i++) {
+        var field = fields[i] || {};
+        var label = field.name || field.selector || field.path || '';
+        var el = findFieldElement(root, field);
+        if (el && setFieldValue(el, field.value)) {
+          filled.push(label);
+        } else {
+          missing.push(label);
+        }
+      }
+      post({ type: 'jig:filled', filled: filled, missing: missing });
+    }
+  });
+  // --- end S7 fixtures block ----------------------------------------------------------------
+
   console.debug('[jig] loupe ready');
 })();

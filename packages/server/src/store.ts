@@ -52,6 +52,14 @@ export class JigStore {
   // === S5 orders: drafter wiring (delimited block; owned by packages/server/src/orders/*) ===
   private drafterWiring: WiringStatus = 'stub';
   // === end S5 orders block ===
+  // --- S7 (fixtures): activeFixture bridge --------------------------------------------
+  // Fixture data (generation, persistence, scrap/restore) lives entirely in
+  // packages/server/src/fixtures/* — this store never imports it (server's own store
+  // stays fixture-shape-agnostic, same reasoning as gauges/survey). FixtureStore calls
+  // these two setters on load/unload/create/scrap so getWiring() and GET /api/plate can
+  // report the active fixture without owning any fixture logic themselves.
+  private activeFixtureName: string | null = null;
+  private fixtureWiring: WiringStatus = 'none';
 
   constructor(repoRoot: string) {
     this.repoRoot = repoRoot;
@@ -179,6 +187,19 @@ export class JigStore {
     this.workOrders[idx] = next;
   }
   // === end S5 orders block ===
+  // --- S7 (fixtures): activeFixture bridge --------------------------------------------
+  setActiveFixture(name: string | null): void {
+    this.activeFixtureName = name;
+  }
+
+  getActiveFixture(): string | null {
+    return this.activeFixtureName;
+  }
+
+  setFixtureWiring(status: WiringStatus): void {
+    this.fixtureWiring = status;
+  }
+  // --- end S7 fixtures bridge ----------------------------------------------------------
 
   getWiring(): Wiring {
     return {
@@ -186,7 +207,7 @@ export class JigStore {
       proxy: this.proxyWired ? 'wired' : 'none',
       drafter: this.drafterWiring,
       shop: 'none',
-      fixtures: 'none',
+      fixtures: this.fixtureWiring, // S7
       toolpath: 'none',
       sketch: 'none',
       docs: this.docsWired ? 'wired' : 'none',
