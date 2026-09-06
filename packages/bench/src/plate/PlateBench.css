@@ -6,10 +6,21 @@
 }
 
 .jig-plate-bench__frame {
+  position: relative;
   flex: 1;
   min-height: 320px;
   display: flex;
   flex-direction: column;
+}
+
+/* Integration seam 3: the loaded-fixture chip floats over the plate's own frame (CHASSIS.md
+   says "near the plate's frame") without taking part in the surface/rulers/iframe layout
+   below it — it is z-ordered above the iframe so it never disappears behind the plate. */
+.jig-plate-bench__fixture-chip {
+  position: absolute;
+  top: 8px;
+  right: 12px;
+  z-index: 5;
 }
 
 .jig-plate-bench__frame .jig-panel__body {

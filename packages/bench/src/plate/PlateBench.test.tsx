@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { createRef } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, render, screen, waitFor } from '@testing-library/react';
 import { PlateBench, type PlateBenchHandle } from './PlateBench.js';
 import type { Survey } from '@jigbench/core';
 
@@ -85,5 +85,35 @@ describe('PlateBench', () => {
     expect(typeof ref.current?.navigate).toBe('function');
     expect(typeof ref.current?.setMode).toBe('function');
     void iframe;
+  });
+
+  describe('integration seam 3: the plate frame shows the loaded fixture', () => {
+    it('shows no fixture chip at rest', async () => {
+      render(<PlateBench fetchImpl={fakeFetch({ target: null, port: 0, status: 'none', changes: [] })} />);
+      await waitFor(() => expect(screen.getByText(/no target is set/i)).toBeTruthy());
+      expect(screen.queryByText(/fixture ·/)).toBeNull();
+    });
+
+    it('shows a storm chip naming the fixture once FixturePanel (S7) dispatches jig:fixture-loaded', async () => {
+      render(<PlateBench fetchImpl={fakeFetch({ target: null, port: 0, status: 'none', changes: [] })} />);
+      await waitFor(() => expect(screen.getByText(/no target is set/i)).toBeTruthy());
+
+      act(() => {
+        window.dispatchEvent(new CustomEvent('jig:fixture-loaded', { detail: { name: 'ledger-basic' } }));
+      });
+
+      expect(await screen.findByText('fixture · ledger-basic · loaded — the plate answers from it')).toBeTruthy();
+    });
+
+    it('clears the chip when jig:fixture-loaded fires with name: null (unload)', async () => {
+      render(<PlateBench fetchImpl={fakeFetch({ target: null, port: 0, status: 'none', changes: [] })} />);
+      await waitFor(() => expect(screen.getByText(/no target is set/i)).toBeTruthy());
+
+      act(() => window.dispatchEvent(new CustomEvent('jig:fixture-loaded', { detail: { name: 'ledger-basic' } })));
+      await screen.findByText(/fixture ·/);
+      act(() => window.dispatchEvent(new CustomEvent('jig:fixture-loaded', { detail: { name: null } })));
+
+      await waitFor(() => expect(screen.queryByText(/fixture ·/)).toBeNull());
+    });
   });
 });
