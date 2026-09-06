@@ -38,6 +38,13 @@
   background: var(--wyrd-soft);
 }
 
+/* S7: the fixtures panel's "loaded" chip — --storm is tokens.css's live/right-now signal. */
+.jig-chip--storm {
+  color: var(--storm);
+  border-color: var(--storm-soft);
+  background: var(--storm-soft);
+}
+
 .jig-chip__glyph {
   font-size: 8px;
   line-height: 1;
