@@ -79,9 +79,7 @@ at the repo root Jig was pointed at.
 
 ## 4. Loupe pick → the readout
 
-Click the **`Loupe — point at anything and see what it is`** rail icon, then the **Loupe** tab's
-own **`Loupe`** toggle (both need to be active — the rail icon alone did not engage loupe mode in
-QA's run). Hover the plate.
+Click the **`Loupe — point at anything and see what it is`** rail icon (the **Loupe** tab's own **`Loupe`** toggle mirrors it automatically — either one alone engages loupe mode). Hover the plate.
 
 **PASS:** the **Loupe** panel shows **`Component`**, **`File`**, **`Tag`**, **`Text`** — hovering
 the "Invoices" nav link read `Component: _ShellComponent`, `Tag: a`, `Text: Invoices`, plus

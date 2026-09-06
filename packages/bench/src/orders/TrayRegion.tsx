@@ -71,43 +71,69 @@ function markedAt(order: WorkOrder): string | undefined {
 }
 
 /** Drafted-by badge text — always names WHO and, once known, the measured cost (Law III:
- * a process over 300ms shows its charge, never a bare spinner). */
+ * a process over 300ms shows its charge, never a bare spinner).
+ *
+ * Wave-4 fix (TEST-RUN.md's first live test, defect 5): "I did not see `drafted ·
+ * qwen2.5-coder:7b · N.Ns`, where does that show?" Driving the real bench end to end
+ * (mark -> a real model drafts it) surfaced two bugs, not one:
+ *   1. `work-order.ts`'s `parseWorkOrder` never round-trips `log` through the persisted
+ *      markdown file ("the logbook is a separate surface") — a work order read back off
+ *      disk always has `log: []`, so the old code (which read the CHIP TEXT ENTIRELY from
+ *      log entries) went silently blank the moment the order left `marked`, even though
+ *      `order.state`/`order.draftedBy` were both right there. `order.state` is the ground
+ *      truth for WHICH rung the badge is on; a log entry, when one exists, only enriches
+ *      the text with its `note` (the model name + measured seconds).
+ *   2. There was no branch at all for `released`/`in-the-shop`/`trial-fit` — a `drafted` log
+ *      entry, once it existed, kept the "drafted · …" chip showing forever, so "after
+ *      release, `released · …`" (the fix brief's own wording) was never reachable.
+ */
 function DraftBadge({ order, nowMs }: { order: WorkOrder; nowMs: number }) {
   const drafted = lastEventLog(order, ['drafted']);
   const failed = lastEventLog(order, ['draft-failed']);
   const queued = lastEventLog(order, ['queued-to-shop']);
+  const released = lastEventLog(order, ['released']);
 
-  if (drafted) {
-    return (
-      <Chip tone={order.draftedBy === 'model' ? 'wyrd' : 'ok'} glyph="●">
-        drafted · {drafted.note ?? order.draftedBy}
-      </Chip>
-    );
+  switch (order.state) {
+    case 'released':
+    case 'in-the-shop':
+    case 'trial-fit':
+      return (
+        <Chip tone="ok" glyph="●">
+          released · {released?.note ?? order.draftedBy}
+        </Chip>
+      );
+    case 'drafted':
+      return (
+        <Chip tone={order.draftedBy === 'model' ? 'wyrd' : 'ok'} glyph="●">
+          drafted · {drafted?.note ?? order.draftedBy}
+        </Chip>
+      );
+    case 'marked': {
+      if (queued) {
+        return (
+          <Chip tone="wyrd" glyph="●">
+            queued for the shop
+          </Chip>
+        );
+      }
+      if (failed) {
+        return (
+          <Chip tone="alert" glyph="!">
+            no drafter reached — fill the human face yourself, or try again
+          </Chip>
+        );
+      }
+      const startedAt = markedAt(order);
+      const elapsedS = startedAt ? Math.max(0, (nowMs - Date.parse(startedAt)) / 1000) : 0;
+      return (
+        <Chip tone="warn" glyph="●">
+          drafting · local model · {elapsedS.toFixed(1)}s
+        </Chip>
+      );
+    }
+    default:
+      return null; // 'scrapped' — no badge, matching the ladder's own terminal-state treatment.
   }
-  if (queued) {
-    return (
-      <Chip tone="wyrd" glyph="●">
-        queued for the shop
-      </Chip>
-    );
-  }
-  if (failed) {
-    return (
-      <Chip tone="alert" glyph="!">
-        no drafter reached — fill the human face yourself, or try again
-      </Chip>
-    );
-  }
-  if (order.state === 'marked') {
-    const startedAt = markedAt(order);
-    const elapsedS = startedAt ? Math.max(0, (nowMs - Date.parse(startedAt)) / 1000) : 0;
-    return (
-      <Chip tone="warn" glyph="●">
-        drafting · local model · {elapsedS.toFixed(1)}s
-      </Chip>
-    );
-  }
-  return null;
 }
 
 function oathMs(): number {
@@ -445,53 +471,63 @@ export function TrayRegion({ workOrders, lastPick, marks, iframeRef, plateOrigin
   const editable = selected.state === 'marked' || selected.state === 'drafted';
   const oathHeld = selected.state !== 'marked' && selected.state !== 'drafted';
 
+  // Wave-4 fix (TEST-RUN.md's first live test, defects 5 & 6): the collapsed tray used to be
+  // a fixed 56px with everything below the header simply clipped — the drafted-by badge and
+  // the RELEASE button were both permanently below the fold, not just when the human face got
+  // long. `.jig-tray` now fills its chassis-given height (Chassis.css's 260px collapsed
+  // track) as a flex column with three bands: the header (pinned, badge now beside the
+  // ladder per the fix brief), a middle band that owns ALL of its own scrolling (`.jig-tray__
+  // scroll` — the human face + shop face, `min-height: 0` so it is the thing that shrinks
+  // first), and a pinned footer (RELEASE + scrap) that is never inside that scroller and so
+  // is always on screen regardless of how long the human face gets.
   return (
     <div className="jig-tray">
       <div className="jig-tray__header">
         <span className={'jig-tray__num' + (oathHeld ? ' jig-tray__num--oath' : '')}>#{selected.id}</span>
         <span className="jig-tray__slug">{selected.slug}</span>
         <Ladder current={selected.state} />
+        <DraftBadge order={selected} nowMs={nowMs} />
         <button type="button" className="jig-tray__expand" onClick={() => setExpanded(true)}>
           work orders · {workOrders.length}
         </button>
       </div>
 
-      <DraftBadge order={selected} nowMs={nowMs} />
-
-      <div className="jig-tray__face">
-        <HumanField id="tray-what" label="what" value={selected.human.what} editable={editable} onCommit={(v) => patchHuman(selected.id, { what: v })} />
-        <HumanField id="tray-why" label="why" value={selected.human.why} editable={editable} onCommit={(v) => patchHuman(selected.id, { why: v })} />
-        <HumanField id="tray-where" label="where" value={selected.human.where} editable={editable} onCommit={(v) => patchHuman(selected.id, { where: v })} />
-        <HumanField
-          id="tray-acceptance"
-          label="acceptance"
-          multiline
-          value={selected.human.acceptance.join('\n')}
-          editable={editable}
-          onCommit={(v) => patchHuman(selected.id, { acceptance: v.split('\n').filter((l) => l.trim().length > 0) })}
-        />
-        <HumanField
-          id="tray-fixture"
-          label="fixture"
-          value={selected.human.fixture ?? ''}
-          editable={editable}
-          onCommit={(v) => patchHuman(selected.id, { fixture: v || undefined })}
-        />
-      </div>
-
-      {selected.shop && (
-        <div className="jig-tray__shopface">
-          <span className="jig-tray__shopface-title">shop face</span>
-          <pre>{selected.shop.brief}</pre>
-          <ul className="jig-tray__shopface-files">
-            {selected.shop.files.map((f) => (
-              <li key={f}>
-                <code>{f}</code>
-              </li>
-            ))}
-          </ul>
+      <div className="jig-tray__scroll">
+        <div className="jig-tray__face">
+          <HumanField id="tray-what" label="what" value={selected.human.what} editable={editable} onCommit={(v) => patchHuman(selected.id, { what: v })} />
+          <HumanField id="tray-why" label="why" value={selected.human.why} editable={editable} onCommit={(v) => patchHuman(selected.id, { why: v })} />
+          <HumanField id="tray-where" label="where" value={selected.human.where} editable={editable} onCommit={(v) => patchHuman(selected.id, { where: v })} />
+          <HumanField
+            id="tray-acceptance"
+            label="acceptance"
+            multiline
+            value={selected.human.acceptance.join('\n')}
+            editable={editable}
+            onCommit={(v) => patchHuman(selected.id, { acceptance: v.split('\n').filter((l) => l.trim().length > 0) })}
+          />
+          <HumanField
+            id="tray-fixture"
+            label="fixture"
+            value={selected.human.fixture ?? ''}
+            editable={editable}
+            onCommit={(v) => patchHuman(selected.id, { fixture: v || undefined })}
+          />
         </div>
-      )}
+
+        {selected.shop && (
+          <div className="jig-tray__shopface">
+            <span className="jig-tray__shopface-title">shop face</span>
+            <pre>{selected.shop.brief}</pre>
+            <ul className="jig-tray__shopface-files">
+              {selected.shop.files.map((f) => (
+                <li key={f}>
+                  <code>{f}</code>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+      </div>
 
       <ReleaseControl enabled={selected.state === 'drafted'} onRelease={() => doRelease(selected.id)} />
 

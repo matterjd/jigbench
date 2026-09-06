@@ -7,7 +7,38 @@
   display: flex;
   flex-direction: column;
   gap: 8px;
+  height: 100%; /* fills Chassis.css's tray track (260px collapsed / 40vh expanded) so the
+                   flex children below can actually claim "the rest of the space" */
   min-height: 0;
+}
+
+/* The one internally-scrolling band in the collapsed view: the human face + shop face.
+   Everything else in `.jig-tray` (the header, RELEASE, the scrap action) is a sibling of
+   this, never a child of it, so it is never clipped by this element's own scrolling —
+   wave-4 fix, defects 5 & 6 (the drafted-by badge and RELEASE were both permanently below
+   the fold at the old fixed 56px). */
+.jig-tray__scroll {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--line) transparent;
+}
+
+.jig-tray__scroll::-webkit-scrollbar {
+  width: 8px;
+}
+
+.jig-tray__scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.jig-tray__scroll::-webkit-scrollbar-thumb {
+  background: var(--line);
+  border-radius: var(--r-pill);
 }
 
 .jig-tray__header {
@@ -15,6 +46,7 @@
   align-items: center;
   gap: 10px;
   flex-wrap: wrap;
+  flex: 0 0 auto; /* pinned — the badge now lives here too (defect 5: "beside the ladder") */
 }
 
 .jig-tray__num {
@@ -136,6 +168,7 @@
   align-items: center;
   gap: 12px;
   flex-wrap: wrap;
+  flex: 0 0 auto; /* pinned footer — never shrinks, never scrolls out of view (defect 6) */
   padding-top: 8px;
   border-top: 1px solid var(--line-soft);
 }
@@ -253,6 +286,9 @@
   display: flex;
   flex-direction: column;
   gap: 4px;
+  flex: 1 1 auto; /* the expanded spine is the OTHER internal scroller — the filters row above
+                     and the scrap bin below stay pinned, matching the collapsed view's
+                     header/scroll/footer split */
   min-height: 0;
   overflow: auto;
 }
@@ -262,6 +298,7 @@
   gap: 6px;
   flex-wrap: wrap;
   align-items: center;
+  flex: 0 0 auto;
   padding-bottom: 6px;
   border-bottom: 1px solid var(--line-soft);
 }

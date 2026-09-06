@@ -87,6 +87,72 @@ describe('usePlateBridge', () => {
     document.body.removeChild(iframe);
   });
 
+  // Wave-4 fix (TEST-RUN.md's first live test, defect 2): "Loupe grid and selection still
+  // shows when switching to hand, does not disengage." `jig:mode hand` used to only tell the
+  // PLATE to clear its hover outline — it never cleared `lastPick`, so the bench's own guide
+  // lines/grid readout (PlateGuides, driven by `lastPick.rect`) and the Loupe tab's readout
+  // kept showing the old pick forever. Switching to hand must now also post `jig:clear` (so
+  // any painted highlight boxes on the plate go away too) and clear the bench's own selection.
+  it('setMode("hand") clears the bench\'s lastPick and posts jig:clear, on top of jig:mode', () => {
+    const ref = createRef<HTMLIFrameElement>();
+    const iframe = document.createElement('iframe');
+    document.body.appendChild(iframe);
+    (ref as { current: HTMLIFrameElement }).current = iframe;
+
+    const posted: unknown[] = [];
+    Object.defineProperty(iframe, 'contentWindow', {
+      value: { postMessage: (msg: unknown) => posted.push(msg) },
+    });
+
+    const { result } = renderHook(() => usePlateBridge(ref, PLATE_ORIGIN, []));
+
+    const pick = {
+      type: 'jig:pick',
+      path: 'app-invoice-list:nth-of-type(1)',
+      tag: 'app-invoice-list',
+      text: 'Invoices',
+      rect: { x: 0, y: 0, width: 10, height: 10 },
+    };
+    act(() => fireMessage(pick, PLATE_ORIGIN));
+    expect(result.current.lastPick).toEqual(pick);
+
+    act(() => result.current.setMode('loupe'));
+    posted.length = 0; // only care about what setMode('hand') itself posts, below
+
+    act(() => result.current.setMode('hand'));
+
+    expect(result.current.lastPick).toBeNull();
+    expect(posted).toContainEqual({ type: 'jig:mode', mode: 'hand' });
+    expect(posted).toContainEqual({ type: 'jig:clear' });
+
+    document.body.removeChild(iframe);
+  });
+
+  // Switching TO loupe (or staying in loupe) must never clear an existing pick — only the
+  // hand-mode disengage does. A hover-driven re-pick while still in loupe mode is normal.
+  it('setMode("loupe") does not clear lastPick or post jig:clear', () => {
+    const ref = createRef<HTMLIFrameElement>();
+    const iframe = document.createElement('iframe');
+    document.body.appendChild(iframe);
+    (ref as { current: HTMLIFrameElement }).current = iframe;
+
+    const posted: unknown[] = [];
+    Object.defineProperty(iframe, 'contentWindow', {
+      value: { postMessage: (msg: unknown) => posted.push(msg) },
+    });
+
+    const { result } = renderHook(() => usePlateBridge(ref, PLATE_ORIGIN, []));
+    const pick = { type: 'jig:pick', path: 'a', tag: 'div', text: '', rect: { x: 0, y: 0, width: 0, height: 0 } };
+    act(() => fireMessage(pick, PLATE_ORIGIN));
+
+    act(() => result.current.setMode('loupe'));
+
+    expect(result.current.lastPick).toEqual(pick);
+    expect(posted).not.toContainEqual({ type: 'jig:clear' });
+
+    document.body.removeChild(iframe);
+  });
+
   it('posts jig:survey to the iframe when selectors are provided', () => {
     const ref = createRef<HTMLIFrameElement>();
     const iframe = document.createElement('iframe');

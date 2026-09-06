@@ -182,6 +182,35 @@ describe('GaugesPanel', () => {
     expect(screen.getByText('--lg-primary')).toBeTruthy();
   });
 
+  // Wave-4 fix (TEST-RUN.md's first live test, defect 4): "I did click on whats printed and
+  // got stuck in that view." `printed` must return the surface to its default INCLUDING
+  // scroll position — the properties column's tab body is the actual scrolling box
+  // (PropertiesColumn.css's `.jig-properties__pane`, this panel's parent), not anything
+  // inside GaugesPanel. It must never touch the active tab or the tool — GaugesPanel has no
+  // way to do either (no onTabChange/onToolChange prop exists), so that half of the
+  // requirement holds by construction; this asserts the scroll-reset half.
+  it('the printed affordance scrolls the properties pane back to the top', () => {
+    const onClearHighlight = vi.fn();
+    // Rendered inside a real `.jig-properties__pane` ancestor — the actual scrolling box in
+    // production (PropertiesColumn.css) — so `closest('.jig-properties__pane')` inside
+    // GaugesPanel resolves to a real element, part of the SAME render tree (moving a node to
+    // a detached container after the fact would put it outside React's event-delegation
+    // root and break `fireEvent.click` on it).
+    const { container } = render(
+      <div className="jig-properties__pane">
+        <GaugesPanel gauges={[gauge()]} survey={survey} onHighlight={() => {}} onClearHighlight={onClearHighlight} />
+      </div>,
+    );
+    const pane = container.querySelector('.jig-properties__pane') as HTMLElement;
+    const scrollTo = vi.fn();
+    pane.scrollTo = scrollTo;
+
+    fireEvent.click(screen.getByRole('button', { name: /--lg-primary/ })); // lights a gauge -> printed appears
+    fireEvent.click(screen.getByRole('button', { name: /printed/i }));
+
+    expect(scrollTo).toHaveBeenCalledWith({ top: 0 });
+  });
+
   it('says honestly when nothing matches the filter', () => {
     render(<GaugesPanel gauges={[gauge()]} survey={survey} onHighlight={() => {}} onClearHighlight={() => {}} />);
     fireEvent.change(screen.getByRole('searchbox', { name: /filter gauges/i }), { target: { value: 'zzz-nope' } });

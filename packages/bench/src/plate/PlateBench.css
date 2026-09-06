@@ -8,7 +8,7 @@
 .jig-plate-bench__frame {
   position: relative;
   flex: 1;
-  min-height: 320px;
+  min-height: 400px; /* CHASSIS.md's usable floor — 560x400 — matches the chassis row's own minmax(400px, 1fr) */
   display: flex;
   flex-direction: column;
 }
@@ -32,7 +32,7 @@
 .jig-plate-bench__surface {
   position: relative;
   flex: 1;
-  min-height: 320px;
+  min-height: 400px; /* CHASSIS.md's usable floor — 560x400 — matches the chassis row's own minmax(400px, 1fr) */
 }
 
 /* Offset by the rulers' own 20px corner/band (PlateRulers.css) so the iframe area lines up

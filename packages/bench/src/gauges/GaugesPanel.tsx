@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { Component, Gauge, GaugeCategory, Survey } from '@jigbench/core';
 import { gaugesForComponent, selectorsForGauge } from './resolveGaugeUsage.js';
 import './GaugesPanel.css';
@@ -56,6 +56,7 @@ export function GaugesPanel({ gauges, survey, pickedComponent, onHighlight, onCl
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>(() => loadCollapsed());
   const [litGauge, setLitGauge] = useState<string | null>(null);
   const [filter, setFilter] = useState('');
+  const rootRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => saveCollapsed(collapsed), [collapsed]);
 
@@ -83,13 +84,23 @@ export function GaugesPanel({ gauges, survey, pickedComponent, onHighlight, onCl
     setFilter('');
     setLitGauge(null);
     onClearHighlight();
+    // Wave-4 fix (TEST-RUN.md's first live test, defect 4): "I did click on whats printed
+    // and got stuck in that view." `printed` cleared the filter/lit-gauge state but never
+    // touched scroll position — the actual scrolling box is the properties column's tab
+    // body (PropertiesColumn.css's `.jig-properties__pane`, this panel's parent), not
+    // anything inside GaugesPanel itself. Clearing the filter/lit gauge without also
+    // scrolling back up left the pane wherever it happened to be scrolled to (often past
+    // the now-shorter list, showing nothing) — `printed` has to return the whole surface to
+    // its default, scroll position included, and it must never touch the active tab, the
+    // tool, or the plate's route (those are the caller's concerns, not this panel's).
+    rootRef.current?.closest('.jig-properties__pane')?.scrollTo({ top: 0 });
   }
 
   const filtered = gauges.filter((g) => matchesFilter(g, filter));
   const anyMatch = filtered.length > 0;
 
   return (
-    <div className="jig-gauges">
+    <div className="jig-gauges" ref={rootRef}>
       <div className="jig-gauges__filter-row">
         <input
           type="search"

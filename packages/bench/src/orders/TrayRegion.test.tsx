@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import type { WorkOrder } from '@jigbench/core';
 import { setTool } from '../tools/toolState.js';
 import { TrayRegion } from './TrayRegion.js';
@@ -71,6 +71,63 @@ describe('TrayRegion — collapsed: the order in hand', () => {
     expect(screen.getByText(/drafting/i)).toBeTruthy();
     expect(screen.queryByRole('progressbar')).toBeNull(); // no bare spinner — the charge is text
     vi.useRealTimers();
+  });
+
+  // Wave-4 fix (TEST-RUN.md's first live test, defect 5): "the drafted-by badge... must sit
+  // in the collapsed tray beside the ladder, always visible."
+  it('places the drafted-by badge in the header, beside the ladder', () => {
+    const drafted = wo({
+      state: 'drafted',
+      draftedBy: 'model',
+      log: [{ at: '2026-09-05T00:00:00.000Z', actor: 'model', event: 'drafted', ref: '0001', note: 'qwen2.5-coder:7b · 4.9s' }],
+    });
+    const { container } = render(<TrayRegion workOrders={[drafted]} />);
+    const header = container.querySelector('.jig-tray__header')!;
+    expect(within(header).getByLabelText('work-order state ladder')).toBeTruthy();
+    expect(within(header).getByText(/drafted ·/i)).toBeTruthy();
+  });
+
+  // Wave-4 fix, defect 5 (the actual root cause behind "I did not see `drafted ·
+  // qwen2.5-coder:7b · N.Ns`"): a work order read back off a persisted `.jig/work-orders/*.md`
+  // file always has `log: []` (work-order.ts's `parseWorkOrder` — "the logbook is a separate
+  // surface"). The badge must still show the right rung from `order.state` alone.
+  it('badges "drafted" from order.state even when the log carries no drafted entry', () => {
+    const drafted = wo({ state: 'drafted', draftedBy: 'model', log: [] });
+    render(<TrayRegion workOrders={[drafted]} />);
+    expect(screen.getByText(/drafted · model/i)).toBeTruthy();
+  });
+
+  it('badges "released" once the order is past drafted, even with no released log entry', () => {
+    const released = wo({ state: 'released', draftedBy: 'model', log: [] });
+    render(<TrayRegion workOrders={[released]} />);
+    expect(screen.getByText(/released ·/i)).toBeTruthy();
+    expect(screen.queryByText(/^drafted ·/i)).toBeNull();
+  });
+
+  it('badges "released" for in-the-shop and trial-fit too — the ladder rung, not a stale drafted log entry, decides', () => {
+    const inShop = wo({
+      state: 'in-the-shop',
+      draftedBy: 'model',
+      log: [{ at: '2026-09-05T00:00:00.000Z', actor: 'model', event: 'drafted', ref: '0001', note: 'qwen2.5-coder:7b · 4.9s' }],
+    });
+    render(<TrayRegion workOrders={[inShop]} />);
+    expect(screen.getByText(/released ·/i)).toBeTruthy();
+    expect(screen.queryByText(/qwen2\.5-coder/i)).toBeNull();
+  });
+
+  // Wave-4 fix, defects 5 & 6: RELEASE (and the scrap action) must never be inside the tray's
+  // own scrollable band — they are pinned siblings, so they stay visible regardless of how
+  // long the human face/shop face get.
+  it('keeps RELEASE and the scrap action outside the scrollable face/shop-face band', () => {
+    const drafted = wo({ state: 'drafted' });
+    const { container } = render(<TrayRegion workOrders={[drafted]} />);
+    const scroll = container.querySelector('.jig-tray__scroll')!;
+    const release = screen.getByRole('button', { name: /release/i });
+    expect(scroll.contains(release)).toBe(false);
+    const scrap = screen.getByRole('button', { name: /scrap · to the bin/i });
+    expect(scroll.contains(scrap)).toBe(false);
+    // ...but the human face IS inside it, which is the whole point of the band.
+    expect(scroll.contains(screen.getByLabelText(/^what$/i))).toBe(true);
   });
 
   it('shows the shop face once released, mono for the file paths', () => {
