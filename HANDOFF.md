@@ -1,12 +1,13 @@
 # HANDOFF — next-session entry point
 
-**seat:** Delivery · **branch:** `main` · **written:** 2026-09-05 15:05 CDT · wave 2 nearly landed · HELD for the usage window
+**seat:** Delivery · **branch:** `main` · **written:** 2026-09-05 (after the usage-window reset) · wave 3 in flight
 
 ## State
 
 Founded 2026-09-05 from the Design seat's commission (now canonical at `docs/design/COMMISSION.md`;
 chassis ruled: A · The Surface Plate + steals, see `docs/team/v0.1/CHASSIS.md`). Plan
 `docs/EXECUTION-PLAN.md` = #1, APPROVED 13:05 with blanket merge for verified green slices.
-**On `main` (`99e58d9`):** wave 1 (S1a shell · S1b examples) · S2b docs clamp · the wave-1 council fix pass · **S3 plate proxy + loupe** (loopback bind, capture-phase loupe click). Fresh-worktree control: 47 files / 260 tests, typecheck, build, stdout guard green; plate smoke live on the Ledger app.
-**Built, not merged:** S2 survey adapters on `delegate/build-s2` (worktree `../jigbench-s2`, 4 commits from `1a24e2a`; real survey of `examples/`: 7 components · 5 routes · 7 endpoints · 13 schemas · 30 gauges) — it conflicts with main on root `package.json`, the deleted `vitest.workspace.ts`, core schemas, cli and server files; merge it the way S3 was merged (a merge branch, conflicts resolved additively, fresh-worktree control, ff main).
-**→ Next session: merge S2 (`delegate/build-s2`) onto `main` via a merge branch with the fresh-worktree control, then open wave 3 — S4 chassis + gauges ‖ S5 marks → work orders (Ollama drafter, tray/spine/shop lane, held RELEASE) ‖ S7 fixtures — per `docs/EXECUTION-PLAN.md` §4 and `docs/team/v0.1/CHASSIS.md`; paused 2026-09-05 ~15:00 at 81% of the usage window, nothing in flight.**
+**On `main` (`2fb0637`):** wave 1 (S1a shell · S1b examples) · **wave 2 complete** — S2 survey adapters (Angular via ts-morph, .NET via OpenAPI → regex-lite fallback), S2b docs clamp, S3 plate proxy + loupe · the wave-1 council fix pass. Fresh-worktree control on main: 62 files / 343 tests, typecheck, build, stdout guard green; `jigbench survey --repo examples` → 7 components · 5 routes · 7 endpoints · 13 schemas · 30 gauges; plate smoke PASS on the Ledger app.
+**In flight (worktrees `../jigbench-s4`, `-s5`, `-s7`):** S4 chassis A + gauges + palette · S5 marks → work orders (Ollama drafter, held RELEASE, shop face, tray/spine/shop lane) · S7 fixtures (seeded data, proxy answers, loupe form fill). Expect three-way additive conflicts in `App.tsx`, `http.ts`, `store.ts`, `loupe.js` — integrate via a merge branch + the fresh-worktree control, as S2/S3 were.
+
+**→ Next session: integrate S4 + S5 + S7 onto `main` (merge branch, conflicts resolved additively, fresh-worktree control, ff), run the wave-3 verify council, then wave 4 — S6 MCP on stdio (AMBER: brain reviews plan and diff; Matter's y/n to merge) → S8 trial fit + toolpath — then S9 sketch (stretch) and S10 ship; Matter's Sunday-midday look is `npx jigbench` on `examples/ledger-angular`.**
