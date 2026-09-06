@@ -132,10 +132,7 @@ InvoiceDetailComponent, InvoiceFormComponent, InvoiceListComponent, StatusChipCo
 its file path; `routes 5`; `endpoints 0`; `clamped docs` with the file count from step 9.
 
 **12. Loupe** — point at anything and learn what it is.
-- Click the **Loupe** tab (properties column), then inside it click the toggle button **Loupe**
-  (the pair reads **Hand | Loupe**). Also click the rail's second icon, *Loupe — point at anything
-  and see what it is*. (v0.1 quirk: the rail icon alone does not engage the loupe; the tab's toggle
-  does.)
+- Click the rail's second icon, *Loupe — point at anything and see what it is* — the **Loupe** tab's own toggle (**Hand | Loupe**) mirrors it automatically, so either one alone engages loupe mode.
 - Move the mouse over the plate: elements outline in a thin cyan line and the Loupe tab fills in
   **Component**, **File**, **Tag**, **Text** — e.g. hovering the `Invoices` nav link reads
   `Component: _ShellComponent · Tag: a · Text: Invoices`.

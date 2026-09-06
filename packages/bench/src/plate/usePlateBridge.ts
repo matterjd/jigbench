@@ -105,6 +105,19 @@ export function usePlateBridge(
     (next: LoupeMode) => {
       setModeState(next);
       postToPlate({ type: 'jig:mode', mode: next });
+      // Wave-4 fix (TEST-RUN.md's first live test, defect 2): "Loupe grid and selection
+      // still shows when switching to hand, does not disengage." `jig:mode hand` alone only
+      // clears the PLATE's own hover outline (loupe.js's `clearOutline`) — it never touches
+      // the highlight boxes a prior jig:highlight painted, and it never touches the BENCH's
+      // own `lastPick`, which is what PlateGuides (the guide lines + grid readout) and the
+      // Loupe tab's readout keep drawing from. Disengaging to hand has to clear all three —
+      // this is the one place every caller (the rail, Esc, the command palette, and the
+      // Loupe tab's own Hand|Loupe toggle) already funnels through, so it is the one place
+      // that needs to.
+      if (next === 'hand') {
+        setLastPick(null);
+        postToPlate({ type: 'jig:clear' });
+      }
     },
     [postToPlate],
   );
