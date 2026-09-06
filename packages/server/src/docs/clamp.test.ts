@@ -123,18 +123,28 @@ describe('clampDocs — folder edge cases', () => {
     expect(fileRef.startsWith('/') || /^[A-Za-z]:\//.test(fileRef)).toBe(true);
   });
 
-  it('gives a PDF with no extractable text one honest chunk instead of silence', async () => {
-    const repoRoot = await freshRepo('jig-clamp-repo-');
-    const docsDir = await freshRepo('jig-docs-blankpdf-');
-    const { PDFDocument } = await import('pdf-lib');
-    const doc = await PDFDocument.create();
-    doc.addPage([200, 200]);
-    await writeFile(join(docsDir, 'blank.pdf'), await doc.save());
+  // Cold pdf-parse (pdfjs-dist) init takes ~200ms alone (see the isolated-run timing this
+  // comment is based on), but under full-suite CPU contention it has measured over 5s —
+  // vitest's 5000ms default `testTimeout` made this file-level-flaky, timing out mid-parse
+  // with no code defect (the PDF-parsing work itself is correct and fast once scheduled). A
+  // generous per-test timeout, not a global bump, since this is the one CPU-bound outlier in
+  // the file — everything else here is µs-fast fixture I/O.
+  it(
+    'gives a PDF with no extractable text one honest chunk instead of silence',
+    async () => {
+      const repoRoot = await freshRepo('jig-clamp-repo-');
+      const docsDir = await freshRepo('jig-docs-blankpdf-');
+      const { PDFDocument } = await import('pdf-lib');
+      const doc = await PDFDocument.create();
+      doc.addPage([200, 200]);
+      await writeFile(join(docsDir, 'blank.pdf'), await doc.save());
 
-    const { index } = await clampDocs({ repoRoot, folder: docsDir });
+      const { index } = await clampDocs({ repoRoot, folder: docsDir });
 
-    expect(index.files).toHaveLength(1);
-    expect(index.files[0]).toMatchObject({ kind: 'pdf', chunks: 1 });
-    expect(index.chunks[0]?.text).toBe('no extractable text · scanned?');
-  });
+      expect(index.files).toHaveLength(1);
+      expect(index.files[0]).toMatchObject({ kind: 'pdf', chunks: 1 });
+      expect(index.chunks[0]?.text).toBe('no extractable text · scanned?');
+    },
+    20_000,
+  );
 });
