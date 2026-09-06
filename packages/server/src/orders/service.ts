@@ -124,6 +124,16 @@ export class OrdersService {
   // OrdersService instance is exactly one running server.
   private readonly draftsInFlight = new Set<string>();
   private readonly modelCallSemaphore = new Semaphore(MAX_CONCURRENT_MODEL_CALLS);
+  // `createMark` fires `draftOrder` in the background and never awaits it (the caller
+  // already has its mark) — every such call's promise is tracked here so `close()` can
+  // wait for it. Without this, a caller that tears down this service's backing store right
+  // after `createMark` returns (a test's temp-directory cleanup; a real process shutdown)
+  // can remove the directory while `persist()`'s real fs write is still opening its temp
+  // file, which reproduces as an ENOENT on that temp path — observed live on
+  // windows-latest, run 34044270785: "auto-draft failed Error: ENOENT: ... open
+  // '...\work-orders\0003-x2.md.tmp-...'" (see service.test.ts's concurrency-cap test and
+  // its `OrdersService.close` coverage below).
+  private readonly pendingDrafts = new Set<Promise<unknown>>();
 
   constructor(opts: OrdersServiceOptions) {
     this.store = opts.store;
@@ -200,6 +210,20 @@ export class OrdersService {
    * auto-fills a face from garbage. Never throws for a draft failure; only for calling it
    * on an order that is not `marked` in the first place. */
   async draftOrder(id: string): Promise<WorkOrder> {
+    const promise = this.draftOrderInternal(id);
+    this.pendingDrafts.add(promise);
+    // Not `.finally()` — the SAME promise is returned to the caller below unmodified (so a
+    // caller's own `.catch`/`rejects` assertion still sees the original rejection); this
+    // `.then` is a private side-chain that only removes the bookkeeping entry, on either
+    // outcome, and its own handlers never throw, so it can't produce an unhandled rejection.
+    promise.then(
+      () => this.pendingDrafts.delete(promise),
+      () => this.pendingDrafts.delete(promise),
+    );
+    return promise;
+  }
+
+  private async draftOrderInternal(id: string): Promise<WorkOrder> {
     const order = this.require(id);
     if (order.state !== 'marked') {
       throw new OrderConflictError(`work order ${id} is ${order.state}, not marked — cannot draft`);
@@ -273,6 +297,17 @@ export class OrdersService {
    * automatically, exposed for an explicit retry after a logged failure. */
   async redraft(id: string): Promise<WorkOrder> {
     return this.draftOrder(id);
+  }
+
+  /** Await every `draftOrder` call currently in flight, including ones `createMark` kicked
+   * off in the background that nobody ever awaited. Call this before removing or otherwise
+   * invalidating this service's backing store (a test's temp directory on teardown; a real
+   * server's graceful shutdown) — see `pendingDrafts` above for the ENOENT this closes.
+   * Never rejects: a draft's own failure is already caught and persisted as a `draft-failed`
+   * log entry inside `draftOrderInternal` (it never reaches this promise as a rejection);
+   * `allSettled` is just defence for anything that still manages to throw. */
+  async close(): Promise<void> {
+    await Promise.allSettled([...this.pendingDrafts]);
   }
 
   // === S6 (EXECUTION-PLAN.md §4 row S6, ADR-001 "the agent pulls"): `jig_draft` MCP tool ===
