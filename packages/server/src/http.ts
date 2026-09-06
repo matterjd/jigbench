@@ -10,6 +10,10 @@ import { createDocsRoute } from './docs/route.js';
 import { attachPlateRoute } from './plate/route.js';
 import type { PlateProxyHandle } from './plate/proxy.js';
 import { logger } from './logger.js';
+// === S5 orders: imports (delimited block; owned by packages/server/src/orders/*) ===
+import { OrdersService } from './orders/service.js';
+import { OrderConflictError, OrderNotFoundError } from './orders/errors.js';
+// === end S5 orders block ===
 
 export interface CreateJigServerOptions {
   repoRoot: string;
@@ -100,7 +104,16 @@ function buildApp(
 
   app.post('/api/marks', async (req, res, next) => {
     try {
-      const target = MarkTargetSchema.parse(req.body?.target);
+      // S5: body may carry `pick` (the loupe's PlatePick shape) instead of `target` — the
+      // existing `target` shape is untouched, so nothing about this route's prior timing
+      // or broadcast behavior changes for a caller that still sends `target`.
+      const pick = req.body?.pick;
+      const rawTarget =
+        req.body?.target ??
+        (pick && typeof pick === 'object'
+          ? { path: pick.path, component: pick.component, file: pick.file, text: pick.text }
+          : undefined);
+      const target = MarkTargetSchema.parse(rawTarget);
       const prompt = String(req.body?.prompt ?? '');
       if (!prompt.trim()) {
         res.status(400).json({ error: 'prompt is required' });
@@ -113,6 +126,80 @@ function buildApp(
       next(err);
     }
   });
+
+  // === S5 orders: work-order routes (delimited block; owned by packages/server/src/orders/*) ===
+  // A drafter attempt (Ollama especially) can legitimately take tens of seconds, so
+  // `/draft` is fire-and-forget (202) rather than blocking the request — the bench watches
+  // `/api/state` over WS for the transition, exactly as `orders/service.ts`'s own
+  // `createMark` already does for its own auto-draft.
+  const orders = new OrdersService({ store, notify: () => broadcastState(wss, store) });
+
+  function mapOrderError(err: unknown, res: Response, next: NextFunction): void {
+    if (err instanceof OrderNotFoundError) {
+      res.status(404).json({ error: err.message });
+      return;
+    }
+    if (err instanceof OrderConflictError) {
+      res.status(409).json({ error: err.message });
+      return;
+    }
+    next(err);
+  }
+
+  app.post('/api/work-orders/:id/draft', (req, res) => {
+    const order = store.getWorkOrder(req.params.id);
+    if (!order) {
+      res.status(404).json({ error: `no such work order: ${req.params.id}` });
+      return;
+    }
+    if (order.state !== 'marked') {
+      res.status(409).json({ error: `work order ${order.id} is ${order.state}, not marked — cannot draft` });
+      return;
+    }
+    res.status(202).json({ accepted: true, id: order.id });
+    orders.draftOrder(order.id).catch((err) => logger.warn('draft failed', String(err)));
+  });
+
+  app.post('/api/work-orders/:id/release', async (req, res, next) => {
+    try {
+      res.status(200).json(await orders.release(req.params.id));
+    } catch (err) {
+      mapOrderError(err, res, next);
+    }
+  });
+
+  app.post('/api/work-orders/:id/scrap', async (req, res, next) => {
+    try {
+      res.status(200).json(await orders.scrap(req.params.id));
+    } catch (err) {
+      mapOrderError(err, res, next);
+    }
+  });
+
+  app.post('/api/work-orders/:id/restore', async (req, res, next) => {
+    try {
+      res.status(200).json(await orders.restore(req.params.id));
+    } catch (err) {
+      mapOrderError(err, res, next);
+    }
+  });
+
+  app.patch('/api/work-orders/:id', async (req, res, next) => {
+    try {
+      res.status(200).json(await orders.editHumanFace(req.params.id, req.body ?? {}));
+    } catch (err) {
+      mapOrderError(err, res, next);
+    }
+  });
+
+  app.get('/api/drafter', async (_req, res, next) => {
+    try {
+      res.json(await orders.getDrafterInfo());
+    } catch (err) {
+      next(err);
+    }
+  });
+  // === end S5 orders block ===
 
   if (options.plate) attachPlateRoute(app, options.plate);
 

@@ -15,6 +15,7 @@ import {
   type MarkTarget,
   type Survey,
   type Wiring,
+  type WiringStatus,
   type WorkOrder,
 } from '@jigbench/core';
 import { atomicWriteFile } from './atomic-write.js';
@@ -48,6 +49,9 @@ export class JigStore {
   private workOrders: WorkOrder[] = [];
   private docsWired = false;
   private proxyWired = false;
+  // === S5 orders: drafter wiring (delimited block; owned by packages/server/src/orders/*) ===
+  private drafterWiring: WiringStatus = 'stub';
+  // === end S5 orders block ===
 
   constructor(repoRoot: string) {
     this.repoRoot = repoRoot;
@@ -148,11 +152,39 @@ export class JigStore {
     this.proxyWired = wired;
   }
 
+  // === S5 orders: drafter wiring + generic work-order mutation (delimited block) ===
+  /** Called by `orders/service.ts` once it has actually asked whether a driver is
+   * reachable — never eagerly at boot, so a server nobody has drafted through yet still
+   * reports the honest S1 default ('stub': a human fills the face). */
+  setDrafterWiring(status: WiringStatus): void {
+    this.drafterWiring = status;
+  }
+
+  getWorkOrder(id: string): WorkOrder | undefined {
+    return this.workOrders.find((w) => w.id === id);
+  }
+
+  getMark(id: string): Mark | undefined {
+    return this.marks.find((m) => m.id === id);
+  }
+
+  /** Read-modify-write for a work order already on disk: replaces the in-memory copy and
+   * rewrites its file atomically. `orders/service.ts` owns every rule about WHEN a
+   * mutation is legal (ladder transitions, edit windows) — this just persists whatever
+   * `WorkOrder` it is handed. */
+  async writeWorkOrder(next: WorkOrder): Promise<void> {
+    const idx = this.workOrders.findIndex((w) => w.id === next.id);
+    if (idx === -1) throw new Error(`writeWorkOrder: no such work order ${next.id}`);
+    await atomicWriteFile(join(this.paths.workOrders, `${next.id}-${next.slug}.md`), serializeWorkOrder(next));
+    this.workOrders[idx] = next;
+  }
+  // === end S5 orders block ===
+
   getWiring(): Wiring {
     return {
       survey: this.survey.stub ? 'stub' : 'wired',
       proxy: this.proxyWired ? 'wired' : 'none',
-      drafter: 'stub',
+      drafter: this.drafterWiring,
       shop: 'none',
       fixtures: 'none',
       toolpath: 'none',

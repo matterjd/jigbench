@@ -1,0 +1,383 @@
+/* packages/bench/src/orders/TrayRegion.css — the tray: collapsed (the order in hand) and
+   expanded (the spine). CSS lifted from docs/design/concepts/concept-b-the-drafting-room.html
+   ("what to steal even if rejected": the ladder spine, a pinned actions bar under scrolling
+   faces) and rescoped under jig-tray__* so nothing collides with the raw concept classnames. */
+
+.jig-tray {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 0;
+}
+
+.jig-tray__header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.jig-tray__num {
+  font: 700 11px/1 var(--mono);
+  color: var(--ink);
+  letter-spacing: 0.04em;
+}
+
+.jig-tray__num--oath {
+  border: 1px solid var(--gold);
+  border-radius: var(--r-micro);
+  padding: 2px 4px; /* the oath was held: a gold RING, never a fill */
+}
+
+.jig-tray__slug {
+  font-size: 12.5px;
+  color: var(--dim);
+}
+
+.jig-tray__expand {
+  margin-left: auto;
+  background: none;
+  border: 1px solid var(--line);
+  border-radius: var(--r-pill);
+  color: var(--dim);
+  font: 400 11.5px/1 var(--sans);
+  padding: 4px 10px;
+  cursor: pointer;
+}
+.jig-tray__expand:hover {
+  background: var(--bg2);
+  color: var(--ink);
+}
+
+.jig-tray__empty {
+  color: var(--dim);
+  font-size: 13px;
+  line-height: 1.5;
+  padding: 8px 0;
+}
+
+/* ---------- collapsed: the order in hand ---------- */
+
+.jig-tray__face {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-height: 0;
+}
+
+.jig-tray__field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.jig-tray__field label {
+  font: 700 11px/1 var(--sans);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--dim);
+}
+
+.jig-tray__field input,
+.jig-tray__field textarea {
+  width: 100%;
+  background: var(--bg1);
+  border: 1px solid var(--line);
+  border-radius: var(--r-inner);
+  color: var(--ink);
+  font: 400 13px/1.4 var(--sans);
+  padding: 6px 8px;
+}
+
+.jig-tray__field input:disabled,
+.jig-tray__field textarea:disabled {
+  color: var(--dim);
+}
+
+.jig-tray__acceptance {
+  margin: 0;
+  padding-left: 18px;
+  font-size: 12.5px;
+  color: var(--ink);
+}
+
+.jig-tray__shopface {
+  background: var(--bg2);
+  border: 1px solid var(--line-soft);
+  border-radius: var(--r-inner);
+  padding: 10px 12px;
+}
+
+.jig-tray__shopface pre {
+  margin: 6px 0 0;
+  font: 400 12px/1.5 var(--mono);
+  color: var(--ink);
+  white-space: pre-wrap;
+}
+
+.jig-tray__shopface-files {
+  margin: 6px 0 0;
+  padding-left: 16px;
+  font: 400 12px/1.6 var(--mono);
+  color: var(--ink);
+}
+
+.jig-tray__shopface-title {
+  color: var(--wyrd);
+  font: 700 11px/1 var(--sans);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+/* ---------- the RELEASE hold — the one demand on the bench ---------- */
+
+.jig-tray__actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding-top: 8px;
+  border-top: 1px solid var(--line-soft);
+}
+
+.jig-release {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 14px 8px 10px;
+  border: 1px solid var(--ember);
+  border-radius: var(--r-pill);
+  color: var(--ember);
+  background: var(--ember-soft);
+  font: 700 12px/1 var(--sans);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  user-select: none;
+  touch-action: none;
+  cursor: pointer;
+  transition:
+    transform var(--t-feather) var(--ease-standard),
+    box-shadow var(--t-feather) var(--ease-standard);
+}
+.jig-release:disabled {
+  border-color: var(--line);
+  color: var(--dim);
+  background: none;
+  cursor: default;
+}
+.jig-release__ring {
+  width: 22px;
+  height: 22px;
+  flex: 0 0 auto;
+}
+.jig-release__ring circle {
+  fill: none;
+  stroke-width: 2;
+}
+.jig-release__track {
+  stroke: var(--line);
+}
+.jig-release__fill {
+  stroke: var(--ember);
+  stroke-dasharray: 62.83;
+  stroke-dashoffset: 62.83;
+  transform: rotate(-90deg);
+  transform-origin: center;
+}
+.jig-release:disabled .jig-release__fill {
+  stroke: var(--dim);
+}
+.jig-release--holding {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-held); /* z3: held above the page — the one earned shadow here */
+}
+.jig-release--holding .jig-release__fill {
+  stroke-dashoffset: 0;
+  transition: stroke-dashoffset var(--t-oath) linear; /* the oath: linear, hold-gated */
+}
+
+.jig-tray__hint {
+  font: 400 12px/1.4 var(--sans);
+  color: var(--dim);
+  flex: 1 1 200px;
+}
+.jig-tray__hint--said {
+  color: var(--ink);
+}
+
+/* ---------- the mark prompt (one line, over the tray) ---------- */
+
+.jig-tray__prompt {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  background: var(--bg2);
+  border: 1px solid var(--storm);
+  border-radius: var(--r-inner);
+  padding: 8px 10px;
+}
+.jig-tray__prompt input {
+  flex: 1;
+  background: var(--bg1);
+  border: 1px solid var(--line);
+  border-radius: var(--r-micro);
+  color: var(--ink);
+  font: 400 13px/1.4 var(--sans);
+  padding: 6px 8px;
+}
+.jig-tray__prompt button {
+  background: var(--storm-soft);
+  border: 1px solid var(--storm);
+  border-radius: var(--r-micro);
+  color: var(--ink);
+  font: 700 11px/1 var(--sans);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 6px 10px;
+  cursor: pointer;
+}
+
+/* ---------- expanded: the spine ---------- */
+
+.jig-tray__spine {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-height: 0;
+  overflow: auto;
+}
+
+.jig-tray__filters {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  align-items: center;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--line-soft);
+}
+.jig-tray__filters .jig-tray__printed {
+  margin-left: auto;
+}
+
+.jig-tray__rung {
+  position: relative;
+  margin-bottom: 10px;
+}
+.jig-tray__rung-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 4px 0;
+  font: 700 11px/1 var(--sans);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--dim);
+}
+.jig-tray__rung-head .jig-tray__count {
+  margin-left: auto;
+  font: 400 11px/1 var(--mono);
+  text-transform: none;
+  letter-spacing: normal;
+}
+.jig-tray__rung-empty {
+  font: 400 11px/1.4 var(--mono);
+  color: var(--faint);
+  padding: 2px 0 2px 4px;
+}
+
+.jig-tray__card {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--line);
+  border-radius: var(--r-inner);
+  background: var(--bg1);
+  margin-bottom: 6px;
+  cursor: pointer;
+}
+.jig-tray__card:hover {
+  background: var(--bg2);
+}
+.jig-tray__card[aria-selected='true'] {
+  background: var(--bg3);
+}
+.jig-tray__card[data-state='marked'] {
+  border-left-color: var(--warn);
+}
+.jig-tray__card[data-state='drafted'] {
+  border-left-color: var(--dim);
+}
+.jig-tray__card[data-state='released'] {
+  border-left-color: var(--gold);
+}
+.jig-tray__card[data-state='in-the-shop'] {
+  border-left-color: var(--wyrd);
+}
+.jig-tray__card[data-state='trial-fit'] {
+  border-left-color: var(--ok);
+}
+.jig-tray__card-top {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  align-items: center;
+}
+.jig-tray__card-what {
+  font-size: 12.5px;
+  line-height: 1.35;
+  color: var(--ink);
+  margin: 0;
+}
+.jig-tray__age {
+  font: 400 11px/1 var(--mono);
+  color: var(--dim);
+}
+
+/* ---------- the scrap bin ---------- */
+
+.jig-tray__scrap {
+  flex: 0 0 auto;
+  position: relative;
+  padding-top: 6px;
+  border-top: 1px solid var(--line-soft);
+}
+.jig-tray__scrap-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: none;
+  border: 1px solid var(--line);
+  border-radius: var(--r-pill);
+  color: var(--dim);
+  font: 400 11.5px/1 var(--sans);
+  padding: 5px 10px;
+  cursor: pointer;
+}
+.jig-tray__scrap-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  padding: 6px 0;
+  border-top: 1px solid var(--line-soft);
+  font-size: 12.5px;
+}
+.jig-tray__scrap-row .jig-tray__what {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--ink);
+}
+.jig-tray__scrap-row button {
+  background: none;
+  border: 1px solid var(--line);
+  border-radius: var(--r-micro);
+  color: var(--ink);
+  font-size: 11px;
+  padding: 3px 7px;
+  cursor: pointer;
+}
