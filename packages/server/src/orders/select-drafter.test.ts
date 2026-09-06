@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { OllamaDrafter } from './drafters/ollama.js';
 import { AgentDrafter } from './drafters/shop.js';
 import { HumanDrafter } from './drafters/human.js';
@@ -38,5 +38,36 @@ describe('selectDrafter', () => {
     const selection = await selectDrafter({ ollama: ollamaThatIs(false), shop: new AgentDrafter(), shopWired: false });
     expect(selection.drafter).toBeTruthy();
     expect(typeof selection.drafter.draft).toBe('function');
+  });
+});
+
+// The env switch a caller that never touches SelectDrafterInput at all (a plain
+// `npm test`/CI run, or the RED/GREEN control for the wave-3-council fix) can still use to
+// guarantee zero network probes, regardless of what `ollama.available()` would have said.
+describe('selectDrafter — JIG_NO_MODEL', () => {
+  afterEach(() => {
+    delete process.env.JIG_NO_MODEL;
+  });
+
+  it('skips the availability probe entirely and falls straight past the model, even if Ollama would say yes', async () => {
+    process.env.JIG_NO_MODEL = '1';
+    const drafter = new OllamaDrafter({ model: 'qwen2.5-coder:7b' });
+    const availableSpy = vi.spyOn(drafter, 'available').mockResolvedValue(true);
+
+    const selection = await selectDrafter({ ollama: drafter, shop: new AgentDrafter(), shopWired: false });
+
+    expect(availableSpy).not.toHaveBeenCalled();
+    expect(selection.driver).toBe('person');
+  });
+
+  it('leaves the probe untouched when unset (control)', async () => {
+    delete process.env.JIG_NO_MODEL;
+    const drafter = new OllamaDrafter({ model: 'qwen2.5-coder:7b' });
+    const availableSpy = vi.spyOn(drafter, 'available').mockResolvedValue(true);
+
+    const selection = await selectDrafter({ ollama: drafter, shop: new AgentDrafter(), shopWired: false });
+
+    expect(availableSpy).toHaveBeenCalledTimes(1);
+    expect(selection.driver).toBe('model');
   });
 });

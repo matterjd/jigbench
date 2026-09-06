@@ -13,6 +13,8 @@ import { logger } from './logger.js';
 // === S5 orders: imports (delimited block; owned by packages/server/src/orders/*) ===
 import { OrdersService } from './orders/service.js';
 import { OrderConflictError, OrderNotFoundError } from './orders/errors.js';
+import type { OllamaLike } from './orders/drafters/ollama.js';
+import type { AgentDrafter } from './orders/drafters/shop.js';
 // === end S5 orders block ===
 import { FixtureStore } from './fixtures/store.js'; // S7
 import { attachFixturesRoute } from './fixtures/route.js'; // S7
@@ -31,6 +33,12 @@ export interface CreateJigServerOptions {
   /** S3's plate proxy, when the CLI has one running. Wires `GET /api/plate` and flips
    * `wiring.proxy` to `'wired'`. Absent (S1's default): neither happens. */
   plate?: PlateProxyHandle;
+  /** Test-only override hook (wave-3 council): lets a caller inject a deterministic
+   * drafter instead of the real `OllamaDrafter`/`AgentDrafter` `OrdersService` would
+   * otherwise construct for itself. Production callers (the CLI's `serve` command,
+   * `dev.ts`) never set this — omitting it keeps production behaviour byte-for-byte
+   * identical to before this option existed. */
+  drafters?: { ollama?: OllamaLike; shop?: AgentDrafter };
 }
 
 /** True when `origin` is absent (a non-browser client — curl, an MCP client, the CLI itself
@@ -128,7 +136,12 @@ function buildApp(
   // `/api/state` over WS for the transition, exactly as `orders/service.ts`'s own
   // `createMark` already does for its own auto-draft. Declared here, above POST /api/marks,
   // so the integrator's seam-2 auto-draft call below can use it directly.
-  const orders = new OrdersService({ store, notify: () => broadcastState(wss, store) });
+  const orders = new OrdersService({
+    store,
+    notify: () => broadcastState(wss, store),
+    ollama: options.drafters?.ollama,
+    shop: options.drafters?.shop,
+  });
 
   app.post('/api/marks', async (req, res, next) => {
     try {

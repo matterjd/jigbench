@@ -14,6 +14,12 @@ import { contextForPrompt, type DocsContext } from '../../docs/context.js';
  */
 
 export interface OllamaDrafterOptions {
+  /** Defaults to `JIG_OLLAMA_URL` when set, else `DEFAULT_BASE_URL`. The env var exists so
+   * a caller that never touches this constructor directly (`select-drafter.ts` reads
+   * `service.ts`'s own `new OllamaDrafter()`, `dev.ts`, the CLI) can still be pointed at a
+   * different endpoint from the outside — the control-plane hook the wave-3-council fix
+   * needed to prove HTTP tests are decoupled from wherever the real model lives, without
+   * threading a new option through every caller. */
   baseUrl?: string;
   model?: string;
   fetchImpl?: typeof fetch;
@@ -41,6 +47,19 @@ export interface OllamaDraftResult {
   human: WorkOrderHuman;
   model: string;
   elapsedMs: number;
+}
+
+/** The subset of `OllamaDrafter`'s surface that `select-drafter.ts` and `service.ts`'s
+ * release-time polish pass actually call. Widening `OrdersServiceOptions.ollama` and
+ * `SelectDrafterInput.ollama` to this interface (rather than the concrete class) is the
+ * override hook the wave-3 council fix needed: a test can now inject any object shaped
+ * like this — `FakeOllamaDrafter` (./fake.ts) chief among them — instead of a real
+ * `OllamaDrafter` that always points at an actual Ollama process. Production code paths
+ * are unaffected: `OllamaDrafter` already satisfies this shape with no changes of its own. */
+export interface OllamaLike extends Drafter {
+  readonly model: string;
+  available(): Promise<boolean>;
+  rewrite(text: string, instruction: string): Promise<string>;
 }
 
 const DEFAULT_BASE_URL = 'http://127.0.0.1:11434';
@@ -91,7 +110,7 @@ export class OllamaDrafter implements Drafter {
   private readonly availabilityTimeoutMs: number;
 
   constructor(opts: OllamaDrafterOptions = {}) {
-    this.baseUrl = opts.baseUrl ?? DEFAULT_BASE_URL;
+    this.baseUrl = opts.baseUrl ?? process.env.JIG_OLLAMA_URL ?? DEFAULT_BASE_URL;
     this.model = opts.model ?? DEFAULT_MODEL;
     this.fetchImpl = opts.fetchImpl ?? fetch;
     this.availabilityTimeoutMs = opts.availabilityTimeoutMs ?? DEFAULT_AVAILABILITY_TIMEOUT_MS;

@@ -3,6 +3,7 @@ import { mkdtemp } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createJigServer, type JigServerHandle } from '../http.js';
+import { FakeOllamaDrafter } from './drafters/fake.js';
 
 /**
  * The HTTP-layer counterpart to `service.test.ts`: real `fetch` against a real listening
@@ -12,6 +13,13 @@ import { createJigServer, type JigServerHandle } from '../http.js';
  */
 
 let handle: JigServerHandle | undefined;
+// Reset by every `freshServer()` call — the deterministic, network-free stand-in
+// `createJigServer`'s `drafters.ollama` override accepts instead of a real `OllamaDrafter`
+// (wave-3 council: this file used to have NO override hook at all, so every test here
+// genuinely depended on the desk's actual Ollama process — fast when warm, a 20s+ timeout
+// when cold). `available: true` so the auto-draft/release flow below exercises the real
+// 'model' driver code path, just against THIS fake, never the real endpoint.
+let fakeOllama: FakeOllamaDrafter;
 
 afterEach(async () => {
   if (handle) {
@@ -22,31 +30,39 @@ afterEach(async () => {
 
 async function freshServer(): Promise<JigServerHandle> {
   const repoRoot = await mkdtemp(join(tmpdir(), 'jig-orders-http-'));
+  fakeOllama = new FakeOllamaDrafter({ available: true });
   handle = await createJigServer({
     repoRoot,
     port: 0,
     openBrowser: false,
     benchDistDir: join(tmpdir(), 'jig-no-such-bench-dist'),
+    drafters: { ollama: fakeOllama },
   });
   return handle;
 }
 
+/** `draft: false` — most callers of this helper are testing ladder transitions or PATCH
+ * validation, not drafting; they never want seam 2's auto-draft racing their own assertions
+ * (now that `freshServer()`'s injected `FakeOllamaDrafter` answers near-instantly rather
+ * than a real model's multi-second round trip, that race is winnable either way, where
+ * before it never was). The three tests that DO want a draft call `POST .../draft`
+ * explicitly and wait for it via `waitForState`. */
 async function createMarkedOrder(url: string): Promise<string> {
   const res = await fetch(`${url}/api/marks`, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ target: { path: 'x' }, prompt: 'x' }),
+    body: JSON.stringify({ target: { path: 'x' }, prompt: 'x', draft: false }),
   });
   const body = await res.json();
   return body.workOrder.id as string;
 }
 
-/** No override hook exists to inject a fake drafter into `createJigServer` — the real
- * server always points at the real Ollama endpoint, exactly as the CLI does. On a desk
- * where Ollama is actually reachable (this one), a `/draft` call genuinely dispatches a
- * model request (seconds, not milliseconds); on a desk without it, human drafting lands
- * near-instantly. Polling (rather than a fixed sleep) is correct either way. */
-async function waitForState(url: string, id: string, state: string, timeoutMs = 60_000): Promise<void> {
+/** `freshServer()` always injects a `FakeOllamaDrafter` (wave-3 council) now, so a `/draft`
+ * call here never dispatches a real model request — it resolves near-instantly against the
+ * fake, same as `HumanDrafter` would on a desk with no Ollama at all. Polling (rather than a
+ * fixed sleep) is still correct either way; the budget just no longer needs to cover a real
+ * cold-load. */
+async function waitForState(url: string, id: string, state: string, timeoutMs = 5_000): Promise<void> {
   const started = Date.now();
   for (;;) {
     const body = await (await fetch(`${url}/api/state`)).json();
@@ -89,25 +105,21 @@ describe('orders routes — illegal transitions map to 409, not 400 or a crash',
     expect(res.status).toBe(409);
   });
 
-  it(
-    'PATCH the human face once released is 409',
-    async () => {
-      const { url } = await freshServer();
-      const id = await createMarkedOrder(url);
-      await fetch(`${url}/api/work-orders/${id}/draft`, { method: 'POST' });
-      await waitForState(url, id, 'drafted');
-      await fetch(`${url}/api/work-orders/${id}/release`, { method: 'POST' });
+  it('PATCH the human face once released is 409', async () => {
+    const { url } = await freshServer();
+    const id = await createMarkedOrder(url);
+    await fetch(`${url}/api/work-orders/${id}/draft`, { method: 'POST' });
+    await waitForState(url, id, 'drafted');
+    await fetch(`${url}/api/work-orders/${id}/release`, { method: 'POST' });
 
-      const res = await fetch(`${url}/api/work-orders/${id}`, {
-        method: 'PATCH',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ why: 'too late' }),
-      });
+    const res = await fetch(`${url}/api/work-orders/${id}`, {
+      method: 'PATCH',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ why: 'too late' }),
+    });
 
-      expect(res.status).toBe(409);
-    },
-    70_000,
-  );
+    expect(res.status).toBe(409);
+  });
 
   it('any orders route on an unknown work order id is 404, not a 500', async () => {
     const { url } = await freshServer();
@@ -185,28 +197,29 @@ describe('PATCH /api/work-orders/:id validates the body (finding 2)', () => {
 });
 
 describe('orders routes — the full loop, end to end over real HTTP', () => {
-  it(
-    'mark -> draft -> release -> scrap -> restore, each landing the right state',
-    async () => {
-      const { url } = await freshServer();
-      const id = await createMarkedOrder(url);
+  it('mark -> draft -> release -> scrap -> restore, each landing the right state', async () => {
+    const { url } = await freshServer();
+    const id = await createMarkedOrder(url);
 
-      const draftRes = await fetch(`${url}/api/work-orders/${id}/draft`, { method: 'POST' });
-      expect(draftRes.status).toBe(202);
-      await waitForState(url, id, 'drafted');
+    const draftRes = await fetch(`${url}/api/work-orders/${id}/draft`, { method: 'POST' });
+    expect(draftRes.status).toBe(202);
+    await waitForState(url, id, 'drafted');
 
-      const released = await (await fetch(`${url}/api/work-orders/${id}/release`, { method: 'POST' })).json();
-      expect(released.state).toBe('released');
-      expect(released.shop).toBeTruthy();
+    const released = await (await fetch(`${url}/api/work-orders/${id}/release`, { method: 'POST' })).json();
+    expect(released.state).toBe('released');
+    expect(released.shop).toBeTruthy();
 
-      const scrapped = await (await fetch(`${url}/api/work-orders/${id}/scrap`, { method: 'POST' })).json();
-      expect(scrapped.state).toBe('scrapped');
+    const scrapped = await (await fetch(`${url}/api/work-orders/${id}/scrap`, { method: 'POST' })).json();
+    expect(scrapped.state).toBe('scrapped');
 
-      const restored = await (await fetch(`${url}/api/work-orders/${id}/restore`, { method: 'POST' })).json();
-      expect(restored.state).toBe('released');
-    },
-    70_000,
-  );
+    const restored = await (await fetch(`${url}/api/work-orders/${id}/restore`, { method: 'POST' })).json();
+    expect(restored.state).toBe('released');
+
+    // Wave-3 council spy: draft AND release's optional polish-pass probe both answered from
+    // the INJECTED fake — never a real Ollama, even one reachable on this desk.
+    expect(fakeOllama.calls.filter((c) => c.kind === 'draft')).toHaveLength(1);
+    expect(fakeOllama.calls.some((c) => c.kind === 'available')).toBe(true);
+  });
 
   it('GET /api/drafter reports a driver, a reason, and both availability flags', async () => {
     const { url } = await freshServer();

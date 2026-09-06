@@ -7,8 +7,15 @@ import WebSocket from 'ws';
 import { JIG_FORMAT, jigPaths } from '@jigbench/core';
 import { createJigServer, type JigServerHandle } from './http.js';
 import { createPlateProxy, type PlateProxyHandle, type PlateStatus } from './plate/proxy.js';
+import { FakeOllamaDrafter } from './orders/drafters/fake.js';
 
 let handle: JigServerHandle | undefined;
+// Every `freshServer()` call replaces this with a brand-new instance — the deterministic,
+// network-free stand-in `createJigServer`'s `drafters.ollama` override accepts in place of
+// a real `OllamaDrafter` (wave-3 council: a unit/HTTP test must never depend on a live
+// Ollama process, warm or cold). `available: true` so the auto-draft tests below exercise
+// the real 'model' driver code path — just against THIS fake, never the real endpoint.
+let fakeOllama: FakeOllamaDrafter;
 
 afterEach(async () => {
   if (handle) {
@@ -19,11 +26,13 @@ afterEach(async () => {
 
 async function freshServer(): Promise<JigServerHandle> {
   const repoRoot = await mkdtemp(join(tmpdir(), 'jig-http-'));
+  fakeOllama = new FakeOllamaDrafter({ available: true });
   handle = await createJigServer({
     repoRoot,
     port: 0,
     openBrowser: false,
     benchDistDir: join(tmpdir(), 'jig-no-such-bench-dist'),
+    drafters: { ollama: fakeOllama },
   });
   return handle;
 }
@@ -99,6 +108,7 @@ describe('GET /api/plate (S3)', () => {
       openBrowser: false,
       benchDistDir: join(tmpdir(), 'jig-no-such-bench-dist'),
       plate: fakePlate({ target: 'http://localhost:4200', port: 4601, status: 'up', changes: [] }),
+      drafters: { ollama: new FakeOllamaDrafter() },
     });
 
     const plateRes = await fetch(`${handle.url}/api/plate`);
@@ -191,11 +201,11 @@ interface StateMessage {
 
 /** Polls `/api/state` for `id` to leave `awayFrom` — used by seam-2's auto-draft tests
  * instead of a fixed sleep, the same style `orders/http.orders.test.ts`'s own `waitForState`
- * uses: on a desk where Ollama is reachable a real model call can take seconds, on one
- * without it (or without a wired shop agent) HumanDrafter resolves near-instantly, and
- * either way the ladder rule is "never a hard stop" (select-drafter.ts) — polling is
- * correct under both. */
-async function waitUntilOrderLeavesState(url: string, id: string, awayFrom: string, timeoutMs = 60_000): Promise<string> {
+ * uses. `freshServer()` always injects a `FakeOllamaDrafter` (wave-3 council) now, so the
+ * draft this waits on never touches a real model — polling still beats a fixed sleep (the
+ * exact tick it lands on is never guaranteed), but the budget no longer needs to cover a
+ * real cold-load. */
+async function waitUntilOrderLeavesState(url: string, id: string, awayFrom: string, timeoutMs = 5_000): Promise<string> {
   const started = Date.now();
   for (;;) {
     const body = await (await fetch(`${url}/api/state`)).json();
@@ -209,9 +219,7 @@ async function waitUntilOrderLeavesState(url: string, id: string, awayFrom: stri
 }
 
 describe('POST /api/marks', () => {
-  it(
-    'creates a mark and a marked work order, then broadcasts state over WS for the mark and (seam 2) the auto-draft that follows',
-    async () => {
+  it('creates a mark and a marked work order, then broadcasts state over WS for the mark and (seam 2) the auto-draft that follows', async () => {
     const { url } = await freshServer();
 
     const ws = new WebSocket(url.replace('http', 'ws') + '/ws');
@@ -260,10 +268,17 @@ describe('POST /api/marks', () => {
     );
     expect(nonMarkedBroadcast).toBeTruthy();
 
+    // Wave-3 council spy: the auto-draft answered from the INJECTED fake, never a real
+    // Ollama — even one reachable on this very desk. `fakeOllama.calls` is the stand-in's
+    // own record of every call it received; a log note naming its unmistakably-fake model
+    // (never the real `qwen2.5-coder:7b` default) is the same proof, persisted on the order.
+    expect(fakeOllama.calls).toEqual(expect.arrayContaining([{ kind: 'available' }, { kind: 'draft' }]));
+    const state = await (await fetch(`${url}/api/state`)).json();
+    const wo = state.workOrders.find((w: { id: string }) => w.id === created.workOrder.id);
+    expect(wo.log.some((l: { note?: string }) => l.note?.includes(fakeOllama.model))).toBe(true);
+
     ws.close();
-    },
-    70_000,
-  );
+  });
 
   it('seam 2: does NOT auto-draft when the body carries draft:false — the order stays marked', async () => {
     const { url } = await freshServer();
@@ -357,6 +372,7 @@ describe('S7 fixtures — end to end through createJigServer + a real plate prox
       openBrowser: false,
       benchDistDir: join(tmpdir(), 'jig-no-such-bench-dist'),
       plate,
+      drafters: { ollama: new FakeOllamaDrafter() },
     });
 
     // Seed a real (non-stub) survey with one list endpoint, then reload so the running

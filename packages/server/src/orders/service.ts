@@ -5,7 +5,7 @@ import { DocsIndexSchema, WorkOrderHumanSchema, transition, type DocsIndex, type
 import type { JigStore } from '../store.js';
 import { pathExists } from '../fs-util.js';
 import { logger } from '../logger.js';
-import { OllamaDrafter, type OllamaDraftContext } from './drafters/ollama.js';
+import { OllamaDrafter, type OllamaDraftContext, type OllamaLike } from './drafters/ollama.js';
 import { AgentDrafter } from './drafters/shop.js';
 import { HumanDrafter } from './drafters/human.js';
 import { selectDrafter, type DrafterSelection } from './select-drafter.js';
@@ -33,7 +33,10 @@ export interface OrdersServiceOptions {
    * `broadcastState(wss, store)` so WS clients see the change land. Defaults to a no-op
    * so the service is usable standalone in tests. */
   notify?: () => void;
-  ollama?: OllamaDrafter;
+  /** `OllamaLike`, not the concrete `OllamaDrafter` — lets `createJigServer`'s
+   * `drafters.ollama` override pass a deterministic test double (`FakeOllamaDrafter`)
+   * through unchanged; production callers that omit this still get a real `OllamaDrafter`. */
+  ollama?: OllamaLike;
   shop?: AgentDrafter;
 }
 
@@ -114,7 +117,7 @@ const MAX_CONCURRENT_MODEL_CALLS = 2;
 export class OrdersService {
   private readonly store: JigStore;
   private readonly notify: () => void;
-  private readonly ollama: OllamaDrafter;
+  private readonly ollama: OllamaLike;
   private readonly shop: AgentDrafter;
   // Finding 3: per-order de-dup (a draft already running for this id) and the global
   // model-call cap (MAX_CONCURRENT_MODEL_CALLS) — both instance-scoped, since one
