@@ -9,6 +9,7 @@ import { JigStore } from '../store.js';
 import { OrdersService } from '../orders/service.js';
 import { OllamaDrafter } from '../orders/drafters/ollama.js';
 import { FixtureStore } from '../fixtures/store.js';
+import { readShopHeartbeat } from './heartbeat.js';
 import { createJigMcpServer } from './server.js';
 
 /**
@@ -22,7 +23,21 @@ const tempDirs: string[] = [];
 
 afterEach(async () => {
   vi.restoreAllMocks();
-  await Promise.all(tempDirs.splice(0).map((d) => rm(d, { recursive: true, force: true })));
+  await Promise.all(
+    tempDirs.splice(0).map(async (d) => {
+      // Every test's own `client.close()` triggers the shop heartbeat's `stop()` (server.ts's
+      // `onclose`), but the MCP SDK's onclose hook is void-typed and called synchronously —
+      // nothing here awaits `stop()` finishing its `rm()` of `.jig/cache/shop.json`. Racing
+      // that delete against this recursive rm is what turns into Windows' ENOTEMPTY (CI
+      // run 34039471247, windows-latest): a directory entry can vanish or reappear between
+      // this rm's own readdir and its rmdir. Wait for the heartbeat to actually clear first;
+      // `maxRetries`/`retryDelay` below are the belt-and-suspenders net for whatever this
+      // wait doesn't catch (a test that threw before reaching `client.close()`, or a refresh
+      // write still landing).
+      await vi.waitFor(async () => expect(await readShopHeartbeat(d)).toBeNull(), { timeout: 2000 }).catch(() => {});
+      await rm(d, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
+    }),
+  );
 });
 
 const SURVEY: Survey = {

@@ -21,7 +21,10 @@ const tempDirs: string[] = [];
 
 afterEach(async () => {
   vi.restoreAllMocks();
-  await Promise.all(tempDirs.splice(0).map((d) => rm(d, { recursive: true, force: true })));
+  // maxRetries/retryDelay: a shop-heartbeat rm() racing this recursive delete under
+  // `.jig/cache/` is what turns into Windows' ENOTEMPTY (CI run 34039471247) — the same
+  // shape of test tree tools.test.ts hit it in; this is the defense-in-depth net.
+  await Promise.all(tempDirs.splice(0).map((d) => rm(d, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 })));
 });
 
 const SURVEY: Survey = {

@@ -67,8 +67,13 @@ export async function runMcpCommand(options: McpCommandOptions): Promise<void> {
   await new Promise<void>((resolve) => {
     const priorOnClose = mcpServer.server.onclose;
     mcpServer.server.onclose = () => {
-      priorOnClose?.();
-      resolve();
+      // `priorOnClose` (server.ts's handler) now returns the shop heartbeat's own stop()
+      // promise — awaiting it here (rather than firing and forgetting, as before) means this
+      // command's returned promise doesn't resolve until the heartbeat file is actually gone,
+      // so nothing downstream (a test's temp-dir cleanup, an agent re-launching `jigbench mcp`
+      // right after) can still see it or race its delete. `Promise.resolve` tolerates the
+      // `void`-typed case too, when `priorOnClose` is undefined.
+      Promise.resolve(priorOnClose?.()).finally(resolve);
     };
   });
   logger.info('jig mcp server closed', { repoRoot });
