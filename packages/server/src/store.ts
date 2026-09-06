@@ -60,6 +60,12 @@ export class JigStore {
   // report the active fixture without owning any fixture logic themselves.
   private activeFixtureName: string | null = null;
   private fixtureWiring: WiringStatus = 'none';
+  // --- S8 (toolpath): wiring bridge, same shape as the S7 fixture bridge above -----------
+  // Toolpath data/persistence lives entirely in packages/server/src/toolpath/store.ts (this
+  // store never imports it) — ToolpathStore calls this setter on init/create/scrap/restore
+  // so GET /api/state can report wiring.toolpath without owning any toolpath logic itself.
+  private toolpathWiring: WiringStatus = 'none';
+  // --- end S8 toolpath block --------------------------------------------------------------
 
   constructor(repoRoot: string) {
     this.repoRoot = repoRoot;
@@ -200,6 +206,11 @@ export class JigStore {
     this.fixtureWiring = status;
   }
   // --- end S7 fixtures bridge ----------------------------------------------------------
+  // --- S8 (toolpath): wiring setter, same shape as setFixtureWiring above ---------------
+  setToolpathWiring(status: WiringStatus): void {
+    this.toolpathWiring = status;
+  }
+  // --- end S8 toolpath bridge ------------------------------------------------------------
 
   getWiring(): Wiring {
     return {
@@ -208,7 +219,7 @@ export class JigStore {
       drafter: this.drafterWiring,
       shop: 'none',
       fixtures: this.fixtureWiring, // S7
-      toolpath: 'none',
+      toolpath: this.toolpathWiring, // S8
       sketch: 'none',
       docs: this.docsWired ? 'wired' : 'none',
     };

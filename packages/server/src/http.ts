@@ -17,6 +17,8 @@ import { OrderConflictError, OrderNotFoundError } from './orders/errors.js';
 import { FixtureStore } from './fixtures/store.js'; // S7
 import { attachFixturesRoute } from './fixtures/route.js'; // S7
 import { createFixtureInterceptor } from './fixtures/interceptor.js'; // S7
+import { ToolpathStore } from './toolpath/store.js'; // S8
+import { attachToolpathsRoute } from './toolpath/route.js'; // S8
 
 export interface CreateJigServerOptions {
   repoRoot: string;
@@ -59,6 +61,8 @@ export interface JigServerHandle {
   store: JigStore;
   /** S7 — the fixture data/lifecycle store; exposed for tests the same way `store` is. */
   fixtureStore: FixtureStore;
+  /** S8 — the toolpath data/lifecycle store; exposed for tests the same way `store` is. */
+  toolpathStore: ToolpathStore;
   benchServeMode: BenchServeMode;
   close(): Promise<void>;
 }
@@ -80,6 +84,7 @@ function buildApp(
   wss: WebSocketServer,
   options: CreateJigServerOptions,
   fixtureStore: FixtureStore, // S7
+  toolpathStore: ToolpathStore, // S8
 ): { app: Express; benchServeMode: BenchServeMode } {
   const app = express();
   app.use(express.json());
@@ -225,6 +230,8 @@ function buildApp(
 
   attachFixturesRoute(app, fixtureStore, () => store.getState().survey); // S7
 
+  attachToolpathsRoute(app, toolpathStore); // S8
+
   const benchServeMode = attachBenchServing(app, {
     benchDistDir: options.benchDistDir ?? defaultBenchDistDir(),
     benchDevServerUrl: options.benchDevServerUrl,
@@ -254,8 +261,13 @@ export async function createJigServer(options: CreateJigServerOptions): Promise<
   if (options.plate) options.plate.addInterceptor?.(createFixtureInterceptor(fixtureStore));
   // -----------------------------------------------------------------------------------------
 
+  // --- S8 (toolpath): construct + wire ------------------------------------------------------
+  const toolpathStore = new ToolpathStore(repoRoot, store); // store satisfies ToolpathWiringSink
+  await toolpathStore.init();
+  // -------------------------------------------------------------------------------------------
+
   const wss = new WebSocketServer({ noServer: true });
-  const { app, benchServeMode } = buildApp(store, wss, options, fixtureStore);
+  const { app, benchServeMode } = buildApp(store, wss, options, fixtureStore, toolpathStore);
   const httpServer: HttpServer = createHttpServer(app);
 
   httpServer.on('upgrade', (req: IncomingMessage, socket, head) => {
@@ -294,6 +306,7 @@ export async function createJigServer(options: CreateJigServerOptions): Promise<
     boundAddress,
     store,
     fixtureStore, // S7
+    toolpathStore, // S8
     benchServeMode,
     async close() {
       // wss was created with { noServer: true }, so close() alone won't drop connected
