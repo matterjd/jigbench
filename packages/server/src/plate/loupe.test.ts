@@ -191,4 +191,124 @@ describe('loupe.js', () => {
       expect(seen).toEqual([]);
     });
   });
+
+  // --- S7: jig:fill / jig:fill-probe (F10 — "the loupe fills forms by dispatching the input
+  // events Angular honours") -----------------------------------------------------------------
+  describe('jig:fill / jig:fill-probe (S7)', () => {
+    function postMessages(dom: JSDOM): unknown[] {
+      const posted: unknown[] = [];
+      dom.window.postMessage = ((message: unknown) => posted.push(message)) as typeof dom.window.postMessage;
+      return posted;
+    }
+
+    function send(dom: JSDOM, data: unknown): void {
+      dom.window.dispatchEvent(new dom.window.MessageEvent('message', { data, origin: BENCH_ORIGIN }));
+    }
+
+    /** The native-setter + dispatchEvent fill deliberately fires REAL bubbling input/change
+     * events (that's the whole point — Angular/React must see them) — which the loupe's own
+     * pre-existing hand-mode listeners (above, untouched by this block) also observe and
+     * report as `jig:event`. So `posted` legitimately carries those interleaved with the
+     * `jig:filled` reply; these tests pick the reply out rather than asserting the array is
+     * ONLY that one message. */
+    function filledMessage(posted: unknown[]): unknown {
+      return posted.find((m) => (m as { type?: string }).type === 'jig:filled');
+    }
+
+    it('jig:fill-probe with no formPath reports the page\'s first form\'s field names', () => {
+      const dom = loadLoupe(
+        '<form id="f1"><input name="customerId"><textarea name="notes"></textarea></form>',
+      );
+      const posted = postMessages(dom);
+      send(dom, { type: 'jig:fill-probe' });
+      expect(posted).toHaveLength(1);
+      const message = posted[0] as { type: string; names: string[] };
+      expect(message.type).toBe('jig:fill-fields');
+      expect(message.names.sort()).toEqual(['customerId', 'notes']);
+    });
+
+    it('jig:fill-probe scoped to a formPath resolves the NEAREST ancestor form of that element', () => {
+      const dom = loadLoupe(
+        '<form><input name="wrong"></form>' +
+          '<form id="target"><span id="anchor">pick me</span><input name="right"></form>',
+      );
+      const posted = postMessages(dom);
+      send(dom, { type: 'jig:fill-probe', formPath: '#anchor' });
+      const message = posted[0] as { type: string; names: string[] };
+      expect(message.names).toEqual(['right']);
+    });
+
+    it('jig:fill-probe reports null formPath and no names when no form exists at all', () => {
+      const dom = loadLoupe('<div>no forms here</div>');
+      const posted = postMessages(dom);
+      send(dom, { type: 'jig:fill-probe' });
+      expect(posted[0]).toMatchObject({ type: 'jig:fill-fields', formPath: null, names: [] });
+    });
+
+    it('sets an input value through the native setter and dispatches input+change (Angular/React both listen for these)', () => {
+      const dom = loadLoupe('<form><input name="customerId"></form>');
+      const input = dom.window.document.querySelector('input') as HTMLInputElement;
+      const seenEvents: string[] = [];
+      input.addEventListener('input', () => seenEvents.push('input'));
+      input.addEventListener('change', () => seenEvents.push('change'));
+
+      const posted = postMessages(dom);
+      send(dom, { type: 'jig:fill', fields: [{ name: 'customerId', value: 'cust-42' }] });
+
+      expect(input.value).toBe('cust-42');
+      expect(seenEvents).toEqual(['input', 'change']);
+      expect(filledMessage(posted)).toEqual({ type: 'jig:filled', filled: ['customerId'], missing: [] });
+    });
+
+    it('fills a textarea the same way', () => {
+      const dom = loadLoupe('<form><textarea name="notes"></textarea></form>');
+      const textarea = dom.window.document.querySelector('textarea') as HTMLTextAreaElement;
+      const posted = postMessages(dom);
+      send(dom, { type: 'jig:fill', fields: [{ name: 'notes', value: 'net 30' }] });
+      expect(textarea.value).toBe('net 30');
+      expect(filledMessage(posted)).toEqual({ type: 'jig:filled', filled: ['notes'], missing: [] });
+    });
+
+    it('selects a <select> option by value via selectedIndex', () => {
+      const dom = loadLoupe(
+        '<form><select name="status"><option value="draft">Draft</option><option value="sent">Sent</option></select></form>',
+      );
+      const select = dom.window.document.querySelector('select') as HTMLSelectElement;
+      const posted = postMessages(dom);
+      send(dom, { type: 'jig:fill', fields: [{ name: 'status', value: 'sent' }] });
+      expect(select.selectedIndex).toBe(1);
+      expect(select.value).toBe('sent');
+      expect(filledMessage(posted)).toEqual({ type: 'jig:filled', filled: ['status'], missing: [] });
+    });
+
+    it('checks a checkbox via .click() rather than setting .checked directly', () => {
+      const dom = loadLoupe('<form><input type="checkbox" name="active"></form>');
+      const checkbox = dom.window.document.querySelector('input') as HTMLInputElement;
+      let clicked = false;
+      checkbox.addEventListener('click', () => { clicked = true; });
+      const posted = postMessages(dom);
+      send(dom, { type: 'jig:fill', fields: [{ name: 'active', value: true }] });
+      expect(checkbox.checked).toBe(true);
+      expect(clicked).toBe(true);
+      expect(filledMessage(posted)).toEqual({ type: 'jig:filled', filled: ['active'], missing: [] });
+    });
+
+    it('a field with no matching element is reported as missing, not thrown', () => {
+      const dom = loadLoupe('<form><input name="customerId"></form>');
+      const posted = postMessages(dom);
+      expect(() =>
+        send(dom, { type: 'jig:fill', fields: [{ name: 'doesNotExist', value: 'x' }] }),
+      ).not.toThrow();
+      // no element matched, so no real DOM event fires — this one IS the only message posted.
+      expect(posted).toEqual([{ type: 'jig:filled', filled: [], missing: ['doesNotExist'] }]);
+    });
+
+    it('finds a field by selector when no name is given, and by DOM path as a last resort', () => {
+      const dom = loadLoupe('<form><input class="only-child" id="q"></form>');
+      const posted = postMessages(dom);
+      send(dom, { type: 'jig:fill', fields: [{ selector: '#q', value: 'by-selector' }] });
+      expect((dom.window.document.getElementById('q') as HTMLInputElement).value).toBe('by-selector');
+      expect(filledMessage(posted)).toEqual({ type: 'jig:filled', filled: ['#q'], missing: [] });
+    });
+  });
 });
