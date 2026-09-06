@@ -211,7 +211,11 @@ export function setElementGauge(id: string, slot: string, gaugeName: string): vo
   });
 }
 
-export function setElementText(id: string, patch: Partial<Pick<SketchElement, 'label' | 'content'>>): void {
+/** `label` is common to several kinds; `content` only exists on a `text` element — a plain
+ * object (rather than `Pick<SketchElement, ...>`, which only ever admits keys every member
+ * of the union shares) is what lets this one setter serve both without the caller having to
+ * narrow the kind first. */
+export function setElementText(id: string, patch: { label?: string; content?: string }): void {
   const sketch = state.activeSketch;
   if (!sketch) return;
   setState({
