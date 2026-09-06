@@ -13,3 +13,4 @@ export * from './paths.js';
 export * from './jsonschema.js';
 export * from './docs.js';
 export * from './rank.js';
+export * from './sketch.js'; // S9
