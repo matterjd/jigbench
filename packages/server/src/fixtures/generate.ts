@@ -19,7 +19,6 @@ import { JIG_FORMAT, slugify, type Endpoint, type Fixture, type Survey } from '@
 
 const REF_PREFIX = '#/schemas/';
 const LIST_SIZE = 8;
-const MAX_DEREF_DEPTH = 8;
 
 // --- seeding -------------------------------------------------------------------------------
 
@@ -53,16 +52,22 @@ function refTarget(node: unknown): string | undefined {
 /** Recursively resolves every `#/schemas/X` `$ref` against `schemas`. Never throws: an
  * unresolved ref falls back to a permissive `{ type: 'object' }` (a fixture that's slightly
  * wrong shape beats one that crashes fixture creation), and a self/mutual cycle bottoms out at
- * the same fallback once a ref is seen twice on one path, rather than recursing forever. */
+ * the same fallback once a ref name is seen TWICE on one $ref chain — `seen` tracks ref
+ * NAMES, not tree depth, which is the fix for a real bug this hit against the Ledger
+ * example's actual OpenAPI output: an earlier version capped by raw recursion depth instead,
+ * and a `type: ["integer", "string"]` array nested five-ish levels down (Invoice ->
+ * properties.lines -> items -> InvoiceLineDto -> properties.quantity -> type[]) tripped that
+ * cap and silently rewrote each element of the type array into `{ type: 'object' }` — jsf then
+ * threw "Unknown type: [object Object]" on a schema that was never actually cyclic. A bounded
+ * schema graph has finitely many distinct ref NAMES, so `seen` alone guarantees termination
+ * without needing (or wrongly limiting) ordinary structural nesting. */
 export function dereferenceSchema(
   node: unknown,
   schemas: Map<string, unknown>,
   seen: ReadonlySet<string> = new Set(),
-  depth = 0,
 ): unknown {
-  if (depth > MAX_DEREF_DEPTH) return { type: 'object' };
   if (Array.isArray(node)) {
-    return node.map((child) => dereferenceSchema(child, schemas, seen, depth + 1));
+    return node.map((child) => dereferenceSchema(child, schemas, seen));
   }
   if (node && typeof node === 'object') {
     const ref = refTarget(node);
@@ -70,11 +75,11 @@ export function dereferenceSchema(
       if (seen.has(ref)) return { type: 'object' };
       const target = schemas.get(ref);
       if (target === undefined) return { type: 'object' };
-      return dereferenceSchema(target, schemas, new Set(seen).add(ref), depth + 1);
+      return dereferenceSchema(target, schemas, new Set(seen).add(ref));
     }
     const out: Record<string, unknown> = {};
     for (const [key, value] of Object.entries(node as Record<string, unknown>)) {
-      out[key] = dereferenceSchema(value, schemas, seen, depth + 1);
+      out[key] = dereferenceSchema(value, schemas, seen);
     }
     return out;
   }

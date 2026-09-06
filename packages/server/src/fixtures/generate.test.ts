@@ -105,6 +105,46 @@ describe('dereferenceSchema', () => {
   it('falls back to a permissive object schema for an unresolved ref rather than throwing', () => {
     expect(dereferenceSchema({ $ref: '#/schemas/Missing' }, schemas)).toEqual({ type: 'object' });
   });
+
+  it('never throws on a MUTUAL two-schema cycle (A -> B -> A)', () => {
+    const mutual = new Map<string, unknown>([
+      ['A', { type: 'object', properties: { b: { $ref: '#/schemas/B' } } }],
+      ['B', { type: 'object', properties: { a: { $ref: '#/schemas/A' } } }],
+    ]);
+    expect(() => dereferenceSchema({ $ref: '#/schemas/A' }, mutual)).not.toThrow();
+  });
+
+  // Regression (found running the real fixture-smoke.sh against the Ledger example): an
+  // earlier version capped by raw TREE depth rather than by $ref-name cycles. A `type: [...]`
+  // array five-ish plain-object levels down from a single $ref hop (exactly this shape —
+  // Invoice -> lines -> items -> InvoiceLineDto -> quantity -> type[]) tripped that cap and
+  // silently replaced each element of the type array with `{ type: 'object' }`, which then
+  // made json-schema-faker throw "Unknown type: [object Object]" on a schema that was never
+  // actually cyclic — only ORDINARILY nested, the way real OpenAPI/.NET DTOs are.
+  it('does not corrupt a deeply-nested, non-cyclic type array (regression: the depth cap used to)', () => {
+    const deep = new Map<string, unknown>([
+      [
+        'Invoice',
+        {
+          type: 'object',
+          properties: { lines: { type: 'array', items: { $ref: '#/schemas/InvoiceLine' } } },
+        },
+      ],
+      [
+        'InvoiceLine',
+        {
+          type: 'object',
+          properties: {
+            quantity: { pattern: '^-?(?:0|[1-9]\\d*)$', type: ['integer', 'string'], format: 'int32' },
+          },
+        },
+      ],
+    ]);
+    const result = dereferenceSchema({ $ref: '#/schemas/Invoice' }, deep) as {
+      properties: { lines: { items: { properties: { quantity: { type: unknown } } } } };
+    };
+    expect(result.properties.lines.items.properties.quantity.type).toEqual(['integer', 'string']);
+  });
 });
 
 describe('generateFixture — determinism', () => {
