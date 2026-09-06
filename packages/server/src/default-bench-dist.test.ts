@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { mkdir, mkdtemp, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { defaultBenchDistDir } from './default-bench-dist.js';
 
@@ -24,7 +24,14 @@ describe('defaultBenchDistDir', () => {
   });
 
   it('falls back to ../../bench/dist when no sibling bench/ exists — the workspace layout', () => {
-    const root = 'C:\\fake-repo-root';
+    // A hardcoded 'C:\fake-repo-root' only reads as absolute on win32 — `path.join`/`join`
+    // on POSIX treat backslash as an ordinary filename character, so the whole literal
+    // becomes one relative segment and `pathToFileURL` resolves it against `process.cwd()`
+    // instead of failing loudly. `resolve('/', ...)` is absolute on every OS: '/fake-repo-root'
+    // on POSIX, and (win32's `resolve` anchors a rootless '/' segment to the current
+    // working directory's own drive) 'C:\fake-repo-root'-shaped on Windows — either way a
+    // real absolute path this test can round-trip through a file URL and back.
+    const root = resolve('/', 'fake-repo-root');
     // Mirrors packages/server/src/http.ts (also true, at the same relative depth, of the
     // built packages/server/dist/http.js) — two directories below the level that holds
     // packages/bench.
