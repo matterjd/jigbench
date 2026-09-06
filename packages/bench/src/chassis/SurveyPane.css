@@ -105,7 +105,9 @@
 }
 
 .jig-survey-pane__stub {
-  font: 700 10px/1 var(--mono);
+  /* 11px — floor item 3's under-11px rule (Logbook.css's own convention: stay AT the floor
+     rather than argue whether the dashed border counts as the required non-text signal). */
+  font: 700 11px/1 var(--mono);
   text-transform: uppercase;
   letter-spacing: 0.06em;
   color: var(--warn);
@@ -115,7 +117,9 @@
 }
 
 .jig-survey-pane__prov {
-  font: 10.5px/1.4 var(--mono);
+  /* 11px, not the design book's 10.5 provenance ramp value — same convention as
+     Logbook.css's `.jig-logbook__at`. */
+  font: 11px/1.4 var(--mono);
   color: var(--faint);
   margin: 0;
 }

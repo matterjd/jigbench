@@ -32,11 +32,19 @@ function drawRuler(canvas: HTMLCanvasElement | null, horizontal: boolean): void 
   const ctx = canvas.getContext('2d');
   if (!ctx) return;
 
+  // Design floor item 7: colours come from the token file, never a hand-rolled literal at
+  // the call site — canvas can't read `var(--line)` directly, so this reads the computed
+  // custom property instead of hardcoding a fallback hex. An empty read (no stylesheet
+  // loaded yet, or a non-browser test environment) leaves the 2D context's own default
+  // rather than substituting a literal.
   const cs = getComputedStyle(document.documentElement);
+  const line = cs.getPropertyValue('--line').trim();
+  const dim = cs.getPropertyValue('--dim').trim();
+  const mono = cs.getPropertyValue('--mono').trim();
   ctx.clearRect(0, 0, width, height);
-  ctx.strokeStyle = cs.getPropertyValue('--line').trim() || '#232b37';
-  ctx.fillStyle = cs.getPropertyValue('--dim').trim() || '#9aa3ad';
-  ctx.font = `11px ${cs.getPropertyValue('--mono').trim() || 'monospace'}`;
+  if (line) ctx.strokeStyle = line;
+  if (dim) ctx.fillStyle = dim;
+  ctx.font = `11px ${mono || 'monospace'}`;
   ctx.textBaseline = 'top';
 
   const len = horizontal ? width : height;
