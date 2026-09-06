@@ -227,6 +227,38 @@ describe('TrayRegion — marks: the tool is "mark" and a pick arrives', () => {
   });
 });
 
+describe('TrayRegion — jig:highlight: the plate outline is S4\'s, the path is ours to post', () => {
+  it('posts jig:highlight with the order-in-hand mark\'s DOM path once the plate is wired', () => {
+    const orders = [wo({ id: '0001', marks: ['m-0001'] })];
+    const marks = [
+      {
+        id: 'm-0001',
+        number: 1,
+        target: { path: 'body > app-invoice-list:nth-of-type(2)', component: 'InvoiceListComponent' },
+        prompt: 'flag overdue invoices',
+        createdAt: '2026-09-05T00:00:00.000Z',
+        workOrderId: '0001',
+      },
+    ];
+    const iframe = document.createElement('iframe');
+    document.body.appendChild(iframe);
+    const posted: unknown[] = [];
+    Object.defineProperty(iframe, 'contentWindow', { value: { postMessage: (msg: unknown) => posted.push(msg) } });
+    const iframeRef = { current: iframe };
+
+    render(<TrayRegion workOrders={orders} marks={marks} iframeRef={iframeRef} plateOrigin="http://localhost:4601" />);
+
+    expect(posted).toContainEqual({ type: 'jig:highlight', path: 'body > app-invoice-list:nth-of-type(2)' });
+    document.body.removeChild(iframe);
+  });
+
+  it('never posts when the plate is not wired (no plateOrigin, no iframeRef)', () => {
+    const orders = [wo({ id: '0001', marks: ['m-0001'] })];
+    // No throw, nothing to assert on postMessage — this just proves it degrades quietly.
+    expect(() => render(<TrayRegion workOrders={orders} />)).not.toThrow();
+  });
+});
+
 describe('design floor: ember is the one demand', () => {
   it('--ember appears exactly once in TrayRegion.css (the RELEASE control only)', () => {
     const css = readFileSync(join(HERE, 'TrayRegion.css'), 'utf8');

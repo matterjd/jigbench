@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useRef, useState, type FormEvent, type PointerEvent as ReactPointerEvent } from 'react';
-import type { LadderState, LogEntry, WorkOrder, WorkOrderHuman } from '@jigbench/core';
+import { useEffect, useMemo, useRef, useState, type FormEvent, type PointerEvent as ReactPointerEvent, type RefObject } from 'react';
+import type { LadderState, LogEntry, Mark, WorkOrder, WorkOrderHuman } from '@jigbench/core';
 import { LADDER_STATES } from '@jigbench/core';
 import { Ladder } from '../components/Ladder.js';
 import { Chip } from '../components/Chip.js';
@@ -21,6 +21,13 @@ export interface TrayRegionProps {
   /** The plate's last loupe pick, when the bench has one wired in (S4). Only acted on
    * while the current tool is `'mark'`. */
   lastPick?: TrayPick | null;
+  /** `JigState.marks` — used only to look up the order-in-hand's own mark, so its DOM
+   * path can be posted to the plate as `jig:highlight`. */
+  marks?: readonly Mark[];
+  /** The plate iframe + its origin (S3/S4), needed to post `jig:highlight`. Omit either
+   * and TrayRegion simply never posts — it never assumes the plate is wired. */
+  iframeRef?: RefObject<HTMLIFrameElement | null>;
+  plateOrigin?: string | null;
   fetchImpl?: typeof fetch;
   /** Injection point for tests — defaults to `Date.now`. */
   now?: () => number;
@@ -220,7 +227,7 @@ function HumanField({
   );
 }
 
-export function TrayRegion({ workOrders, lastPick, fetchImpl = fetch, now = Date.now }: TrayRegionProps) {
+export function TrayRegion({ workOrders, lastPick, marks, iframeRef, plateOrigin, fetchImpl = fetch, now = Date.now }: TrayRegionProps) {
   const { tool } = useTool();
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [expanded, setExpanded] = useState(false);
@@ -238,6 +245,15 @@ export function TrayRegion({ workOrders, lastPick, fetchImpl = fetch, now = Date
     }
     return workOrders.length > 0 ? workOrders[workOrders.length - 1] : undefined;
   }, [workOrders, selectedId]);
+
+  // The plate outline itself is S4's concern — this only posts WHICH path is in hand,
+  // whenever the order-in-hand (or its mark data) changes, so the plate can light it.
+  useEffect(() => {
+    if (!selected || !plateOrigin || !iframeRef?.current) return;
+    const mark = marks?.find((m) => selected.marks.includes(m.id));
+    if (!mark) return;
+    iframeRef.current.contentWindow?.postMessage({ type: 'jig:highlight', path: mark.target.path }, plateOrigin);
+  }, [selected, marks, plateOrigin, iframeRef]);
 
   // A live tick, only while some order is still waiting on a draft — Law III's "shows its
   // charge" needs a moving number, never a bare spinner, and only for a live process.
