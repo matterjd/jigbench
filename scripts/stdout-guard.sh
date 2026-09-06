@@ -32,7 +32,15 @@
 # At the real ~10s default heartbeat interval, a 0.3s hold never lets one fire at all, so nothing
 # about a normal green run changes.
 #
-# Usage: bash scripts/stdout-guard.sh   (run after `npm run build`)
+# `JIG_MCP_CMD` (S10): when set, this is the exact command to run instead of `node
+# packages/cli/dist/bin.js` — e.g. `JIG_MCP_CMD="npx --yes ./jigbench-0.1.0.tgz"` to run this
+# SAME purity/shape control against a packed release tarball in a clean directory (the S10
+# npx control), rather than the workspace's own tsc build. Word-split, so quote it as one
+# shell-parseable string; `mcp --repo "$TARGET_REPO"` is always appended after it.
+#
+# Usage:
+#   bash scripts/stdout-guard.sh                                    (run after `npm run build`)
+#   JIG_MCP_CMD="npx --yes ./jigbench-0.1.0.tgz" bash scripts/stdout-guard.sh   (npx control)
 
 set -uo pipefail
 
@@ -40,9 +48,15 @@ HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$HERE/.." && pwd)"
 BIN="$REPO_ROOT/packages/cli/dist/bin.js"
 
-if [ ! -f "$BIN" ]; then
-  echo "FAIL: $BIN does not exist — run 'npm run build' first." >&2
-  exit 1
+if [ -n "${JIG_MCP_CMD:-}" ]; then
+  # shellcheck disable=SC2206 -- deliberate word-splitting of a caller-supplied command string
+  MCP_CMD=(${JIG_MCP_CMD})
+else
+  if [ ! -f "$BIN" ]; then
+    echo "FAIL: $BIN does not exist — run 'npm run build' first." >&2
+    exit 1
+  fi
+  MCP_CMD=(node "$BIN")
 fi
 
 TARGET_REPO="$(mktemp -d)"
@@ -82,7 +96,7 @@ assert_json_rpc_line() {
 # the same bytes in real time for the two interactive reads below. `timeout 15` bounds the
 # whole child run (a cold start plus the hold below) — a real agent session stays connected
 # far longer than this; this timeout only bounds THIS script's own run.
-coproc MCP { set -o pipefail; timeout 15 node "$BIN" mcp --repo "$TARGET_REPO" 2>"$STDERR_FILE" | tee "$STDOUT_FILE"; }
+coproc MCP { set -o pipefail; timeout 15 "${MCP_CMD[@]}" mcp --repo "$TARGET_REPO" 2>"$STDERR_FILE" | tee "$STDOUT_FILE"; }
 
 printf '%s\n' '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-11-25","capabilities":{},"clientInfo":{"name":"stdout-guard","version":"1.0.0"}}}' >&"${MCP[1]}"
 
