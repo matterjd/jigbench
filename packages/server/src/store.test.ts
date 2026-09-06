@@ -11,6 +11,17 @@ const LEDGER_ANGULAR_SOURCE = fileURLToPath(
   new URL('../../../examples/ledger-angular', import.meta.url),
 );
 
+// A plain recursive `cp` of the example copies its `node_modules` too when a dev has run
+// `npm install` in there for a manual smoke — 352 packages, which alone blows past this
+// test's 20s budget on a cold copy. The survey adapter already skips exactly these
+// directories (packages/adapters/angular/src/{gauges,find-root}.ts's SKIP_DIRS) when
+// walking the tree; this test only ever reads the copy through `runSurveyAndWrite`, so
+// leaving them out changes nothing the assertions below can observe.
+const SKIP_COPY_DIRS = new Set(['node_modules', '.angular', 'dist', 'bin', 'obj']);
+function skipHeavyDirs(source: string): boolean {
+  return !source.split(/[\\/]/).some((segment) => SKIP_COPY_DIRS.has(segment));
+}
+
 async function freshRepo(): Promise<string> {
   return mkdtemp(join(tmpdir(), 'jig-store-'));
 }
@@ -168,7 +179,7 @@ describe('JigStore.reload / a fresh process picking the store back up', () => {
   it('GET /api/state carries the real survey once S2 wiring has run — not a hand-crafted stand-in (examples/ is read-only, so this runs against a throwaway copy)', async () => {
     const repoRoot = await mkdtemp(join(tmpdir(), 'jig-store-real-survey-'));
     try {
-      await cp(LEDGER_ANGULAR_SOURCE, repoRoot, { recursive: true });
+      await cp(LEDGER_ANGULAR_SOURCE, repoRoot, { recursive: true, filter: skipHeavyDirs });
       await runSurveyAndWrite(repoRoot);
 
       // A store constructed AFTER the survey ran, the way the real server boots against an

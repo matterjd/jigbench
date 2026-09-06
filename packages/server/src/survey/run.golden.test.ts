@@ -13,6 +13,16 @@ const LEDGER_ANGULAR_SOURCE = fileURLToPath(
   new URL('../../../../examples/ledger-angular', import.meta.url),
 );
 
+// See store.test.ts's identical guard: a plain recursive `cp` also copies the example's
+// `node_modules` when one exists locally (a dev's manual smoke), blowing past this test's
+// 20s budget. Skip exactly what the survey adapter itself already skips when walking the
+// tree (packages/adapters/angular/src/{gauges,find-root}.ts's SKIP_DIRS) — `runSurveyAndWrite`
+// never reads any of these, so the golden output is unaffected.
+const SKIP_COPY_DIRS = new Set(['node_modules', '.angular', 'dist', 'bin', 'obj']);
+function skipHeavyDirs(source: string): boolean {
+  return !source.split(/[\\/]/).some((segment) => SKIP_COPY_DIRS.has(segment));
+}
+
 // `generatedAt` and the discovered `appRoot` are both real, but neither is REPRODUCIBLE
 // (timestamp; a fresh temp-dir path every run) — normalized to fixed placeholders so the
 // rest of the merged survey's shape can still be pinned byte-exact. If you change the
@@ -34,7 +44,7 @@ async function surveyLedgerAngularCopy(): Promise<Survey> {
   // root it's given, so this always runs against a throwaway copy, never the tracked fixture.
   const dir = await mkdtemp(join(tmpdir(), 'jig-survey-golden-'));
   try {
-    await cp(LEDGER_ANGULAR_SOURCE, dir, { recursive: true });
+    await cp(LEDGER_ANGULAR_SOURCE, dir, { recursive: true, filter: skipHeavyDirs });
     const result = await runSurveyAndWrite(dir);
     return result.survey;
   } finally {
