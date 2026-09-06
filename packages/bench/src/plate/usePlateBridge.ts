@@ -45,6 +45,10 @@ export interface UsePlateBridgeResult {
   clearHighlight: () => void;
   /** Posts `jig:navigate` — the command palette's "routes" items. */
   navigate: (path: string) => void;
+  /** S8: posts an arbitrary `jig:*` message verbatim — the toolpath replayer sends
+   * `jig:click`/`jig:fill`/`jig:navigate` at its own pace rather than growing a bespoke
+   * bridge method per message shape the way `highlight`/`navigate` above do. */
+  post: (message: Record<string, unknown>) => void;
 }
 
 const MAX_EVENTS = 200;
@@ -117,5 +121,5 @@ export function usePlateBridge(
     [postToPlate],
   );
 
-  return { lastPick, events, mode, setMode, highlight, clearHighlight, navigate };
+  return { lastPick, events, mode, setMode, highlight, clearHighlight, navigate, post: postToPlate }; // S8: `post`
 }
