@@ -1,4 +1,12 @@
 .jig-properties {
+  /* Wave-4 fix (TEST-RUN.md's first live test, defects 1/3): this root used to have no
+     height of its own, so it grew to fit whichever tab's content was tallest (Gauges,
+     Survey) instead of being bounded by `.jig-chassis__properties`'s grid row — the tab
+     body's `overflow-y: auto` below never had a box to scroll IN, so long tabs spilled
+     straight out of the chassis and over the tray underneath it. `height: 100%` is the one
+     line that makes every `min-height: 0` in this chain (the chassis row, this element, the
+     pane below) actually mean something. */
+  height: 100%;
   position: relative;
   display: grid;
   grid-template-rows: 36px 1fr;
@@ -102,6 +110,30 @@
 
 .jig-properties__pane {
   min-height: 0;
-  overflow: auto;
+  overflow-y: auto;
+  overflow-x: hidden;
   padding: 12px;
+  /* A visible, thin, token-coloured scrollbar (defect 1: "we will need a scroll bar on
+     properties tabs" — Gauges/Survey overflow otherwise with no way to tell there is more
+     below the fold). Firefox: scrollbar-width/-color; Chromium/WebKit: the pseudo-elements
+     below. Both read the same two tokens so the two engines agree on it. */
+  scrollbar-width: thin;
+  scrollbar-color: var(--line) transparent;
+}
+
+.jig-properties__pane::-webkit-scrollbar {
+  width: 8px;
+}
+
+.jig-properties__pane::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.jig-properties__pane::-webkit-scrollbar-thumb {
+  background: var(--line);
+  border-radius: var(--r-pill);
+}
+
+.jig-properties__pane::-webkit-scrollbar-thumb:hover {
+  background: var(--dim);
 }

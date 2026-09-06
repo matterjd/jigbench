@@ -1,6 +1,11 @@
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import { dirname, join } from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { PropertiesColumn } from './PropertiesColumn.js';
+
+const HERE = dirname(fileURLToPath(import.meta.url));
 
 afterEach(cleanup);
 
@@ -171,5 +176,34 @@ describe('PropertiesColumn', () => {
     fireEvent.mouseMove(window, { clientX: 2000 }); // dragged far right -> would go far below min
     fireEvent.mouseUp(window);
     expect(region.style.width).toBe('240px'); // clamped to the minimum
+  });
+});
+
+// Wave-4 fix (TEST-RUN.md's first live test, defects 1 & 3): "we will need a scroll bar on
+// properties tabs. I can see the other props under gauges and survey" — the tab body never
+// had a bounded height to scroll IN, so long tabs (Gauges, Survey) spilled out of the chassis
+// and over the tray below. jsdom has no real grid/flex layout engine (getBoundingClientRect
+// reports 0s here), so — same as Chassis.test.tsx and TrayRegion.test.tsx's "design floor"
+// suite — this reads the actual rule out of PropertiesColumn.css.
+describe('PropertiesColumn — layout contract: the tab body scrolls, it never grows past its row', () => {
+  const css = readFileSync(join(HERE, 'PropertiesColumn.css'), 'utf8');
+
+  function ruleFor(selector: string): string {
+    const escaped = selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const match = css.match(new RegExp(`${escaped}\\s*\\{[^}]*\\}`));
+    if (!match) throw new Error(`no rule found for ${selector} in PropertiesColumn.css`);
+    return match[0];
+  }
+
+  it('the column root fills the height the chassis grid row gives it', () => {
+    expect(ruleFor('.jig-properties')).toMatch(/height:\s*100%/);
+  });
+
+  it('the tab body scrolls vertically with a visible, token-coloured scrollbar', () => {
+    const pane = ruleFor('.jig-properties__pane');
+    expect(pane).toMatch(/overflow-y:\s*auto/);
+    expect(pane).toMatch(/min-height:\s*0/);
+    expect(css).toMatch(/\.jig-properties__pane::-webkit-scrollbar\s*\{/);
+    expect(pane).toMatch(/scrollbar-color:\s*var\(--line\)/);
   });
 });

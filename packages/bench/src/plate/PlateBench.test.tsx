@@ -1,9 +1,14 @@
 // @vitest-environment jsdom
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import { dirname, join } from 'node:path';
 import { createRef } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { act, cleanup, render, screen, waitFor } from '@testing-library/react';
 import { PlateBench, type PlateBenchHandle } from './PlateBench.js';
 import type { Survey } from '@jigbench/core';
+
+const HERE = dirname(fileURLToPath(import.meta.url));
 
 afterEach(() => cleanup());
 
@@ -151,5 +156,13 @@ describe('PlateBench', () => {
 
       await waitFor(() => expect(screen.queryByText(/fixture ·/)).toBeNull());
     });
+  });
+
+  // Wave-4 fix: CHASSIS.md's "the plate never shrinks below a usable size (min ~560x400)" —
+  // matches Chassis.css's `grid-template-rows: minmax(400px, 1fr)`.
+  it('never shrinks its frame below the 400px usable floor', () => {
+    const css = readFileSync(join(HERE, 'PlateBench.css'), 'utf8');
+    const frameRule = css.match(/\.jig-plate-bench__frame\s*\{[^}]*\}/)![0];
+    expect(frameRule).toMatch(/min-height:\s*400px/);
   });
 });
