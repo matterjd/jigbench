@@ -226,6 +226,31 @@ function buildApp(
   });
   // === end S5 orders block ===
 
+  // === S8 (trial fit): the two ladder moves the shop drives ==============================
+  app.post('/api/work-orders/:id/claim', async (req, res, next) => {
+    try {
+      const by = typeof req.body?.by === 'string' && req.body.by.trim() ? req.body.by : undefined;
+      res.status(200).json(await orders.claim(req.params.id, by));
+    } catch (err) {
+      mapOrderError(err, res, next);
+    }
+  });
+
+  app.post('/api/work-orders/:id/report', async (req, res, next) => {
+    try {
+      const summary = String(req.body?.summary ?? '');
+      if (!summary.trim()) {
+        res.status(400).json({ error: 'summary is required' });
+        return;
+      }
+      const files = Array.isArray(req.body?.files) ? req.body.files.map(String) : undefined;
+      res.status(200).json(await orders.reportDone(req.params.id, { summary, files }));
+    } catch (err) {
+      mapOrderError(err, res, next);
+    }
+  });
+  // === end S8 block ===
+
   if (options.plate) attachPlateRoute(app, options.plate, () => store.getActiveFixture());
 
   attachFixturesRoute(app, fixtureStore, () => store.getState().survey); // S7

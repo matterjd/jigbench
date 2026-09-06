@@ -38,3 +38,13 @@ export type { PlateHeaderChange } from './plate/rewrite.js';
 
 export { logger } from './logger.js';
 export type { Logger, LogLevel } from './logger.js';
+
+// S8: OrdersService.reportDone/claim are the exact methods S6's `jig_report`/`jig_claim` MCP
+// tools call — exported here so the MCP layer never has to reimplement the ladder rules
+// `http.ts`'s own `/report`/`/claim` routes already delegate to.
+export { OrdersService } from './orders/service.js';
+export type { DrafterInfo, OrdersServiceOptions, PickInput } from './orders/service.js';
+export { OrderConflictError, OrderNotFoundError } from './orders/errors.js';
+
+export { ToolpathStore, ToolpathNotFoundError } from './toolpath/store.js';
+export type { CreateToolpathInput, ToolpathWiringSink, ToolpathWiringStatus } from './toolpath/store.js';
