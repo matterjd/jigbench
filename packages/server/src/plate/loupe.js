@@ -8,13 +8,54 @@
  * beyond the one Angular dev-mode hook it optionally uses.
  *
  * Contract with the bench (postMessage, both ways — target origin is `data-jig-bench` on
- * this script's own <script> tag):
- *   bench -> plate  {type:'jig:survey', selectors:[{selector,name,file}]}
- *   bench -> plate  {type:'jig:mode', mode:'hand'|'loupe'}
- *   bench -> plate  {type:'jig:highlight', paths:[...]}
- *   bench -> plate  {type:'jig:clear'}
- *   plate -> bench  {type:'jig:pick', path, tag, text, component, componentClass, file, rect}
- *   plate -> bench  {type:'jig:event', kind:'click'|'input', path, value}
+ * this script's own <script> tag). Integration seam 5 (jigbench wave-3 merge): S4 and S7
+ * each extended this file independently (S4: selector-based highlight + navigate; S7: form
+ * fill) — this table is the ONE place every `jig:*` message this script sends or receives is
+ * listed, so a future extension never has to go hunting through two delimited blocks to find
+ * out what already exists. Every message not named here — from either direction — is
+ * silently ignored (both `window.addEventListener('message', ...)` dispatchers below guard
+ * on `typeof data.type !== 'string'` and fall through their if/else-if chain with no default
+ * case that throws); `loupe.test.ts`'s "integration seam 5" suite asserts this directly.
+ *
+ * Inbound (bench -> plate):
+ *   {type:'jig:mode', mode:'hand'|'loupe'}
+ *     Switches loupe-mode hover/click interception on or off. Off (`'hand'`) also clears the
+ *     hover outline.
+ *   {type:'jig:survey', selectors:[{selector,name,file}]}
+ *     The survey's component selectors, used to resolve a hovered/picked element's owning
+ *     component (`describeElement`/`surveyedMatch`).
+ *   {type:'jig:highlight', paths:[...]} | {type:'jig:highlight', selectors:[...]} |
+ *   {type:'jig:highlight', path:'...'}
+ *     Outlines every element the message names. `selectors` (S4, CSS selectors, e.g. the
+ *     Gauges panel's two-way lighting) takes priority when present; otherwise `path`
+ *     (singular — the integrator's addition, one DOM path, e.g. TrayRegion's order-in-hand
+ *     mark) is folded into the same one-path array `paths` (the original shape, DOM paths
+ *     from `buildDomPath`) already accepts.
+ *   {type:'jig:clear'}
+ *     Removes every highlight box and the hover outline.
+ *   {type:'jig:navigate', path:'...'} (S4)
+ *     Same-origin `location.assign(path)` — refused (silently) for a cross-origin or
+ *     unparsable path; see `resolveNavigateUrl`.
+ *   {type:'jig:fill', formPath?, fields:[{selector?, name?, path?, value}]} (S7)
+ *     Fills each field via the native value setter + real `input`/`change` events (so
+ *     React/Angular's own reactivity observes it), scoped to the nearest `<form>` of
+ *     `formPath` when given, else the page's first form. Replies with `jig:filled`.
+ *   {type:'jig:fill-probe', formPath?} (S7)
+ *     Asks for a form's field `name`s without filling anything. Replies with
+ *     `jig:fill-fields`.
+ *
+ * Outbound (plate -> bench):
+ *   {type:'jig:pick', path, tag, text, component, componentClass, file, rect}
+ *     A loupe-mode click — the element's DOM path, tag, trimmed text, resolved
+ *     component/file (when the survey names one), and viewport rect.
+ *   {type:'jig:event', kind:'click'|'input', path, value}
+ *     A hand-mode click or input, mirrored to the bench's event log (`value` only for input).
+ *   {type:'jig:filled', filled:[...], missing:[...]} (S7)
+ *     Reply to `jig:fill` — which field labels (name/selector/path, whichever matched) were
+ *     set, and which had no matching element.
+ *   {type:'jig:fill-fields', formPath: string|null, names: string[]} (S7)
+ *     Reply to `jig:fill-probe` — the resolved form's DOM path (or `null` if none found) and
+ *     its field names.
  *
  * Law I.6 (never a spinner) doesn't apply here directly — but the sibling law it shares in
  * spirit does: this script never modifies the target's own DOM nodes. Every visual it draws

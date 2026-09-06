@@ -435,4 +435,39 @@ describe('loupe.js', () => {
       expect(filledMessage(posted)).toEqual({ type: 'jig:filled', filled: ['#q'], missing: [] });
     });
   });
+
+  describe('integration seam 5: one shared jig:* message table', () => {
+    it('an unknown jig:* message type is ignored by BOTH message dispatchers without throwing', () => {
+      const dom = loadLoupe('<p>hi</p>');
+      expect(() =>
+        dom.window.dispatchEvent(
+          new dom.window.MessageEvent('message', { data: { type: 'jig:not-a-real-message' }, origin: BENCH_ORIGIN }),
+        ),
+      ).not.toThrow();
+      // Silently ignored, not just non-throwing: no highlight/overlay/fill side effect fired.
+      expect(dom.window.document.querySelectorAll('[data-jig-loupe-highlight]')).toHaveLength(0);
+    });
+
+    it('a message with no type at all is ignored without throwing (both dispatchers guard on typeof data.type)', () => {
+      const dom = loadLoupe('<p>hi</p>');
+      expect(() =>
+        dom.window.dispatchEvent(new dom.window.MessageEvent('message', { data: { oops: true }, origin: BENCH_ORIGIN })),
+      ).not.toThrow();
+      expect(() =>
+        dom.window.dispatchEvent(new dom.window.MessageEvent('message', { data: null, origin: BENCH_ORIGIN })),
+      ).not.toThrow();
+    });
+
+    it('the file header documents every jig:* message this script sends or receives', () => {
+      const header = SOURCE.slice(0, SOURCE.indexOf('(function'));
+      // Inbound (bench -> plate)
+      for (const type of ['jig:mode', 'jig:highlight', 'jig:clear', 'jig:survey', 'jig:navigate', 'jig:fill', 'jig:fill-probe']) {
+        expect(header).toContain(type);
+      }
+      // Outbound (plate -> bench)
+      for (const type of ['jig:pick', 'jig:event', 'jig:filled', 'jig:fill-fields']) {
+        expect(header).toContain(type);
+      }
+    });
+  });
 });
