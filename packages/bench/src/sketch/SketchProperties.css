@@ -10,6 +10,26 @@
   font-size: 12.5px;
 }
 
+.jig-sketch-properties__palette {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.jig-sketch-properties__palette-btn {
+  font: 11px var(--mono);
+  color: var(--dim);
+  border: 1px solid var(--line);
+  border-radius: var(--r-micro);
+  padding: 6px 8px;
+  background: var(--bg1);
+}
+
+.jig-sketch-properties__palette-btn--active {
+  color: var(--ink);
+  background: var(--bg3);
+}
+
 .jig-sketch-properties__kv {
   display: grid;
   grid-template-columns: auto 1fr;

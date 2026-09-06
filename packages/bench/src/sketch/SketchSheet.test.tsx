@@ -120,6 +120,64 @@ describe('SketchSheet — click-to-add snaps to the grid', () => {
   });
 });
 
+describe('SketchSheet — save / printed', () => {
+  it('has no save affordance for a freshly-created (already-saved) sketch', async () => {
+    const created = { jigFormat: 1, id: '0001', name: 'S', createdAt: 'a', updatedAt: 'a', size: { w: 640, h: 480 }, elements: [], links: [] };
+    const { fetchImpl } = routedFetch({ 'GET /api/sketches': { sketches: [] }, 'POST /api/sketches': created });
+    render(<SketchSheet fetchImpl={fetchImpl} gauges={[]} />);
+    await screen.findByText(/no sketches yet/i);
+    fireEvent.change(screen.getByPlaceholderText(/name this sketch/i), { target: { value: 'S' } });
+    fireEvent.click(screen.getByRole('button', { name: /^new$/i }));
+    await screen.findByLabelText('sketch sheet');
+
+    expect(screen.queryByRole('button', { name: /^save$/i })).toBeNull();
+    expect(screen.queryByRole('button', { name: /^printed$/i })).toBeNull();
+  });
+
+  it('shows save + printed once an element is added, and save PUTs the draft', async () => {
+    const created = { jigFormat: 1, id: '0001', name: 'S', createdAt: 'a', updatedAt: 'a', size: { w: 640, h: 480 }, elements: [], links: [] };
+    const { fetchImpl, calls } = routedFetch({
+      'GET /api/sketches': { sketches: [] },
+      'POST /api/sketches': created,
+      'PUT /api/sketches/0001': (call) => ({ ...created, ...(call.body as object), updatedAt: 'later' }),
+    });
+    render(<SketchSheet fetchImpl={fetchImpl} gauges={[]} />);
+    await screen.findByText(/no sketches yet/i);
+    fireEvent.change(screen.getByPlaceholderText(/name this sketch/i), { target: { value: 'S' } });
+    fireEvent.click(screen.getByRole('button', { name: /^new$/i }));
+    const sheet = await screen.findByLabelText('sketch sheet');
+
+    fireEvent.click(sheet, { clientX: 0, clientY: 0 });
+    expect(await screen.findByRole('button', { name: /^save$/i })).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: /^save$/i }));
+
+    await waitFor(() => expect(calls.some((c) => c.method === 'PUT')).toBe(true));
+    const putCall = calls.find((c) => c.method === 'PUT')!;
+    expect((putCall.body as { elements: unknown[] }).elements).toHaveLength(1);
+    // Once saved, the draft matches the snapshot again -- no save/printed affordance left.
+    await waitFor(() => expect(screen.queryByRole('button', { name: /^save$/i })).toBeNull());
+  });
+
+  it('printed discards an unsaved add and hides itself again', async () => {
+    const created = { jigFormat: 1, id: '0001', name: 'S', createdAt: 'a', updatedAt: 'a', size: { w: 640, h: 480 }, elements: [], links: [] };
+    const { fetchImpl } = routedFetch({ 'GET /api/sketches': { sketches: [] }, 'POST /api/sketches': created });
+    render(<SketchSheet fetchImpl={fetchImpl} gauges={[]} />);
+    await screen.findByText(/no sketches yet/i);
+    fireEvent.change(screen.getByPlaceholderText(/name this sketch/i), { target: { value: 'S' } });
+    fireEvent.click(screen.getByRole('button', { name: /^new$/i }));
+    const sheet = await screen.findByLabelText('sketch sheet');
+
+    fireEvent.click(sheet, { clientX: 0, clientY: 0 });
+    await screen.findByTestId(/^sketch-element-/);
+
+    fireEvent.click(screen.getByRole('button', { name: /^printed$/i }));
+
+    expect(screen.queryByTestId(/^sketch-element-/)).toBeNull();
+    expect(screen.queryByRole('button', { name: /^printed$/i })).toBeNull();
+  });
+});
+
 describe('SketchSheet — Delete scraps the selected element', () => {
   it('removes the selected element from the sheet on Delete', async () => {
     const created = { jigFormat: 1, id: '0001', name: 'S', createdAt: 'a', updatedAt: 'a', size: { w: 640, h: 480 }, elements: [], links: [] };

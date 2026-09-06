@@ -10,8 +10,10 @@ import {
   newSketch,
   openSketch,
   loadSketches,
+  printed,
   resizeElement,
   restoreSketch,
+  save,
   scrapSelected,
   scrapSketch,
   selectElement,
@@ -208,6 +210,9 @@ export function SketchSheet({ gauges, fetchImpl = fetch }: SketchSheetProps) {
   const gridResult = { px: grid, fallbackUsed: resolveGridPx(gauges).fallbackUsed };
   const selected = sketch.elements.find((e) => e.id === state.selectedElementId) ?? null;
   const selectedRect = selected ? { x: selected.x, y: selected.y, width: selected.w, height: selected.h } : null;
+  // "every filtered or resized surface has one printed affordance" (design floor) — save and
+  // printed both appear ONLY once the draft has actually drifted from what is on disk.
+  const dirty = JSON.stringify(sketch) !== JSON.stringify(state.savedSketch);
 
   return (
     <div className="jig-sketch-sheet-panel">
@@ -215,6 +220,16 @@ export function SketchSheet({ gauges, fetchImpl = fetch }: SketchSheetProps) {
         <span>Sketch · {sketch.name}</span>
         <span className="jig-sketch-sheet-panel__faint">·</span>
         <span className="jig-sketch-sheet-panel__mono">.jig/sketches/{sketch.id}.json</span>
+        {dirty && (
+          <span className="jig-sketch-sheet-panel__actions">
+            <button type="button" onClick={() => void save(fetchImpl)}>
+              save
+            </button>
+            <button type="button" className="jig-sketch-sheet-panel__printed" onClick={() => printed()}>
+              printed
+            </button>
+          </span>
+        )}
       </div>
       <div className="jig-sketch-sheet-panel__surface">
         <PlateRulers cursor={null} />

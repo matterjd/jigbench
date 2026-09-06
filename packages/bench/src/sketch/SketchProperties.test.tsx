@@ -72,6 +72,27 @@ describe('SketchProperties — honest empty', () => {
   });
 });
 
+describe('SketchProperties — the palette', () => {
+  it('offers all six primitives and marks the current tool pressed', async () => {
+    const { getSketchWorkspaceState } = await import('./sketchWorkspace.js');
+    render(<SketchProperties gauges={GAUGES} activeSketch={fullSketch()} />);
+    for (const kind of ['box', 'text', 'button', 'input', 'image', 'list']) {
+      expect(screen.getByRole('button', { name: new RegExp(`^${kind}$`, 'i') })).toBeTruthy();
+    }
+    expect(screen.getByRole('button', { name: /^box$/i }).getAttribute('aria-pressed')).toBe('true');
+    expect(getSketchWorkspaceState().tool).toBe('box');
+  });
+
+  it('clicking a primitive switches the workspace\'s current tool', async () => {
+    const { getSketchWorkspaceState } = await import('./sketchWorkspace.js');
+    render(<SketchProperties gauges={GAUGES} activeSketch={fullSketch()} />);
+    fireEvent.click(screen.getByRole('button', { name: /^text$/i }));
+    expect(getSketchWorkspaceState().tool).toBe('text');
+    expect(screen.getByRole('button', { name: /^text$/i }).getAttribute('aria-pressed')).toBe('true');
+    expect(screen.getByRole('button', { name: /^box$/i }).getAttribute('aria-pressed')).toBe('false');
+  });
+});
+
 describe('SketchProperties — gauge pickers only offer surveyed gauges of the matching category', () => {
   it('offers only colour gauges for a box element\'s fill slot', () => {
     const sketch = fullSketch({

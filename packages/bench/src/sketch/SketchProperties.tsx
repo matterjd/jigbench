@@ -6,7 +6,9 @@ import {
   setElementLink,
   setElementGauge,
   setElementText,
+  setPaletteTool,
   useSketchWorkspace,
+  type PaletteTool,
 } from './sketchWorkspace.js';
 import './SketchProperties.css';
 
@@ -46,6 +48,8 @@ function slotsForKind(kind: SketchElement['kind']): string[] {
       return [];
   }
 }
+
+const PALETTE_TOOLS: readonly PaletteTool[] = ['box', 'text', 'button', 'input', 'image', 'list'];
 
 function GaugePicker({ slot, element, gauges }: { slot: string; element: SketchElement; gauges: readonly Gauge[] }) {
   const category = SLOT_CATEGORY[slot];
@@ -97,6 +101,22 @@ export function SketchProperties(props: SketchPropertiesProps) {
       {!activeSketch && loaded && sketches.length === 0 && <p className="jig-sketch-properties__empty">no sketches yet.</p>}
       {!activeSketch && sketches.length > 0 && (
         <p className="jig-sketch-properties__empty">pick a sketch on the plate to edit its elements.</p>
+      )}
+
+      {activeSketch && (
+        <div className="jig-sketch-properties__palette" role="group" aria-label="palette">
+          {PALETTE_TOOLS.map((kind) => (
+            <button
+              key={kind}
+              type="button"
+              aria-pressed={live.tool === kind}
+              className={'jig-sketch-properties__palette-btn' + (live.tool === kind ? ' jig-sketch-properties__palette-btn--active' : '')}
+              onClick={() => setPaletteTool(kind)}
+            >
+              {kind}
+            </button>
+          ))}
+        </div>
       )}
 
       {activeSketch && (
