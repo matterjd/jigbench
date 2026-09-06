@@ -98,6 +98,19 @@ export function attachBenchServing(app: Express, options: AttachBenchOptions): B
     if (req.path.startsWith('/api')) return next();
 
     if (mode === 'static') {
+      // A bench URL never legitimately contains a backslash. On win32, `path.resolve`/`join`
+      // treat `\` exactly like `/`, so `resolveWithinDist`'s containment check catches a
+      // `..\..\secret.txt` escape there — but on Linux a backslash is just an ordinary
+      // filename character, the traversal never happens, and the SPA fallback answers 200
+      // (no leak, but not the 4xx a Windows-shaped attack path should get everywhere). This
+      // rejects the raw byte and its percent-encoded form (case-insensitively) up front, so
+      // the same request is a 400 on every OS instead of depending on the host's own path
+      // semantics to decide it.
+      if (req.path.includes('\\') || /%5c/i.test(req.path)) {
+        res.status(400).setHeader('content-type', 'text/plain; charset=utf-8');
+        res.end('Bad Request');
+        return;
+      }
       const fallback = join(distRoot, 'index.html');
       const requested = req.path === '/' ? distRoot : resolveWithinDist(distRoot, req.path);
       if (requested === null) {
