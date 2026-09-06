@@ -1,4 +1,4 @@
-import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef } from 'react';
+import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, type RefObject } from 'react';
 import type { Gauge, Survey } from '@jigbench/core';
 import { Panel } from '../components/Panel.js';
 import { PlateFrame } from './PlateFrame.js';
@@ -22,6 +22,15 @@ export interface PlateBenchProps {
   /** Mirrors the bridge's mode up to the chassis (the rail reads it to know what to show as
    * active, and to decide whether to re-post `jig:mode` on its own tool changes). */
   onModeChange?: (mode: LoupeMode) => void;
+  /** External iframe ref (integrator seam — TrayRegion posts its own `jig:highlight` for the
+   * order-in-hand's mark path, alongside App's `plateRef.current?.highlight()` calls, so it
+   * needs the same iframe element). Falls back to an internally-created ref when omitted —
+   * every existing caller (and test) that never heard of this prop is unaffected. */
+  iframeRef?: RefObject<HTMLIFrameElement | null>;
+  /** Mirrors the bridge's resolved plate origin up to the chassis, the same way onPick/
+   * onModeChange do — TrayRegion needs it (alongside `iframeRef`) to post directly rather
+   * than through this component's imperative handle. */
+  onPlateOriginChange?: (origin: string | null) => void;
 }
 
 export interface PlateBenchHandle {
@@ -39,10 +48,11 @@ export interface PlateBenchHandle {
  * `usePlateBridge` postMessage wiring; the Loupe readout itself now lives in the Properties
  * column (`onPick`/`onModeChange` mirror the bridge's state up there). */
 export const PlateBench = forwardRef<PlateBenchHandle, PlateBenchProps>(function PlateBench(
-  { survey, gauges, fetchImpl, onPick, onModeChange },
+  { survey, gauges, fetchImpl, onPick, onModeChange, iframeRef: externalIframeRef, onPlateOriginChange },
   ref,
 ) {
-  const iframeRef = useRef<HTMLIFrameElement>(null);
+  const internalIframeRef = useRef<HTMLIFrameElement>(null);
+  const iframeRef = externalIframeRef ?? internalIframeRef;
   const status = usePlatePoll(fetchImpl);
   const plateOrigin = status.status === 'up' ? `http://localhost:${status.port}` : null;
 
@@ -76,6 +86,10 @@ export const PlateBench = forwardRef<PlateBenchHandle, PlateBenchProps>(function
   useEffect(() => {
     onModeChange?.(bridge.mode);
   }, [bridge.mode, onModeChange]);
+
+  useEffect(() => {
+    onPlateOriginChange?.(plateOrigin);
+  }, [plateOrigin, onPlateOriginChange]);
 
   return (
     <div className="jig-plate-bench">

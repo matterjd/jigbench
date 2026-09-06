@@ -367,9 +367,14 @@
       surveySelectors = Array.isArray(data.selectors) ? data.selectors : [];
     } else if (data.type === 'jig:highlight') {
       // S4 extension (see the delimited block above): selectors takes priority when both are
-      // present — a bench message names one or the other, never both on purpose.
+      // present — a bench message names one or the other, never both on purpose. `path`
+      // (singular) is the integrator's addition — S5's TrayRegion posts one DOM path for the
+      // order-in-hand's own mark (jigbench#wave3 integration seam), so it is folded into the
+      // same one-path array `paths` already accepts rather than growing a fourth shape.
       if (Array.isArray(data.selectors) && data.selectors.length > 0) {
         paintHighlightsBySelectors(data.selectors);
+      } else if (typeof data.path === 'string' && data.path) {
+        paintHighlights([data.path]);
       } else {
         paintHighlights(Array.isArray(data.paths) ? data.paths : []);
       }

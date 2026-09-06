@@ -29,6 +29,8 @@ export function App() {
   const { state, connected } = useJigState();
   const { tool, setTool } = useTool();
   const plateRef = useRef<PlateBenchHandle>(null);
+  const plateIframeRef = useRef<HTMLIFrameElement>(null);
+  const [plateOrigin, setPlateOrigin] = useState<string | null>(null);
   const [lastPick, setLastPick] = useState<PlatePick | null>(null);
   const [propertiesTab, setPropertiesTab] = useState<PropertiesTab>('loupe');
   const [docsCount, setDocsCount] = useState<number | undefined>(undefined);
@@ -76,7 +78,16 @@ export function App() {
     <>
       <Chassis
         rail={<Rail />}
-        plate={<PlateBench ref={plateRef} survey={survey} gauges={gauges} onPick={setLastPick} />}
+        plate={
+          <PlateBench
+            ref={plateRef}
+            survey={survey}
+            gauges={gauges}
+            onPick={setLastPick}
+            iframeRef={plateIframeRef}
+            onPlateOriginChange={setPlateOrigin}
+          />
+        }
         properties={
           <PropertiesColumn
             activeTab={propertiesTab}
@@ -108,7 +119,15 @@ export function App() {
             survey={<SurveyPane survey={survey} docsCount={docsCount} />}
           />
         }
-        tray={<TrayRegion />}
+        tray={
+          <TrayRegion
+            workOrders={state?.workOrders ?? []}
+            lastPick={lastPick}
+            marks={state?.marks}
+            iframeRef={plateIframeRef}
+            plateOrigin={plateOrigin}
+          />
+        }
         bottomBar={
           <>
             <SimStrip />
@@ -117,7 +136,7 @@ export function App() {
               bench socket: {connected ? 'open' : 'reconnecting'}
             </p>
             <Logbook entries={allLogEntries} />
-            <ShopLane />
+            <ShopLane workOrders={state?.workOrders ?? []} />
           </>
         }
       />

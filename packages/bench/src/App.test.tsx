@@ -72,12 +72,14 @@ describe('App', () => {
     expect(screen.getByRole('tab', { name: /Gauges/ })).toBeTruthy();
     expect(screen.getByRole('tab', { name: /Survey/ })).toBeTruthy();
 
-    // tray placeholder (S5 arrives later)
-    expect(screen.getByText('tray — work orders · arrives with S5')).toBeTruthy();
+    // tray: S5's real TrayRegion, mounted with the (empty) work-order list from state — the
+    // wave-3 merge replaced S4's "arrives with S5" placeholder with the real component.
+    expect(screen.getByText(/No marks yet\./)).toBeTruthy();
 
-    // bottom bar: SimStrip + shop lane placeholder
+    // bottom bar: SimStrip + S5's real ShopLane, also mounted with the (empty) work-order list.
     expect(screen.getByLabelText('sim: what is wired')).toBeTruthy();
-    expect(screen.getByText('the shop — connected agents · arrives with S5')).toBeTruthy();
+    expect(screen.getByLabelText('the shop — connected agents')).toBeTruthy();
+    expect(screen.getByText(/none connected/)).toBeTruthy();
   });
 
   it('the command palette opens on Ctrl+K and lists the rail\'s tools', () => {
