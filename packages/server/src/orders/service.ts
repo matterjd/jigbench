@@ -75,11 +75,52 @@ function fallbackMark(order: WorkOrder): Mark {
   };
 }
 
+// Finding 3 (wave-3 council, security medium): a bare counting semaphore bounding how many
+// model (Ollama) calls run at once — a mark flood (each `POST /api/marks` auto-drafts) used
+// to fan out one `/api/generate` call per mark with no cap at all. `acquire()` has no
+// `await` on its fast path, so two callers racing for the same free slot are decided
+// strictly by call order (whoever calls `acquire()` first, synchronously, wins it) — that
+// determinism is what `service.test.ts`'s concurrency-cap test relies on.
+class Semaphore {
+  private free: number;
+  private readonly queue: Array<() => void> = [];
+
+  constructor(concurrency: number) {
+    this.free = concurrency;
+  }
+
+  async acquire(): Promise<() => void> {
+    if (this.free > 0) {
+      this.free--;
+      return () => this.release();
+    }
+    return new Promise<() => void>((resolve) => {
+      this.queue.push(() => {
+        this.free--;
+        resolve(() => this.release());
+      });
+    });
+  }
+
+  private release(): void {
+    this.free++;
+    const next = this.queue.shift();
+    if (next) next();
+  }
+}
+
+const MAX_CONCURRENT_MODEL_CALLS = 2;
+
 export class OrdersService {
   private readonly store: JigStore;
   private readonly notify: () => void;
   private readonly ollama: OllamaDrafter;
   private readonly shop: AgentDrafter;
+  // Finding 3: per-order de-dup (a draft already running for this id) and the global
+  // model-call cap (MAX_CONCURRENT_MODEL_CALLS) — both instance-scoped, since one
+  // OrdersService instance is exactly one running server.
+  private readonly draftsInFlight = new Set<string>();
+  private readonly modelCallSemaphore = new Semaphore(MAX_CONCURRENT_MODEL_CALLS);
 
   constructor(opts: OrdersServiceOptions) {
     this.store = opts.store;
@@ -160,44 +201,68 @@ export class OrdersService {
     if (order.state !== 'marked') {
       throw new OrderConflictError(`work order ${id} is ${order.state}, not marked — cannot draft`);
     }
-
-    const mark = this.store.getMark(order.marks[0] ?? '') ?? fallbackMark(order);
-    const selection = await this.selectionFor();
-    this.store.setDrafterWiring(selection.driver === 'model' ? 'wired' : 'stub');
-
-    const survey = this.store.getState().survey;
-    const docsIndex = await this.loadDocsIndex();
-    // Widened context (survey + the optional S2b docs index) built as a typed variable,
-    // not an inline literal, so it stays assignable to the plain `DrafterContext` every
-    // `Drafter` declares — only `OllamaDrafter` actually reads `docsIndex`.
-    const context: OllamaDraftContext = { survey, docsIndex };
-    const started = Date.now();
+    // Finding 3 (wave-3 council, security medium): a second draftOrder call for an order
+    // that already has one running is a no-op returning the CURRENT (still `marked`)
+    // state, not a second model call. `http.ts`'s POST /draft route checks state
+    // synchronously before calling this, so two racing calls both pass that check before
+    // either persists — this is the guard that actually closes the race. Added to
+    // `draftsInFlight` synchronously (no `await` before this line), so a second call
+    // issued right after this one — even in the same microtask — still sees it.
+    if (this.draftsInFlight.has(id)) {
+      return order;
+    }
+    this.draftsInFlight.add(id);
 
     try {
-      const human: WorkOrderHuman = await selection.drafter.draft(mark, context);
-      const elapsedMs = Date.now() - started;
+      const mark = this.store.getMark(order.marks[0] ?? '') ?? fallbackMark(order);
+      const selection = await this.selectionFor();
+      this.store.setDrafterWiring(selection.driver === 'model' ? 'wired' : 'stub');
 
-      const draftedLog = { at: this.now(), actor: selection.driver, event: selection.driver === 'shop' ? 'queued-to-shop' : 'drafted', ref: id, note: costNote(selection, elapsedMs) };
-      const next: WorkOrder = {
-        ...order,
-        human: { ...order.human, ...human },
-        draftedBy: selection.driver,
-        log: [...order.log, draftedLog],
-      };
+      const survey = this.store.getState().survey;
+      const docsIndex = await this.loadDocsIndex();
+      // Widened context (survey + the optional S2b docs index) built as a typed variable,
+      // not an inline literal, so it stays assignable to the plain `DrafterContext` every
+      // `Drafter` declares — only `OllamaDrafter` actually reads `docsIndex`.
+      const context: OllamaDraftContext = { survey, docsIndex };
 
-      if (selection.driver !== 'shop') {
-        const nextState = transition(order.state, 'draft');
-        if (nextState) next.state = nextState;
+      // Finding 3: only real model calls are throttled — shop/person drafting never hits
+      // an external service, so neither one ever waits on this semaphore. Acquired BEFORE
+      // `started` so queue wait time is never counted in the measured `elapsedMs` badge
+      // (EXECUTION-PLAN.md §4 S5: "always the measured elapsedMs, never a guess" — that
+      // means the model's own cost, not this service's scheduling overhead).
+      const releaseModelSlot = selection.driver === 'model' ? await this.modelCallSemaphore.acquire() : undefined;
+      const started = Date.now();
+
+      try {
+        const human: WorkOrderHuman = await selection.drafter.draft(mark, context);
+        const elapsedMs = Date.now() - started;
+
+        const draftedLog = { at: this.now(), actor: selection.driver, event: selection.driver === 'shop' ? 'queued-to-shop' : 'drafted', ref: id, note: costNote(selection, elapsedMs) };
+        const next: WorkOrder = {
+          ...order,
+          human: { ...order.human, ...human },
+          draftedBy: selection.driver,
+          log: [...order.log, draftedLog],
+        };
+
+        if (selection.driver !== 'shop') {
+          const nextState = transition(order.state, 'draft');
+          if (nextState) next.state = nextState;
+        }
+
+        return await this.persist(next);
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        const failed: WorkOrder = {
+          ...order,
+          log: [...order.log, { at: this.now(), actor: 'model', event: 'draft-failed', ref: id, note: message }],
+        };
+        return await this.persist(failed);
+      } finally {
+        releaseModelSlot?.();
       }
-
-      return await this.persist(next);
-    } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      const failed: WorkOrder = {
-        ...order,
-        log: [...order.log, { at: this.now(), actor: 'model', event: 'draft-failed', ref: id, note: message }],
-      };
-      return await this.persist(failed);
+    } finally {
+      this.draftsInFlight.delete(id);
     }
   }
 

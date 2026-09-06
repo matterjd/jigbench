@@ -21,6 +21,14 @@ export interface OllamaDrafterOptions {
    * measured facts — long enough for a loopback round trip, short enough that a dead
    * Ollama never stalls the drafter-selection order. */
   availabilityTimeoutMs?: number;
+  /** Budget for a real `/api/generate` call (`draftWithMeta`/`rewrite`) — unlike
+   * `available()`'s probe this can legitimately take tens of seconds (commission: ~5s
+   * warm, ~37s cold-load), so the default is generous. Without SOME bound a wedged
+   * Ollama process hangs `draftOrder` forever (finding 3, wave-3 council). On expiry the
+   * call rejects with a clear "timed out" Error — `draftOrder`'s existing catch already
+   * logs any draft failure and leaves the order `marked`, so a timeout needs no separate
+   * handling there. */
+  draftTimeoutMs?: number;
 }
 
 /** `DrafterContext` plus the S2b docs index, when one is clamped — `docsIndex` is
@@ -38,6 +46,7 @@ export interface OllamaDraftResult {
 const DEFAULT_BASE_URL = 'http://127.0.0.1:11434';
 const DEFAULT_MODEL = 'qwen2.5-coder:7b';
 const DEFAULT_AVAILABILITY_TIMEOUT_MS = 800;
+const DEFAULT_DRAFT_TIMEOUT_MS = 90_000;
 const DOCS_WORD_BUDGET = 600;
 
 const HUMAN_FACE_JSON_SCHEMA = z.toJSONSchema(WorkOrderHumanSchema);
@@ -76,6 +85,7 @@ function relatedEndpointsAndSchemas(survey: Survey, nouns: readonly string[]): {
 
 export class OllamaDrafter implements Drafter {
   readonly model: string;
+  readonly draftTimeoutMs: number;
   private readonly baseUrl: string;
   private readonly fetchImpl: typeof fetch;
   private readonly availabilityTimeoutMs: number;
@@ -85,6 +95,35 @@ export class OllamaDrafter implements Drafter {
     this.model = opts.model ?? DEFAULT_MODEL;
     this.fetchImpl = opts.fetchImpl ?? fetch;
     this.availabilityTimeoutMs = opts.availabilityTimeoutMs ?? DEFAULT_AVAILABILITY_TIMEOUT_MS;
+    this.draftTimeoutMs = opts.draftTimeoutMs ?? DEFAULT_DRAFT_TIMEOUT_MS;
+  }
+
+  /** Shared `/api/generate` caller for `draftWithMeta` and `rewrite` — both are real model
+   * calls that can legitimately take a while, and both used to have no bound at all
+   * (finding 3). An abort on timeout is re-thrown as a plain, clearly-worded Error rather
+   * than surfacing fetch's generic `AbortError` — the message is what ends up in the
+   * order's `draft-failed` log entry (`service.ts`'s `draftOrder` catch). */
+  private async generate(body: Record<string, unknown>): Promise<{ response?: string }> {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), this.draftTimeoutMs);
+    let res: Response;
+    try {
+      res = await this.fetchImpl(`${this.baseUrl}/api/generate`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(body),
+        signal: controller.signal,
+      });
+    } catch (err) {
+      if (controller.signal.aborted) {
+        throw new Error(`ollama /api/generate timed out after ${this.draftTimeoutMs}ms`);
+      }
+      throw err;
+    } finally {
+      clearTimeout(timer);
+    }
+    if (!res.ok) throw new Error(`ollama /api/generate responded ${res.status}`);
+    return (await res.json()) as { response?: string };
   }
 
   /** `GET /api/tags` — never throws. Any failure (refused connection, timeout, a non-2xx
@@ -161,15 +200,7 @@ export class OllamaDrafter implements Drafter {
     const prompt = this.buildPrompt(mark, context.survey, docsContext);
 
     const started = Date.now();
-    const res = await this.fetchImpl(`${this.baseUrl}/api/generate`, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ model: this.model, prompt, format: HUMAN_FACE_JSON_SCHEMA, stream: false }),
-    });
-    if (!res.ok) {
-      throw new Error(`ollama /api/generate responded ${res.status}`);
-    }
-    const body = (await res.json()) as { response?: string };
+    const body = await this.generate({ model: this.model, prompt, format: HUMAN_FACE_JSON_SCHEMA, stream: false });
     const elapsedMs = Date.now() - started;
 
     let parsed: unknown;
@@ -187,13 +218,7 @@ export class OllamaDrafter implements Drafter {
    * is responsible for treating the result as advisory (it may return prose the caller
    * chooses not to use). */
   async rewrite(text: string, instruction: string): Promise<string> {
-    const res = await this.fetchImpl(`${this.baseUrl}/api/generate`, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ model: this.model, prompt: `${instruction}\n\n${text}`, stream: false }),
-    });
-    if (!res.ok) throw new Error(`ollama /api/generate responded ${res.status}`);
-    const body = (await res.json()) as { response?: string };
+    const body = await this.generate({ model: this.model, prompt: `${instruction}\n\n${text}`, stream: false });
     return (body.response ?? '').trim();
   }
 }

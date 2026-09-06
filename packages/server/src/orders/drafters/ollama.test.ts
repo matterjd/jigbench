@@ -162,4 +162,24 @@ describe('OllamaDrafter.draft', () => {
     expect(result.model).toBe('qwen2.5-coder:7b');
     expect(result.elapsedMs).toBeGreaterThanOrEqual(0);
   });
+
+  // Finding 3 (wave-3 council, security medium): /api/generate carried no timeout at all —
+  // a wedged Ollama process would hang draftOrder (and, through it, the whole auto-draft
+  // path) forever. Same abort-signal pattern `available()`'s own timeout test above uses.
+  it('times out at the configured budget rather than hanging forever', async () => {
+    const slow = vi.fn(
+      (_url: string, init?: RequestInit) =>
+        new Promise((_resolve, reject) => {
+          init?.signal?.addEventListener('abort', () => reject(new Error('aborted')));
+        }),
+    ) as unknown as typeof fetch;
+    const drafter = new OllamaDrafter({ fetchImpl: slow, draftTimeoutMs: 20 });
+
+    await expect(drafter.draft(mark(), { survey: survey() })).rejects.toThrow(/timed out/i);
+  }, 2000);
+
+  it('defaults draftTimeoutMs to 90 seconds when not configured', () => {
+    const drafter = new OllamaDrafter();
+    expect(drafter.draftTimeoutMs).toBe(90_000);
+  });
 });

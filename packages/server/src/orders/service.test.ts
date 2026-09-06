@@ -122,6 +122,106 @@ describe('OrdersService.createMark + draftOrder — the auto-draft flow', () => 
   });
 });
 
+// Finding 3 (wave-3 council, security medium): auto-draft had no de-dup and no concurrency
+// cap — a second draftOrder call on an order already drafting fired a second model call,
+// and nothing bounded how many /api/generate calls could be in flight at once (a mark flood
+// fanned out unbounded). Both use a mocked `drafter.draft` that never resolves on its own,
+// so the test controls exactly when each call completes.
+describe('OrdersService.draftOrder — de-dup and concurrency cap (finding 3)', () => {
+  function controllableDrafter(): {
+    drafter: OllamaDrafter;
+    draftSpy: ReturnType<typeof vi.spyOn>;
+    releases: Array<() => void>;
+    inFlight: () => number;
+    maxInFlight: () => number;
+  } {
+    const drafter = new OllamaDrafter({ model: 'qwen2.5-coder:7b' });
+    vi.spyOn(drafter, 'available').mockResolvedValue(true);
+    vi.spyOn(drafter, 'rewrite').mockResolvedValue('');
+    let inFlight = 0;
+    let maxInFlight = 0;
+    const releases: Array<() => void> = [];
+    const draftSpy = vi.spyOn(drafter, 'draft').mockImplementation(() => {
+      inFlight++;
+      maxInFlight = Math.max(maxInFlight, inFlight);
+      return new Promise((resolve) => {
+        releases.push(() => {
+          inFlight--;
+          resolve({ what: 'x', why: '', where: '', acceptance: [] } as never);
+        });
+      });
+    });
+    return { drafter, draftSpy, releases, inFlight: () => inFlight, maxInFlight: () => maxInFlight };
+  }
+
+  // A fixed real-timer yield (never `vi.waitFor` polling a condition that is already
+  // trivially true) — a prior version of the concurrency test below used `vi.waitFor`
+  // inside a hand-rolled `while` loop whose exit condition and poll condition could BOTH
+  // stay satisfied without the production code making any progress; since a successful
+  // `vi.waitFor` check resolves via a bare microtask, that combination re-enqueued
+  // microtasks faster than Node could ever service a macrotask (a real timer, a queued fs
+  // completion, even vitest's own per-test timeout) — a genuine event-loop-starving hang
+  // that pegged a CPU core for minutes with zero output. A real `setTimeout` always yields
+  // to the macrotask queue, so it cannot repeat that failure mode.
+  function tick(ms = 100): Promise<void> {
+    return new Promise((resolve) => setTimeout(resolve, ms));
+  }
+
+  it('a second draftOrder call on an order already drafting is a no-op returning the current state', async () => {
+    const store = await freshStore();
+    const { drafter, draftSpy, releases } = controllableDrafter();
+    const service = new OrdersService({ store, ollama: drafter });
+    const { workOrder } = await store.createMarkAndWorkOrder({ target: { path: 'x' }, prompt: 'x' });
+
+    const first = service.draftOrder(workOrder.id); // starts, never resolves until released
+    const second = await service.draftOrder(workOrder.id); // de-dup no-op, NOT a race — resolves
+    // via a bare microtask (no real work), so it settles before `first` has necessarily
+    // reached its own real fs work (loadDocsIndex) and the mocked draft() beyond it.
+
+    expect(second.state).toBe('marked'); // the in-flight draft hasn't landed yet
+
+    await tick(); // give `first` a real macrotask turn to actually reach draft()
+    expect(draftSpy).toHaveBeenCalledTimes(1); // only ONE real call ever happened — from `first`
+
+    releases[0]?.();
+    const settled = await first;
+    expect(settled.state).toBe('drafted');
+  });
+
+  it(
+    'caps concurrent model calls at 2 — extra draft requests queue rather than firing at once',
+    async () => {
+      const store = await freshStore();
+      const { drafter, draftSpy, releases, inFlight, maxInFlight } = controllableDrafter();
+      const service = new OrdersService({ store, ollama: drafter });
+
+      for (let i = 0; i < 5; i++) {
+        await service.createMark({ pick: { path: `x${i}` }, prompt: `x${i}` }); // fires draftOrder in the background
+      }
+
+      await tick(); // let the 5 background auto-drafts reach (or queue behind) the semaphore
+      expect(draftSpy).toHaveBeenCalledTimes(2); // only 2 ever reached draft(); 3 are queued
+      expect(inFlight()).toBe(2);
+
+      // Release one at a time. Each release should free exactly one slot, immediately
+      // backfilled by a queued order — the cap must hold at every step, not just at the end.
+      for (const expectedCalls of [3, 4, 5]) {
+        releases.shift()!();
+        await tick();
+        expect(draftSpy).toHaveBeenCalledTimes(expectedCalls);
+        expect(inFlight()).toBeLessThanOrEqual(2);
+      }
+      expect(maxInFlight()).toBeLessThanOrEqual(2); // never exceeded, at any point in the run
+
+      // drain what's left so nothing leaks past this test
+      releases.shift()?.();
+      releases.shift()?.();
+      await tick(20);
+    },
+    10_000,
+  );
+});
+
 describe('OrdersService.editHumanFace', () => {
   it('patches the human face while marked or drafted', async () => {
     const store = await freshStore();
