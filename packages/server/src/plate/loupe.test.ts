@@ -436,6 +436,95 @@ describe('loupe.js', () => {
     });
   });
 
+  // --- S8: jig:click / jig:snapshot (toolpath replay + the trial-fit mirror's "before" frame) ---
+  describe('jig:click (S8 — toolpath replay dispatches a real click and replies)', () => {
+    function postMessages(dom: JSDOM): unknown[] {
+      const posted: unknown[] = [];
+      dom.window.postMessage = ((message: unknown) => posted.push(message)) as typeof dom.window.postMessage;
+      return posted;
+    }
+
+    function send(dom: JSDOM, data: unknown): void {
+      dom.window.dispatchEvent(new dom.window.MessageEvent('message', { data, origin: BENCH_ORIGIN }));
+    }
+
+    it('dispatches a real click on the element at the given DOM path and replies jig:clicked {path, ok: true}', () => {
+      const dom = loadLoupe('<button id="target">go</button>');
+      const target = dom.window.document.getElementById('target')!;
+      let clicked = false;
+      target.addEventListener('click', () => {
+        clicked = true;
+      });
+      const path = internalOf(dom).buildDomPath(target);
+      const posted = postMessages(dom);
+
+      send(dom, { type: 'jig:click', path });
+
+      expect(clicked).toBe(true);
+      expect(posted).toContainEqual({ type: 'jig:clicked', path, ok: true });
+    });
+
+    it('replies jig:clicked {ok: false} for a path that resolves to nothing, without throwing', () => {
+      const dom = loadLoupe('<p>hi</p>');
+      const posted = postMessages(dom);
+      expect(() => send(dom, { type: 'jig:click', path: '#does-not-exist' })).not.toThrow();
+      expect(posted).toContainEqual({ type: 'jig:clicked', path: '#does-not-exist', ok: false });
+    });
+
+    it('a click dispatched via jig:click still triggers Angular routerLink-style navigation (unlike a loupe-mode pick)', () => {
+      const dom = loadLoupe('<a id="target" href="/invoices/1">row</a>');
+      const target = dom.window.document.getElementById('target')!;
+      let ownFired = false;
+      target.addEventListener('click', () => {
+        ownFired = true;
+      });
+      // hand mode (the default) — jig:click must behave like a genuine user click, never the
+      // loupe-mode interception that stops an app's own handler from running.
+      send(dom, { type: 'jig:click', path: '#target' });
+      expect(ownFired).toBe(true);
+    });
+  });
+
+  describe('jig:snapshot (S8 — the trial-fit mirror\'s "before" frame)', () => {
+    function postMessages(dom: JSDOM): unknown[] {
+      const posted: unknown[] = [];
+      dom.window.postMessage = ((message: unknown) => posted.push(message)) as typeof dom.window.postMessage;
+      return posted;
+    }
+
+    function send(dom: JSDOM, data: unknown): void {
+      dom.window.dispatchEvent(new dom.window.MessageEvent('message', { data, origin: BENCH_ORIGIN }));
+    }
+
+    it('replies jig:snapshotted with the full document HTML, scripts stripped', () => {
+      const dom = loadLoupe('<p id="keep">hello</p><script>window.evil = true;</script>');
+      const posted = postMessages(dom);
+      send(dom, { type: 'jig:snapshot' });
+      const reply = posted.find((m) => (m as { type?: string }).type === 'jig:snapshotted') as { html: string } | undefined;
+      expect(reply).toBeDefined();
+      expect(reply!.html).toContain('id="keep"');
+      // The loupe's own injected <script data-jig-bench> tag lives in this same document —
+      // proving zero <script> tags survive is a stronger assertion than just checking for
+      // the one inline script this test added.
+      expect(reply!.html).not.toMatch(/<script/i);
+    });
+
+    it('adds a <base href> pointing at the page\'s own URL, so relative asset/link URLs resolve when served standalone', () => {
+      const dom = loadLoupe('<p>hi</p>');
+      const posted = postMessages(dom);
+      send(dom, { type: 'jig:snapshot' });
+      const reply = posted.find((m) => (m as { type?: string }).type === 'jig:snapshotted') as { html: string };
+      expect(reply.html).toContain('<base href="http://target.example/"');
+    });
+
+    it('never modifies the live document — the snapshot is a clone', () => {
+      const dom = loadLoupe('<p id="keep">hello</p>');
+      const before = dom.window.document.documentElement.outerHTML;
+      send(dom, { type: 'jig:snapshot' });
+      expect(dom.window.document.documentElement.outerHTML).toBe(before);
+    });
+  });
+
   describe('integration seam 5: one shared jig:* message table', () => {
     it('an unknown jig:* message type is ignored by BOTH message dispatchers without throwing', () => {
       const dom = loadLoupe('<p>hi</p>');
@@ -461,11 +550,21 @@ describe('loupe.js', () => {
     it('the file header documents every jig:* message this script sends or receives', () => {
       const header = SOURCE.slice(0, SOURCE.indexOf('(function'));
       // Inbound (bench -> plate)
-      for (const type of ['jig:mode', 'jig:highlight', 'jig:clear', 'jig:survey', 'jig:navigate', 'jig:fill', 'jig:fill-probe']) {
+      for (const type of [
+        'jig:mode',
+        'jig:highlight',
+        'jig:clear',
+        'jig:survey',
+        'jig:navigate',
+        'jig:fill',
+        'jig:fill-probe',
+        'jig:click',
+        'jig:snapshot',
+      ]) {
         expect(header).toContain(type);
       }
       // Outbound (plate -> bench)
-      for (const type of ['jig:pick', 'jig:event', 'jig:filled', 'jig:fill-fields']) {
+      for (const type of ['jig:pick', 'jig:event', 'jig:filled', 'jig:fill-fields', 'jig:clicked', 'jig:snapshotted']) {
         expect(header).toContain(type);
       }
     });
