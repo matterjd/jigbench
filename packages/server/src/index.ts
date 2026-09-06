@@ -48,3 +48,14 @@ export { OrderConflictError, OrderNotFoundError } from './orders/errors.js';
 
 export { ToolpathStore, ToolpathNotFoundError } from './toolpath/store.js';
 export type { CreateToolpathInput, ToolpathWiringSink, ToolpathWiringStatus } from './toolpath/store.js';
+
+// S6: the MCP stdio server — `packages/cli/src/commands/mcp.ts` is the only external
+// caller, wiring these onto the same JigStore/OrdersService/FixtureStore the CLI's other
+// commands (and, in `jigbench` with no subcommand, the bench server) already construct.
+export { createJigMcpServer, formatClientLabel } from './mcp/server.js';
+export type { CreateJigMcpServerOptions } from './mcp/server.js';
+
+// S7 (fixtures) — exported here for the same reason: `jigbench mcp` constructs its own
+// FixtureStore (jig_fixture reads it) the same way `createJigServer` already does.
+export { FixtureStore, FixtureNameConflictError, FixtureNotFoundError, FixtureScrappedError } from './fixtures/store.js';
+export type { CreateFixtureInput, FixtureWiringSink, FixtureWiringStatus } from './fixtures/store.js';

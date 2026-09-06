@@ -5,6 +5,7 @@ import { runInitCommand } from './commands/init.js';
 import { runSurveyCommand } from './commands/survey.js';
 import { runClampCommand } from './commands/clamp.js';
 import { runMcpCommand } from './commands/mcp.js';
+import { runMcpInstallCommand } from './commands/mcp-install.js';
 import { printHuman, printSummary } from './human-output.js';
 import { logger } from '@jigbench/server';
 
@@ -93,7 +94,7 @@ program
     }
   });
 
-program
+const mcpCommand = program
   .command('mcp')
   .description('start the MCP stdio server')
   .action(async (_opts: unknown, command: Command) => {
@@ -103,6 +104,30 @@ program
       await runMcpCommand({ repo });
     } catch (err) {
       logger.error('jigbench mcp failed', String(err));
+      process.exitCode = 1;
+    }
+  });
+
+mcpCommand
+  .command('install')
+  .description('write the jig MCP server entry into a host app\'s own config (today: --claude-desktop)')
+  .option('--claude-desktop', 'install into Claude Desktop\'s claude_desktop_config.json')
+  .option('--yes', 'actually write the file — otherwise only the diff is printed')
+  .action(async (opts: { claudeDesktop?: boolean; yes?: boolean }, command: Command) => {
+    // commands/mcp-install.ts, not commands/mcp.ts — a deliberate separate module (see its
+    // own comment) so this subcommand can print a human-readable diff without dragging
+    // human-output.ts into the stdio mcp command's own import graph.
+    try {
+      if (!opts.claudeDesktop) {
+        logger.error('jigbench mcp install: pass --claude-desktop (the only supported target today)');
+        process.exitCode = 1;
+        return;
+      }
+      const { repo } = command.optsWithGlobals<{ repo?: string }>();
+      const result = await runMcpInstallCommand({ repo, yes: opts.yes });
+      printHuman(result.message);
+    } catch (err) {
+      logger.error('jigbench mcp install failed', String(err));
       process.exitCode = 1;
     }
   });

@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { mkdtemp, readFile, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { join, resolve } from 'node:path';
 import { runInitCommand } from './init.js';
 
 describe('runInitCommand', () => {
@@ -9,7 +9,11 @@ describe('runInitCommand', () => {
     vi.restoreAllMocks();
   });
 
-  it('writes the .jig/ skeleton, creates .mcp.json, and appends .gitignore on a fresh repo', async () => {
+  // NOTE (S6): every `{ repo: repoRoot }` here is a FRESH TEMP DIRECTORY, unrelated to
+  // wherever the test runner's own cwd is — exactly `isOutsideRepoRoot`'s "outside" case
+  // (repo-root.test.ts covers the pure decision; these assert what `init` actually WRITES
+  // as a result: `--repo <repoRoot>` in the .mcp.json entry).
+  it('writes the .jig/ skeleton, creates .mcp.json (with --repo, run from outside the repo root), and appends .gitignore', async () => {
     const repoRoot = await mkdtemp(join(tmpdir(), 'jig-init-cmd-'));
     const stdoutSpy = vi.spyOn(process.stdout, 'write').mockImplementation(() => true);
 
@@ -20,7 +24,7 @@ describe('runInitCommand', () => {
     expect(message).toContain('.gitignore: appended .jig/cache/.');
 
     const mcpJson = JSON.parse(await readFile(join(repoRoot, '.mcp.json'), 'utf8'));
-    expect(mcpJson.mcpServers.jig).toEqual({ command: 'npx', args: ['jigbench', 'mcp'] });
+    expect(mcpJson.mcpServers.jig).toEqual({ command: 'npx', args: ['jigbench', 'mcp', '--repo', resolve(repoRoot)] });
 
     const gitignore = await readFile(join(repoRoot, '.gitignore'), 'utf8');
     expect(gitignore).toContain('.jig/cache/');
@@ -30,6 +34,18 @@ describe('runInitCommand', () => {
     const printed = stdoutSpy.mock.calls.map((c) => String(c[0])).join('');
     expect(printed).toContain('.mcp.json (before)');
     expect(printed).toContain('.mcp.json (after)');
+  });
+
+  it('writes the plain entry (no --repo) when run from inside the repo it is initializing', async () => {
+    const repoRoot = await mkdtemp(join(tmpdir(), 'jig-init-cmd-'));
+    vi.spyOn(process.stdout, 'write').mockImplementation(() => true);
+    const cwdSpy = vi.spyOn(process, 'cwd').mockReturnValue(repoRoot);
+
+    await runInitCommand({ repo: repoRoot });
+
+    const mcpJson = JSON.parse(await readFile(join(repoRoot, '.mcp.json'), 'utf8'));
+    expect(mcpJson.mcpServers.jig).toEqual({ command: 'npx', args: ['jigbench', 'mcp'] });
+    cwdSpy.mockRestore();
   });
 
   it('merges into an existing .mcp.json without disturbing other servers', async () => {
@@ -45,7 +61,7 @@ describe('runInitCommand', () => {
 
     const mcpJson = JSON.parse(await readFile(join(repoRoot, '.mcp.json'), 'utf8'));
     expect(mcpJson.mcpServers.other).toEqual({ command: 'npx', args: ['other-tool'] });
-    expect(mcpJson.mcpServers.jig).toEqual({ command: 'npx', args: ['jigbench', 'mcp'] });
+    expect(mcpJson.mcpServers.jig).toEqual({ command: 'npx', args: ['jigbench', 'mcp', '--repo', resolve(repoRoot)] });
   });
 
   it('is idempotent: running twice reports nothing left to change the second time', async () => {
