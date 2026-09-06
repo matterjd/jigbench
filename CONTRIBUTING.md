@@ -21,7 +21,7 @@ against `examples/`.
 ```
 packages/core             pure TypeScript, zero I/O — survey/work-order/gauges/fixture models
 packages/server           MCP stdio + HTTP/WS + proxy + drafters — imports core
-packages/bench            web UI (React + Vite) — imports core types only
+packages/bench            web UI (React + Vite) — imports core only (pure TS, no I/O; never server, adapters, or node I/O)
 packages/cli              the jigbench bin — thin wiring, imports server
 packages/adapters/angular SurveyAdapter for Angular — imports core interfaces only
 packages/adapters/dotnet  SurveyAdapter for .NET 10 — imports core interfaces only
