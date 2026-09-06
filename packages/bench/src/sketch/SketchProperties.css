@@ -1,0 +1,130 @@
+.jig-sketch-properties {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 8px 0;
+}
+
+.jig-sketch-properties__empty {
+  color: var(--dim);
+  font-size: 12.5px;
+}
+
+.jig-sketch-properties__palette {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.jig-sketch-properties__palette-btn {
+  font: 11px var(--mono);
+  color: var(--dim);
+  border: 1px solid var(--line);
+  border-radius: var(--r-micro);
+  padding: 6px 8px;
+  background: var(--bg1);
+}
+
+.jig-sketch-properties__palette-btn--active {
+  color: var(--ink);
+  background: var(--bg3);
+}
+
+.jig-sketch-properties__kv {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 4px 8px;
+  margin: 0;
+  font-size: 12.5px;
+}
+
+.jig-sketch-properties__kv dt {
+  color: var(--faint);
+}
+
+.jig-sketch-properties__kv dd {
+  margin: 0;
+  color: var(--ink);
+}
+
+.jig-sketch-properties__mono {
+  font-family: var(--mono);
+}
+
+.jig-sketch-properties__editor {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  border-top: 1px solid var(--line-soft);
+  padding-top: 8px;
+}
+
+.jig-sketch-properties__field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 11px;
+  color: var(--dim);
+}
+
+.jig-sketch-properties__field select {
+  background: var(--bg1);
+  border: 1px solid var(--line);
+  border-radius: var(--r-inner);
+  color: var(--ink);
+  padding: 4px 6px;
+}
+
+.jig-sketch-properties__links {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  border-top: 1px solid var(--line-soft);
+  padding-top: 8px;
+}
+
+.jig-sketch-properties__link-form {
+  display: flex;
+  gap: 6px;
+}
+
+.jig-sketch-properties__link-form input,
+.jig-sketch-properties__link-form select {
+  flex: 1;
+  background: var(--bg1);
+  border: 1px solid var(--line);
+  border-radius: var(--r-inner);
+  color: var(--ink);
+  padding: 4px 6px;
+  font-size: 12.5px;
+}
+
+.jig-sketch-properties__scrap-bin {
+  border-top: 1px solid var(--line-soft);
+  padding-top: 8px;
+}
+
+.jig-sketch-properties__scrap-bin-title {
+  color: var(--faint);
+  font: 700 10.5px/1 var(--mono);
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+}
+
+.jig-sketch-properties__scrap-bin ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.jig-sketch-properties__scrap-bin li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 12.5px;
+  color: var(--dim);
+}

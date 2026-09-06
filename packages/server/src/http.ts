@@ -26,6 +26,8 @@ import { attachToolpathsRoute } from './toolpath/route.js'; // S8
 import { TrialFitMirror } from './trialfit/mirror.js'; // S8
 import { SnapshotStore } from './trialfit/snapshot.js'; // S8
 import { attachTrialFitRoute } from './trialfit/route.js'; // S8
+import { SketchStore } from './sketch/store.js'; // S9
+import { attachSketchesRoute } from './sketch/route.js'; // S9
 
 export interface CreateJigServerOptions {
   repoRoot: string;
@@ -94,6 +96,8 @@ export interface JigServerHandle {
    * `store`/`fixtureStore`/`toolpathStore` are. */
   trialFitMirror: TrialFitMirror;
   snapshotStore: SnapshotStore;
+  /** S9 — the sketch data/lifecycle store; exposed for tests the same way `store` is. */
+  sketchStore: SketchStore;
   benchServeMode: BenchServeMode;
   close(): Promise<void>;
 }
@@ -126,6 +130,7 @@ function buildApp(
   toolpathStore: ToolpathStore, // S8
   trialFitMirror: TrialFitMirror, // S8
   snapshotStore: SnapshotStore, // S8
+  sketchStore: SketchStore, // S9
 ): { app: Express; benchServeMode: BenchServeMode } {
   const app = express();
   // 64kb: the bench's own request bodies (marks, work-order patches) are all small,
@@ -311,6 +316,8 @@ function buildApp(
 
   attachTrialFitRoute(app, { mirror: trialFitMirror, snapshotStore, primaryPlate: options.plate }); // S8
 
+  attachSketchesRoute(app, sketchStore, () => store.getState().gauges); // S9
+
   const benchServeMode = attachBenchServing(app, {
     benchDistDir: options.benchDistDir ?? defaultBenchDistDir(),
     benchDevServerUrl: options.benchDevServerUrl,
@@ -360,8 +367,13 @@ export async function createJigServer(options: CreateJigServerOptions): Promise<
   await snapshotStore.init();
   // -------------------------------------------------------------------------------------------
 
+  // --- S9 (sketch): construct + wire ---------------------------------------------------------
+  const sketchStore = new SketchStore(repoRoot, store); // store satisfies SketchWiringSink
+  await sketchStore.init();
+  // -------------------------------------------------------------------------------------------
+
   const wss = new WebSocketServer({ noServer: true });
-  const { app, benchServeMode } = buildApp(store, wss, options, fixtureStore, toolpathStore, trialFitMirror, snapshotStore);
+  const { app, benchServeMode } = buildApp(store, wss, options, fixtureStore, toolpathStore, trialFitMirror, snapshotStore, sketchStore);
   const httpServer: HttpServer = createHttpServer(app);
 
   // --- S6: the .jig/ watcher — the MCP process (ADR-001) is a SEPARATE process from this
@@ -426,6 +438,7 @@ export async function createJigServer(options: CreateJigServerOptions): Promise<
     toolpathStore, // S8
     trialFitMirror, // S8
     snapshotStore, // S8
+    sketchStore, // S9
     benchServeMode,
     async close() {
       watcher.stop(); // S6

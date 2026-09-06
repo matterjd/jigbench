@@ -12,6 +12,8 @@ import type { PlateEvent, PlatePick } from './plate/usePlateBridge.js';
 import { CommandPalette, type PaletteDocsResult } from './palette/CommandPalette.js';
 import { FixturePanel } from './fixtures/index.js';
 import { ToolpathBar } from './toolpath/ToolpathBar.js';
+import { SketchSheet } from './sketch/SketchSheet.js';
+import { SketchProperties } from './sketch/SketchProperties.js';
 import { TrialFitMirror } from './trialfit/TrialFitMirror.js';
 import { useAutoSnapshot } from './trialfit/useAutoSnapshot.js';
 import { TrayRegion } from './orders/TrayRegion.js';
@@ -80,6 +82,12 @@ export function App() {
     if (tool === 'toolpath') setPropertiesTab('toolpath');
   }, [tool]);
 
+  // Integration seam (S9): the rail's Sketch tool switches the properties column to the
+  // Sketch tab, the exact same pattern as Fixture/Toolpath above.
+  useEffect(() => {
+    if (tool === 'sketch') setPropertiesTab('sketch');
+  }, [tool]);
+
   // S8 (CHASSIS.md's trial-fit mode): "the plate region splits into two frames" once the
   // order in hand reaches trial-fit — swaps PlateBench out for TrialFitMirror in the exact
   // same layout slot below, rather than editing PlateBench.tsx itself (a restricted,
@@ -130,7 +138,9 @@ export function App() {
       <Chassis
         rail={<Rail />}
         plate={
-          showTrialFitMirror ? (
+          tool === 'sketch' ? (
+            <SketchSheet gauges={gauges} />
+          ) : showTrialFitMirror ? (
             <TrialFitMirror workOrders={workOrders} onPrinted={() => setForceSinglePlate(true)} />
           ) : (
             <PlateBench
@@ -177,6 +187,7 @@ export function App() {
               <FixturePanel iframeRef={plateIframeRef} plateOrigin={plateOrigin} lastPickPath={lastPick?.path ?? null} />
             }
             toolpath={<ToolpathBar lastEvent={lastEvent} post={(message) => plateRef.current?.post(message)} />}
+            sketch={<SketchProperties gauges={gauges} />}
           />
         }
         tray={

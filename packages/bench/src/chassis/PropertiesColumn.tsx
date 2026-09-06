@@ -5,7 +5,7 @@ const DEFAULT_WIDTH = 320;
 const MIN_WIDTH = 240;
 const MAX_WIDTH = 560;
 
-export type PropertiesTab = 'loupe' | 'gauges' | 'survey' | 'fixture' | 'toolpath';
+export type PropertiesTab = 'loupe' | 'gauges' | 'survey' | 'fixture' | 'toolpath' | 'sketch';
 
 export interface PropertiesColumnProps {
   loupe: ReactNode;
@@ -17,6 +17,8 @@ export interface PropertiesColumnProps {
   fixture?: ReactNode;
   /** S8's `ToolpathBar`, the same optional-prop pattern as `fixture` above — absent, no tab. */
   toolpath?: ReactNode;
+  /** S9's `SketchProperties`, the same optional-prop pattern as `fixture`/`toolpath` above. */
+  sketch?: ReactNode;
   /** Badge counts shown beside the Gauges/Survey tab labels — optional, since neither the
    * gauge set nor the survey is guaranteed to be loaded yet. */
   gaugesCount?: number;
@@ -36,6 +38,7 @@ export function PropertiesColumn({
   survey,
   fixture,
   toolpath,
+  sketch,
   gaugesCount,
   surveyCount,
   activeTab,
@@ -137,6 +140,16 @@ export function PropertiesColumn({
             Toolpath
           </button>
         )}
+        {sketch !== undefined && (
+          <button
+            type="button"
+            role="tab"
+            aria-selected={tab === 'sketch'}
+            onClick={() => setTab('sketch')}
+          >
+            Sketch
+          </button>
+        )}
         {!isPrinted && (
           <button type="button" className="jig-properties__printed" onClick={resetWidth}>
             printed
@@ -149,6 +162,7 @@ export function PropertiesColumn({
         {tab === 'survey' && survey}
         {tab === 'fixture' && fixture}
         {tab === 'toolpath' && toolpath}
+        {tab === 'sketch' && sketch}
       </div>
     </div>
   );
