@@ -1,25 +1,64 @@
 {
   "name": "jigbench",
   "version": "0.1.0",
-  "private": true,
-  "description": "Jig — a local-first benchtop. The jigbench CLI: thin wiring over @jigbench/server.",
+  "private": false,
+  "description": "Jig — a local-first benchtop that clamps an existing app repo, surveys it, and turns a marked-up change into an agent-ready work order, over MCP on stdio.",
   "type": "module",
+  "license": "Apache-2.0",
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "claude",
+    "claude-code",
+    "ai-agent",
+    "codegen",
+    "angular",
+    "dotnet",
+    "devtools",
+    "prototyping"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/matterjd/jigbench.git"
+  },
+  "homepage": "https://github.com/matterjd/jigbench#readme",
+  "bugs": {
+    "url": "https://github.com/matterjd/jigbench/issues"
+  },
+  "engines": {
+    "node": ">=22"
+  },
   "bin": {
     "jigbench": "dist/bin.js"
   },
-  "main": "dist/index.js",
-  "types": "dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
     "build": "tsc -p tsconfig.json",
+    "build:release": "tsup && node scripts/copy-release-assets.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run --project cli"
   },
   "dependencies": {
-    "@jigbench/server": "*",
+    "@faker-js/faker": "^10.6.0",
     "@modelcontextprotocol/sdk": "^1.30.0",
-    "commander": "^15.0.0"
+    "commander": "^15.0.0",
+    "express": "^5.2.1",
+    "http-proxy": "^1.18.1",
+    "json-schema-faker": "^0.6.3",
+    "open": "^11.0.1",
+    "pdf-parse": "^2.4.5",
+    "ts-json-schema-generator": "^2.9.0",
+    "ts-morph": "^28.0.0",
+    "ws": "^8.21.3",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
-    "@types/node": "^24.13.3"
+    "@types/node": "^24.13.3",
+    "tsup": "^8.5.1"
   }
 }

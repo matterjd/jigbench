@@ -5,6 +5,9 @@ coverage/
 *.log
 .env*
 
+# S10 release packing (npm run pack:release)
+/jigbench-*.tgz
+
 # Jig
 .jig/cache/
 
