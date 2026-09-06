@@ -51,7 +51,14 @@
 }
 
 .jig-properties__tabs button[aria-selected='true'] {
+  /* Finding 4 (wave-3 council, Blocker-class): the active tab used to carry no background
+     of its own — with no global button reset (fixed in index.css) that meant Chrome's
+     native ButtonFace rendered under this --ink text. An explicit ground makes the active
+     state legible on its own terms (never dependent on the underline alone, design floor
+     item 6's "never colour/position alone" doctrine already applied to Rail). */
+  background: var(--bg3);
   color: var(--ink);
+  border-radius: var(--r-inner) var(--r-inner) 0 0;
 }
 
 .jig-properties__tabs button[aria-selected='true']::after {

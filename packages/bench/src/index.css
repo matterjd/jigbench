@@ -16,3 +16,24 @@ body {
   color: var(--ink);
   font-family: var(--sans);
 }
+
+/* Design floor item 1 (DESIGN-TEAM.md §6, FLOOR A) / wave-3 council finding 4 (Blocker):
+   with no reset, a <button> renders Chrome's native ButtonFace (rgb(240,240,240)) under
+   whatever text colour its own class sets — the Properties tabs and most Rail tool buttons
+   set `color: var(--ink)`/`var(--dim)` and nothing else, so the ACTUAL rendered background
+   stayed native-light under those light, dark-theme-tuned text colours: contrast ~1.09:1.
+   Every button in the bench starts from a blank slate; a component's own class is what
+   supplies its background/border, never the browser default. */
+button {
+  background: none;
+  border: 0;
+  color: inherit;
+  font: inherit;
+  padding: 0;
+  cursor: pointer;
+}
+
+button:focus-visible {
+  outline: 2px solid var(--storm);
+  outline-offset: 2px;
+}
