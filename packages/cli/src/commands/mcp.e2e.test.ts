@@ -158,7 +158,10 @@ describeIfBuilt('MCP e2e — real SDK Client + StdioClientTransport spawning the
           await client.close();
         }
       } finally {
-        await rm(repoRoot, { recursive: true, force: true });
+        // maxRetries/retryDelay: this spawns a real child process whose own shop-heartbeat
+        // rm() can still be landing after client.close() returns — the same Windows
+        // ENOTEMPTY class tools.test.ts hit in-process (CI run 34039471247).
+        await rm(repoRoot, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
       }
     },
     30_000,

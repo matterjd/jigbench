@@ -20,7 +20,10 @@ const watchers: JigWatcher[] = [];
 afterEach(async () => {
   vi.restoreAllMocks();
   for (const w of watchers.splice(0)) w.stop();
-  await Promise.all(tempDirs.splice(0).map((d) => rm(d, { recursive: true, force: true })));
+  // maxRetries/retryDelay: the same Windows ENOTEMPTY class tools.test.ts hit (CI run
+  // 34039471247) — a watcher's own fs.watch handle or a pending write can still be settling
+  // under `.jig/` for a moment after `w.stop()` returns; this is the defense-in-depth net.
+  await Promise.all(tempDirs.splice(0).map((d) => rm(d, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 })));
 });
 
 async function freshJigTree(): Promise<string> {

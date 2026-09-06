@@ -1,10 +1,12 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { existsSync } from 'node:fs';
 import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { PassThrough } from 'node:stream';
 import { LATEST_PROTOCOL_VERSION } from '@modelcontextprotocol/sdk/types.js';
 import { jigPaths, JIG_FORMAT } from '@jigbench/core';
+import { readShopHeartbeat, shopHeartbeatFile } from '@jigbench/server';
 import { runMcpCommand } from './mcp.js';
 
 /**
@@ -27,7 +29,10 @@ const tempDirs: string[] = [];
 
 afterEach(async () => {
   vi.restoreAllMocks();
-  await Promise.all(tempDirs.splice(0).map((d) => rm(d, { recursive: true, force: true })));
+  // maxRetries/retryDelay: the same Windows ENOTEMPTY class tools.test.ts hit (CI run
+  // 34039471247) — defense-in-depth net alongside the "deletes the shop heartbeat before
+  // the returned promise resolves" test above, which fixes the actual race for this file.
+  await Promise.all(tempDirs.splice(0).map((d) => rm(d, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 })));
 });
 
 async function freshRepo(): Promise<string> {
@@ -125,6 +130,26 @@ describe('runMcpCommand (S6: the real stdio MCP server)', () => {
     toServer.end();
     await runPromise;
     expect(resolved).toBe(true);
+  });
+
+  it('deletes the shop heartbeat before the returned promise resolves — nothing left for a temp-dir cleanup to race', async () => {
+    // server.ts's `onclose` used to be fire-and-forget relative to this promise: it called
+    // `heartbeat.stop()` but never returned its promise, and this command's own `onclose`
+    // wrapper resolved immediately without waiting for whatever `priorOnClose()` kicked off.
+    // A "clean" `jigbench mcp` exit could therefore return while shop.json was still on disk
+    // (or mid-delete) — exactly what turned into Windows' ENOTEMPTY when a vitest temp-dir
+    // cleanup ran immediately after a client disconnect in the same process (tools.test.ts).
+    const repoRoot = await freshRepo();
+    const { toServer, fromServer, messages, send } = rig();
+
+    const runPromise = runMcpCommand({ repo: repoRoot, stdin: toServer, stdout: fromServer });
+    await handshake(send, messages);
+    await vi.waitFor(async () => expect(await readShopHeartbeat(repoRoot)).not.toBeNull());
+
+    toServer.end();
+    await runPromise;
+
+    expect(existsSync(shopHeartbeatFile(repoRoot))).toBe(false);
   });
 
   it('runs the survey when .jig/survey/survey.json is missing', async () => {

@@ -100,13 +100,17 @@ export function createJigMcpServer(options: CreateJigMcpServerOptions): McpServe
   // The shop heartbeat (deliverable 1's last paragraph): started once the client's
   // `initialize`/`initialized` handshake has fully completed (so `clientLabel()` already
   // has real client info to report), stopped the moment the transport closes — whichever
-  // side closed it, client or server. Fire-and-forget: neither hook's own type is async.
+  // side closed it, client or server. Neither hook's own type is async (the SDK calls both
+  // synchronously and never awaits a return value), so `start()` stays intentionally
+  // fire-and-forget. `onclose` DOES return its settled promise, though — not because the SDK
+  // awaits it (it doesn't), but so a caller that owns the transport lifecycle (`mcp.ts`'s
+  // own onclose wrapper) can chain onto it and know the heartbeat file is actually gone
+  // (`stop()`'s `rm()`) before treating the shutdown as complete. `.catch` means this promise
+  // itself never rejects, so chaining onto it is always safe.
   mcpServer.server.oninitialized = () => {
     heartbeat.start(ctx.clientLabel()).catch((err) => logger.warn('shop heartbeat failed to start', String(err)));
   };
-  mcpServer.server.onclose = () => {
-    heartbeat.stop().catch((err) => logger.warn('shop heartbeat failed to stop cleanly', String(err)));
-  };
+  mcpServer.server.onclose = () => heartbeat.stop().catch((err) => logger.warn('shop heartbeat failed to stop cleanly', String(err)));
 
   return mcpServer;
 }

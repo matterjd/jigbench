@@ -54,6 +54,9 @@ export type { CreateToolpathInput, ToolpathWiringSink, ToolpathWiringStatus } fr
 // commands (and, in `jigbench` with no subcommand, the bench server) already construct.
 export { createJigMcpServer, formatClientLabel } from './mcp/server.js';
 export type { CreateJigMcpServerOptions } from './mcp/server.js';
+// Exported so a caller (the CLI's own mcp.test.ts) can assert the shop heartbeat file is
+// actually gone once a clean shutdown's promise resolves, without reaching into ./mcp/*.
+export { readShopHeartbeat, shopHeartbeatFile } from './mcp/heartbeat.js';
 
 // S7 (fixtures) — exported here for the same reason: `jigbench mcp` constructs its own
 // FixtureStore (jig_fixture reads it) the same way `createJigServer` already does.
