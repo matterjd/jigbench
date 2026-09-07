@@ -527,6 +527,10 @@ describe('S7 fixtures — end to end through createJigServer + a real plate prox
 
     const loadRes = await fetch(`${handle.url}/api/fixtures/overdue-heavy/load`, { method: 'POST' });
     expect(loadRes.status).toBe(200);
+    // S7 proof line (Matter's retest-18): `load` makes the SAME real request through the plate
+    // Matter ran by hand (`curl -sI .../api/invoices`) and reports it honestly, rather than
+    // the panel asserting an unverified "the plate answers from it".
+    expect((await loadRes.json()).proof).toEqual({ ok: true, header: 'x-jig-fixture', value: 'overdue-heavy' });
 
     const plateStatus = await (await fetch(`${handle.url}/api/plate`)).json();
     expect(plateStatus.fixture).toBe('overdue-heavy');

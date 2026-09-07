@@ -184,7 +184,12 @@ export function App() {
             }
             survey={<SurveyPane survey={survey} docsCount={docsCount} />}
             fixture={
-              <FixturePanel iframeRef={plateIframeRef} plateOrigin={plateOrigin} lastPickPath={lastPick?.path ?? null} />
+              <FixturePanel
+                iframeRef={plateIframeRef}
+                plateOrigin={plateOrigin}
+                lastPickPath={lastPick?.path ?? null}
+                survey={survey}
+              />
             }
             toolpath={<ToolpathBar lastEvent={lastEvent} post={(message) => plateRef.current?.post(message)} />}
             sketch={<SketchProperties gauges={gauges} />}

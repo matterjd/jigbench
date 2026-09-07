@@ -302,7 +302,11 @@ function buildApp(
     attachPlateRoute(app, options.plate, () => store.getActiveFixture(), () => trialFitMirror.getStatus());
   }
 
-  attachFixturesRoute(app, fixtureStore, () => store.getState().survey); // S7
+  // getPlateUrl: S7's proof line (route.ts's probeFixtureAnswers) makes a REAL request through
+  // the plate on every load — options.plate is the same handle attachPlateRoute above already
+  // uses, so this is just handing its own .url getter through as a thunk (undefined when no
+  // plate is wired at all, e.g. a caller with no --target — the route then skips the probe).
+  attachFixturesRoute(app, fixtureStore, () => store.getState().survey, () => options.plate?.url); // S7
 
   attachToolpathsRoute(app, toolpathStore); // S8
 

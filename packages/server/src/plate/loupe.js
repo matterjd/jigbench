@@ -511,11 +511,24 @@
     return document.querySelector('form');
   }
 
+  /** The field "name" this element is known by, for both the probe's `names` list and
+   * `findFieldElement`'s lookup: a plain `[name]` attribute when present, else Angular
+   * reactive forms' `formControlName` — which Angular renders as the DOM attribute
+   * `formcontrolname` (HTML lowercases attribute names; see `[formControlName]="x"` usage is
+   * a property binding and would NOT appear as a static attribute at all, but this repo's
+   * Ledger example — and reactive forms generally — write it as a plain, unbracketed
+   * attribute directive: `formControlName="x"`). Matter's retest-18: Ledger's real "New
+   * invoice" form has ZERO `[name]` attributes anywhere, only `formcontrolname` ones — a probe
+   * that only ever looked at `[name]` reported no fields at all on that exact form. */
+  function fieldNameOf(el) {
+    return el.getAttribute('name') || el.getAttribute('formcontrolname');
+  }
+
   function fieldNamesOf(form) {
     var names = [];
-    var els = form.querySelectorAll('[name]');
+    var els = form.querySelectorAll('[name], [formcontrolname]');
     for (var i = 0; i < els.length; i++) {
-      var name = els[i].getAttribute('name');
+      var name = fieldNameOf(els[i]);
       if (name && names.indexOf(name) === -1) names.push(name);
     }
     return names;
@@ -532,7 +545,21 @@
    * setter this grabs first, via Object.getOwnPropertyDescriptor), then dispatches real
    * `input`/`change` events so both frameworks' reactive/controlled forms pick it up.
    * Returns false (never throws) when the element/kind isn't handled, so a missing field is
-   * reported rather than crashing the whole fill. */
+   * reported rather than crashing the whole fill.
+   *
+   * Verification, not just intent (Matter's retest-18): a CONSTRAINED input type — `date`,
+   * `number`, `email`, `time`, `week`, `month`, `color`, `range`, ... — silently REJECTS a
+   * malformed value: the DOM's own value setter leaves `.value` unchanged rather than
+   * throwing. Ledger's real "New invoice" form has exactly this: `issuedOn`/`dueOn` are plain
+   * TS `string` properties (no `Date` type, no format annotation), so the survey's schema
+   * carries no date hint for the fixture generator to use — the generated value is an
+   * arbitrary string, and `<input type="date">` never applies it. Before this fix, the
+   * generic branch below returned `true` unconditionally the moment it called the setter and
+   * dispatched events — the loupe reported the field "filled" while the form visibly never
+   * changed, and the fixture panel had no way to know. The generic (non-checkbox, non-select)
+   * branch now reads `el.value` back and reports success only when the browser actually
+   * stored the intended string — an honest `missing`, matching this file's existing
+   * `findFieldElement`-not-found path, rather than a false positive. */
   function setFieldValue(el, value) {
     if (!el) return false;
     if (el.tagName === 'INPUT' && (el.type === 'checkbox' || el.type === 'radio')) {
@@ -565,16 +592,26 @@
     }
     el.dispatchEvent(new Event('input', { bubbles: true }));
     el.dispatchEvent(new Event('change', { bubbles: true }));
-    return true;
+    return el.value === stringValue;
   }
 
   function findFieldElement(root, field) {
     if (field.name) {
+      var escapedName = String(field.name).replace(/"/g, '\\"');
       try {
-        var byName = root.querySelector('[name="' + String(field.name).replace(/"/g, '\\"') + '"]');
+        var byName = root.querySelector('[name="' + escapedName + '"]');
         if (byName) return byName;
       } catch (err) {
         // an unusual field name isn't a valid attribute-selector literal — fall through.
+      }
+      try {
+        // Angular reactive forms (Matter's retest-18: Ledger's "New invoice" form) carry no
+        // [name] attribute at all — only formControlName, rendered as `formcontrolname` — so
+        // a fixture field matched by name must also be findable this way.
+        var byControlName = root.querySelector('[formcontrolname="' + escapedName + '"]');
+        if (byControlName) return byControlName;
+      } catch (err) {
+        // same fallback-through as above.
       }
     }
     if (field.selector) {
