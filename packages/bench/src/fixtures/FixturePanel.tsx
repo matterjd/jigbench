@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState, type RefObject } from 'react';
-import type { FixtureSummary } from '@jigbench/core';
+import type { FixtureSummary, Survey } from '@jigbench/core';
 import { Chip } from '../components/Chip.js';
+import { loadedMessage, type LoadProof } from './loadProof.js';
 import './FixturePanel.css';
 
 /**
@@ -23,6 +24,12 @@ export interface FixturePanelProps {
    * current pick's nearest <form>" for the fill probe. Omitted: the probe falls back to the
    * plate page's first form. */
   lastPickPath?: string | null;
+  /** The bench's own current survey (`useJigState`'s `state.survey`) — used ONLY to say, in
+   * words, when this survey has no endpoints at all (Matter's retest-18: surveying an
+   * Angular-only repo yields component-model schemas but zero endpoints — `generateFixture`
+   * then has nothing to answer `/api/*` with, no matter what the panel does). Absent: says
+   * nothing, rather than guessing at a survey the integrator never handed it. */
+  survey?: Survey;
   /** Override point for tests — defaults to the global `fetch`. */
   fetchImpl?: typeof fetch;
 }
@@ -51,14 +58,19 @@ function ageOf(createdAt: string): string {
   return `${Math.floor(hours / 24)}d`;
 }
 
-function dispatchFixtureLoaded(name: string | null): void {
-  window.dispatchEvent(new CustomEvent('jig:fixture-loaded', { detail: { name } }));
+/** `proof` is passed through unchanged into the DOM event's detail — `PlateBench`'s own
+ * plate-frame chip listens for this same event (integration seam 3) and must say exactly the
+ * same thing `FixturePanel`'s own chip does about the same fixture (both render through
+ * `loadedMessage`), never a second, independently-worded claim. */
+function dispatchFixtureLoaded(name: string | null, proof?: LoadProof): void {
+  window.dispatchEvent(new CustomEvent('jig:fixture-loaded', { detail: { name, proof } }));
 }
 
-/** Waits for exactly one `window` `message` event of `replyType` from `origin`. Used for both
- * halves of the fill exchange (probe -> jig:fill-fields). Never used for the final `jig:fill`
- * post itself — that one is fire-and-forget from the panel's point of view (the loupe's
- * `jig:filled` reply is informational, not blocking). */
+/** Waits for exactly one `window` `message` event of `replyType` from `origin`. Used for the
+ * probe half of the fill exchange (probe -> jig:fill-fields, awaited) AND for the final
+ * `jig:fill`'s own `jig:filled` reply — the latter is never awaited by `fillForm` itself,
+ * though (it upgrades `fillStatus` once the reply lands, via a bare `.then()`), so a slow or
+ * missing reply never blocks the UI. */
 function waitForReply(origin: string, replyType: string): Promise<Record<string, unknown>> {
   return new Promise((resolve, reject) => {
     const timer = setTimeout(() => {
@@ -95,7 +107,7 @@ function bestMatchingSchema(forms: Record<string, Record<string, unknown>>, name
   return bestScore > 0 ? best : null;
 }
 
-export function FixturePanel({ iframeRef, plateOrigin, lastPickPath, fetchImpl = fetch }: FixturePanelProps) {
+export function FixturePanel({ iframeRef, plateOrigin, lastPickPath, survey, fetchImpl = fetch }: FixturePanelProps) {
   const [fixtures, setFixtures] = useState<FixtureSummary[]>([]);
   const [active, setActive] = useState<string | null>(null);
   const [loaded, setLoaded] = useState(false); // has GET /api/fixtures answered at least once
@@ -104,6 +116,10 @@ export function FixturePanel({ iframeRef, plateOrigin, lastPickPath, fetchImpl =
   const [message, setMessage] = useState<string | null>(null);
   const [fillStatus, setFillStatus] = useState<string | null>(null);
   const [filling, setFilling] = useState(false);
+  // The proof line (Matter's retest-18): set only by an explicit `load` this session, from the
+  // server's own real check — never assumed from `active` alone, and cleared on unload so a
+  // stale confirmation can never outlive the fixture it was about.
+  const [loadProof, setLoadProof] = useState<LoadProof | undefined>(undefined);
 
   const refresh = useCallback(async () => {
     try {
@@ -150,17 +166,19 @@ export function FixturePanel({ iframeRef, plateOrigin, lastPickPath, fetchImpl =
 
   async function loadFixture(id: string): Promise<void> {
     const res = await fetchImpl(`/api/fixtures/${id}/load`, { method: 'POST' });
-    const body = (await res.json()) as { active?: string; error?: string };
+    const body = (await res.json()) as { active?: string; error?: string; proof?: LoadProof };
     if (body.error) {
       setMessage(body.error);
       return;
     }
-    dispatchFixtureLoaded(body.active ?? null);
+    setLoadProof(body.proof);
+    dispatchFixtureLoaded(body.active ?? null, body.proof);
     await refresh();
   }
 
   async function unloadFixture(): Promise<void> {
     await fetchImpl('/api/fixtures/unload', { method: 'POST' });
+    setLoadProof(undefined);
     dispatchFixtureLoaded(null);
     await refresh();
   }
@@ -223,6 +241,25 @@ export function FixturePanel({ iframeRef, plateOrigin, lastPickPath, fetchImpl =
         plateOrigin,
       );
       setFillStatus(`filling "${schemaRef}" onto the plate`);
+
+      // Matter's retest-18: "when nothing matches, the panel says which fields it could not
+      // match, in words" — the loupe's own `jig:filled` reply already carries this (`missing`),
+      // the panel just never looked at it again. Fire-and-forget from THIS function's point of
+      // view (the `try` is already done, `finally` below runs immediately) — a reply that
+      // never arrives just leaves the optimistic "filling ..." message in place, exactly as
+      // before this change.
+      waitForReply(plateOrigin, 'jig:filled')
+        .then((reply) => {
+          const missing = Array.isArray(reply.missing) ? (reply.missing as string[]) : [];
+          setFillStatus(
+            missing.length > 0
+              ? `filled "${schemaRef}" onto the plate — could not match: ${missing.join(', ')}`
+              : `filled "${schemaRef}" onto the plate`,
+          );
+        })
+        .catch(() => {
+          // no jig:filled reply within the timeout — nothing more to say than "filling ...".
+        });
     } catch {
       setFillStatus('could not reach the plate to fill the form');
     } finally {
@@ -233,12 +270,18 @@ export function FixturePanel({ iframeRef, plateOrigin, lastPickPath, fetchImpl =
   const live = fixtures.filter((f) => !f.scrapped);
   const scrapped = fixtures.filter((f) => f.scrapped);
 
+  const surveyHasNoEndpoints = survey !== undefined && survey.endpoints.length === 0;
+
   return (
     <div className="jig-fixtures">
       {active && (
-        <Chip tone="storm" glyph="●">
-          fixture · {active} · loaded — the plate answers from it
+        <Chip tone={loadProof?.ok ? 'storm' : 'neutral'} glyph="●">
+          {loadedMessage(active, loadProof)}
         </Chip>
+      )}
+
+      {surveyHasNoEndpoints && (
+        <p className="jig-fixtures__message">this survey has no endpoints — survey the API too.</p>
       )}
 
       {loaded && live.length === 0 && scrapped.length === 0 && <p className="jig-fixtures__empty">no fixtures yet.</p>}

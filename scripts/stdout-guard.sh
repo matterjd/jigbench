@@ -201,7 +201,9 @@ if ! wait "$MCP_PID"; then
 fi
 
 # --- (a) every non-empty stdout line from the WHOLE run (not just the two lines read above)
-#     is JSON-RPC 2.0; (b) exactly 2 lines total; (c) tools/list named all 9 tools -----------
+#     is JSON-RPC 2.0; (b) exactly 2 lines total; (c) tools/list named all 12 tools (the
+#     original 9 plus S11's jig_prompts/jig_prompt/jig_mark_built, registered unconditionally
+#     from createJigMcpServer) -----------------------------------------------------------
 node -e '
   const fs = require("fs");
   const path = process.argv[1];
@@ -236,8 +238,8 @@ node -e '
     process.exit(1);
   }
   const tools = (toolsResponse.result && toolsResponse.result.tools) || [];
-  if (tools.length !== 9) {
-    console.error(`expected 9 tools from tools/list, got ${tools.length}:`, JSON.stringify(tools.map((t) => t.name)));
+  if (tools.length !== 12) {
+    console.error(`expected 12 tools from tools/list, got ${tools.length}:`, JSON.stringify(tools.map((t) => t.name)));
     process.exit(1);
   }
 ' "$STDOUT_FILE"
@@ -248,5 +250,5 @@ if [ "$CHECK_STATUS" -ne 0 ]; then
   exit 1
 fi
 
-echo "OK: jigbench mcp completed a real initialize -> tools/list round trip (9 tools); the ENTIRE stdout stream -- not just the two responses read interactively -- carried JSON-RPC only with no extra lines; and the process exited 0 once stdin closed" >&2
+echo "OK: jigbench mcp completed a real initialize -> tools/list round trip (12 tools); the ENTIRE stdout stream -- not just the two responses read interactively -- carried JSON-RPC only with no extra lines; and the process exited 0 once stdin closed" >&2
 exit 0

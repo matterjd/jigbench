@@ -151,13 +151,28 @@ async function releasedOrder(store: JigStore, orders: OrdersService): Promise<st
 }
 
 describe('tools/list', () => {
-  it('names all nine jig_* tools', async () => {
+  // S11: `registerPromptTools` is called unconditionally from `createJigMcpServer` (one line,
+  // `mcp/server.ts`) — three names join the list here as a direct, necessary consequence.
+  it('names all nine jig_* tools plus the three S11 prompt aliases', async () => {
     const rig = await freshRig();
     const client = await connectedClient(rig);
     const { tools } = await client.listTools();
     const names = tools.map((t) => t.name).sort();
     expect(names).toEqual(
-      ['jig_claim', 'jig_docs', 'jig_draft', 'jig_fixture', 'jig_gauges', 'jig_report', 'jig_survey', 'jig_work_order', 'jig_work_orders'].sort(),
+      [
+        'jig_claim',
+        'jig_docs',
+        'jig_draft',
+        'jig_fixture',
+        'jig_gauges',
+        'jig_mark_built',
+        'jig_prompt',
+        'jig_prompts',
+        'jig_report',
+        'jig_survey',
+        'jig_work_order',
+        'jig_work_orders',
+      ].sort(),
     );
     await client.close();
   });

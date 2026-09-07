@@ -135,7 +135,28 @@ describe('PlateBench', () => {
       expect(screen.queryByText(/fixture ·/)).toBeNull();
     });
 
-    it('shows a storm chip naming the fixture once FixturePanel (S7) dispatches jig:fixture-loaded', async () => {
+    it('shows a storm chip naming the fixture, with the CONFIRMED x-jig-fixture value, once FixturePanel (S7) dispatches jig:fixture-loaded with a proof', async () => {
+      render(<PlateBench fetchImpl={fakeFetch({ target: null, port: 0, status: 'none', changes: [] })} />);
+      await waitFor(() => expect(screen.getByText(/no target is set/i)).toBeTruthy());
+
+      act(() => {
+        window.dispatchEvent(
+          new CustomEvent('jig:fixture-loaded', {
+            detail: { name: 'ledger-basic', proof: { ok: true, header: 'x-jig-fixture', value: 'ledger-basic' } },
+          }),
+        );
+      });
+
+      expect(
+        await screen.findByText('fixture · ledger-basic · loaded — the plate answers from it — x-jig-fixture: ledger-basic'),
+      ).toBeTruthy();
+    });
+
+    // Matter's retest-18: this chip used to claim "the plate answers from it" the moment ANY
+    // jig:fixture-loaded event named a fixture, with no proof at all — exactly the unverified
+    // claim Matter's report caught. `loadedMessage` (shared with FixturePanel's own chip, so
+    // the two can never say different things) makes no such claim without one.
+    it('shows only the neutral "loaded" wording when jig:fixture-loaded carries no proof at all', async () => {
       render(<PlateBench fetchImpl={fakeFetch({ target: null, port: 0, status: 'none', changes: [] })} />);
       await waitFor(() => expect(screen.getByText(/no target is set/i)).toBeTruthy());
 
@@ -143,7 +164,8 @@ describe('PlateBench', () => {
         window.dispatchEvent(new CustomEvent('jig:fixture-loaded', { detail: { name: 'ledger-basic' } }));
       });
 
-      expect(await screen.findByText('fixture · ledger-basic · loaded — the plate answers from it')).toBeTruthy();
+      expect(await screen.findByText('fixture · ledger-basic · loaded')).toBeTruthy();
+      expect(screen.queryByText(/answers from it/i)).toBeNull();
     });
 
     it('clears the chip when jig:fixture-loaded fires with name: null (unload)', async () => {

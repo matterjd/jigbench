@@ -103,4 +103,41 @@ describe('createFixtureInterceptor', () => {
     const result = await interceptor(fakeReq('POST', '/api/invoices'));
     expect(result).toBeUndefined();
   });
+
+  // Matter's retest-18: `curl -sI http://127.0.0.1:4601/api/invoices | grep -i x-jig-fixture`
+  // is TEST-RUN.md's own documented proof command — `curl -I` sends a HEAD request, not GET.
+  // Before this fix a HEAD never matched a "GET ..." key at all (strict method equality), so
+  // the interceptor silently declined and the proof line the doc tells Matter to run could
+  // never appear, regardless of whether the fixture had real endpoint data.
+  it('a HEAD request matches the GET-keyed response — headers present, body empty (HTTP HEAD semantics)', async () => {
+    const list = [{ id: '1', number: 'INV-1' }];
+    const fixture = fixtureWith({ responses: { 'GET /api/invoices': list } });
+    const interceptor = createFixtureInterceptor(sourceFor(fixture));
+    const result = await interceptor(fakeReq('HEAD', '/api/invoices'));
+    expect(result).toBeInstanceOf(Response);
+    expect(result?.status).toBe(200);
+    expect(result?.headers.get('x-jig-fixture')).toBe('overdue-heavy');
+    expect(result?.headers.get('content-type')).toBe('application/json');
+    const body = await result?.arrayBuffer();
+    expect(body?.byteLength).toBe(0);
+  });
+
+  it('a HEAD request to a path with no GET-keyed response passes through', async () => {
+    const fixture = fixtureWith({ responses: { 'GET /api/customers': [] } });
+    const interceptor = createFixtureInterceptor(sourceFor(fixture));
+    const result = await interceptor(fakeReq('HEAD', '/api/invoices'));
+    expect(result).toBeUndefined();
+  });
+
+  it('a HEAD request against an {id} template still resolves the sibling list entity', async () => {
+    const list = [{ id: '1' }, { id: '2', number: 'INV-2' }];
+    const fixture = fixtureWith({
+      responses: { 'GET /api/invoices': list, 'GET /api/invoices/{id}': { id: '1', number: 'stale' } },
+    });
+    const interceptor = createFixtureInterceptor(sourceFor(fixture));
+    const result = await interceptor(fakeReq('HEAD', '/api/invoices/2'));
+    expect(result?.headers.get('x-jig-fixture')).toBe('overdue-heavy');
+    const body = await result?.arrayBuffer();
+    expect(body?.byteLength).toBe(0);
+  });
 });

@@ -20,7 +20,8 @@ const binPath = join(here, '..', '..', 'dist', 'bin.js');
 // the closest thing to what an actual agent (Claude Code, Claude Desktop) does.
 const describeIfBuilt = existsSync(binPath) ? describe : describe.skip;
 
-const ALL_TOOL_NAMES = ['jig_claim', 'jig_docs', 'jig_draft', 'jig_fixture', 'jig_gauges', 'jig_report', 'jig_survey', 'jig_work_order', 'jig_work_orders'].sort();
+// S11: registerPromptTools adds three more names — see mcp/tools.test.ts's own fix.
+const ALL_TOOL_NAMES = ['jig_claim', 'jig_docs', 'jig_draft', 'jig_fixture', 'jig_gauges', 'jig_mark_built', 'jig_prompt', 'jig_prompts', 'jig_report', 'jig_survey', 'jig_work_order', 'jig_work_orders'].sort();
 
 function workOrderMarkdown(fields: { id: string; slug: string; state: string; draftedBy: string; what: string; where: string; shop?: boolean }): string {
   const lines = [

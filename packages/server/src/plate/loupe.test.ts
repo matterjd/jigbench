@@ -384,6 +384,37 @@ describe('loupe.js', () => {
       expect(filledMessage(posted)).toEqual({ type: 'jig:filled', filled: ['customerId'], missing: [] });
     });
 
+    // Matter's retest-18, live-driving the fix: Ledger's real "New invoice" form has two
+    // `<input type="date">` fields (Issued/Due). The fixture's `Invoice`/`InvoiceFormValue`
+    // schema types `issuedOn`/`dueOn` as plain TS `string` (no `Date` type, no date format
+    // annotation) — jsf/faker have no date-shape hint to go on for those, so the generated
+    // value is an ARBITRARY string, not `YYYY-MM-DD`. A browser's native `<input type="date">`
+    // value setter SILENTLY REJECTS a malformed date string (the DOM leaves `.value` at `""`)
+    // — before this fix, `setFieldValue` returned `true` unconditionally the moment it called
+    // the setter and dispatched events, so the loupe reported these fields "filled" while the
+    // form visibly never changed. This is exactly the brief's "verify Angular's FormControl
+    // actually updates" instruction: read the value back, and report a rejected value as
+    // missing rather than a false "filled".
+    it('a value the input silently rejects (e.g. a non-date string on type="date") is reported as MISSING, not filled', () => {
+      const dom = loadLoupe('<form><input type="date" name="issuedOn"></form>');
+      const input = dom.window.document.querySelector('input') as HTMLInputElement;
+      const posted = postMessages(dom);
+      send(dom, { type: 'jig:fill', fields: [{ name: 'issuedOn', value: 'not-a-date' }] });
+
+      expect(input.value).toBe(''); // jsdom mirrors real browsers: an invalid date string never applies
+      expect(filledMessage(posted)).toEqual({ type: 'jig:filled', filled: [], missing: ['issuedOn'] });
+    });
+
+    it('a well-formed YYYY-MM-DD value on type="date" is reported as filled', () => {
+      const dom = loadLoupe('<form><input type="date" name="issuedOn"></form>');
+      const input = dom.window.document.querySelector('input') as HTMLInputElement;
+      const posted = postMessages(dom);
+      send(dom, { type: 'jig:fill', fields: [{ name: 'issuedOn', value: '2026-09-01' }] });
+
+      expect(input.value).toBe('2026-09-01');
+      expect(filledMessage(posted)).toEqual({ type: 'jig:filled', filled: ['issuedOn'], missing: [] });
+    });
+
     it('fills a textarea the same way', () => {
       const dom = loadLoupe('<form><textarea name="notes"></textarea></form>');
       const textarea = dom.window.document.querySelector('textarea') as HTMLTextAreaElement;
@@ -433,6 +464,62 @@ describe('loupe.js', () => {
       send(dom, { type: 'jig:fill', fields: [{ selector: '#q', value: 'by-selector' }] });
       expect((dom.window.document.getElementById('q') as HTMLInputElement).value).toBe('by-selector');
       expect(filledMessage(posted)).toEqual({ type: 'jig:filled', filled: ['#q'], missing: [] });
+    });
+
+    // Matter's retest-18: Ledger's real Angular "New invoice" form (reactive forms,
+    // `[formGroup]` + `formControlName="..."`, never `[name]`) has ZERO `[name]` attributes at
+    // all — `formControlName="customerId"` renders as the DOM attribute `formcontrolname`
+    // (HTML lowercases attribute names). Before this fix, `fieldNamesOf`/`findFieldElement`
+    // only ever looked at `[name]`, so the probe always reported an empty field list on a real
+    // Angular reactive form — "fill the form" had nothing to fill, silently.
+    describe('Angular reactive forms — formcontrolname (no [name] attribute at all)', () => {
+      const REACTIVE_FORM =
+        '<form>' +
+        '<select formcontrolname="customerId"><option value="">pick</option></select>' +
+        '<input type="date" formcontrolname="issuedOn">' +
+        '<textarea formcontrolname="notes"></textarea>' +
+        '</form>';
+
+      it('jig:fill-probe reports formcontrolname fields when there is no [name] at all', () => {
+        const dom = loadLoupe(REACTIVE_FORM);
+        const posted = postMessages(dom);
+        send(dom, { type: 'jig:fill-probe' });
+        const message = posted[0] as { type: string; names: string[] };
+        expect(message.names.sort()).toEqual(['customerId', 'issuedOn', 'notes']);
+      });
+
+      it('jig:fill fills a [formcontrolname] input by matching field.name against it', () => {
+        const dom = loadLoupe(REACTIVE_FORM);
+        const input = dom.window.document.querySelector('[formcontrolname="issuedOn"]') as HTMLInputElement;
+        const seenEvents: string[] = [];
+        input.addEventListener('input', () => seenEvents.push('input'));
+        input.addEventListener('change', () => seenEvents.push('change'));
+
+        const posted = postMessages(dom);
+        send(dom, { type: 'jig:fill', fields: [{ name: 'issuedOn', value: '2026-09-01' }] });
+
+        expect(input.value).toBe('2026-09-01');
+        expect(seenEvents).toEqual(['input', 'change']);
+        expect(filledMessage(posted)).toEqual({ type: 'jig:filled', filled: ['issuedOn'], missing: [] });
+      });
+
+      it('jig:fill fills a [formcontrolname] textarea by matching field.name against it', () => {
+        const dom = loadLoupe(REACTIVE_FORM);
+        const textarea = dom.window.document.querySelector('[formcontrolname="notes"]') as HTMLTextAreaElement;
+        const posted = postMessages(dom);
+        send(dom, { type: 'jig:fill', fields: [{ name: 'notes', value: 'net 30' }] });
+        expect(textarea.value).toBe('net 30');
+        expect(filledMessage(posted)).toEqual({ type: 'jig:filled', filled: ['notes'], missing: [] });
+      });
+
+      it('a plain [name] still wins first when both [name] and [formcontrolname] happen to exist', () => {
+        const dom = loadLoupe('<form><input name="dueOn" formcontrolname="differentControl"></form>');
+        const input = dom.window.document.querySelector('input') as HTMLInputElement;
+        const posted = postMessages(dom);
+        send(dom, { type: 'jig:fill', fields: [{ name: 'dueOn', value: '2026-09-30' }] });
+        expect(input.value).toBe('2026-09-30');
+        expect(filledMessage(posted)).toEqual({ type: 'jig:filled', filled: ['dueOn'], missing: [] });
+      });
     });
   });
 

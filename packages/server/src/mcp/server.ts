@@ -12,6 +12,7 @@ import { ShopHeartbeat } from './heartbeat.js';
 import { registerJigTools } from './tools.js';
 import { registerJigResources } from './resources.js';
 import { registerJigPrompts } from './prompts.js';
+import { registerPromptTools } from './prompt-tools.js'; // S11
 import type { JigMcpContext } from './types.js';
 
 /**
@@ -96,6 +97,7 @@ export function createJigMcpServer(options: CreateJigMcpServerOptions): McpServe
   registerJigTools(mcpServer, ctx);
   registerJigResources(mcpServer, ctx);
   registerJigPrompts(mcpServer, ctx);
+  registerPromptTools(mcpServer, { repoRoot: options.repoRoot }); // S11 — jig_prompts/jig_prompt/jig_mark_built
 
   // The shop heartbeat (deliverable 1's last paragraph): started once the client's
   // `initialize`/`initialized` handshake has fully completed (so `clientLabel()` already

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { nextToolpathId, nextWorkOrderId, slugify } from './ids.js';
+import { nextPromptId, nextToolpathId, nextWorkOrderId, slugify } from './ids.js';
 
 describe('slugify', () => {
   it('lowercases and hyphenates', () => {
@@ -52,5 +52,16 @@ describe('nextToolpathId', () => {
 
   it('increments past the highest existing id', () => {
     expect(nextToolpathId(['0001', '0003'])).toBe('0004');
+  });
+});
+
+// S11: the prompt store numbers `.jig/prompts/<id>-<slug>.md` the same way.
+describe('nextPromptId', () => {
+  it('starts at 0001 with no existing ids', () => {
+    expect(nextPromptId([])).toBe('0001');
+  });
+
+  it('increments past the highest existing id', () => {
+    expect(nextPromptId(['0001', '0004'])).toBe('0005');
   });
 });
