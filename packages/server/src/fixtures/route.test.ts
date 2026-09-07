@@ -1,4 +1,4 @@
-import { createServer } from 'node:http';
+import { createServer, type Server as HttpServer } from 'node:http';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -55,12 +55,15 @@ afterEach(async () => {
   await rm(repoRoot, { recursive: true, force: true });
 });
 
-async function serve(): Promise<{ url: string; store: FixtureStore }> {
+async function serve(options?: {
+  survey?: () => Survey;
+  getPlateUrl?: () => string | undefined;
+}): Promise<{ url: string; store: FixtureStore }> {
   const store = new FixtureStore(repoRoot);
   await store.init();
   const app = express();
   app.use(express.json());
-  attachFixturesRoute(app, store, () => stubSurvey());
+  attachFixturesRoute(app, store, options?.survey ?? (() => stubSurvey()), options?.getPlateUrl);
   const server = createServer(app);
   await new Promise<void>((resolve) => server.listen(0, resolve));
   const address = server.address();
@@ -179,6 +182,109 @@ describe('load / unload', () => {
     await fetch(`${url}/api/fixtures/a/scrap`, { method: 'POST' });
     const res = await fetch(`${url}/api/fixtures/a/load`, { method: 'POST' });
     expect(res.status).toBe(409);
+  });
+});
+
+// Matter's retest-18: "Fail but I did not receive the proof from a terminal" — the panel
+// claimed "the plate answers from it" on every load, unconditionally, whether or not the
+// plate actually did. This makes `load` do the SAME real round-trip Matter ran by hand
+// (`curl -sI .../api/invoices | grep -i x-jig-fixture`) itself, server-side, and report the
+// honest result — so the bench never asserts a fact it never checked.
+describe('POST /api/fixtures/:id/load — the proof line (a REAL request the bench makes to the plate)', () => {
+  let fakePlate: HttpServer | undefined;
+
+  afterEach(async () => {
+    if (fakePlate) {
+      await new Promise<void>((resolve) => fakePlate!.close(() => resolve()));
+      fakePlate = undefined;
+    }
+  });
+
+  async function listenFakePlate(handler: (req: import('node:http').IncomingMessage, res: import('node:http').ServerResponse) => void): Promise<string> {
+    fakePlate = createServer(handler);
+    await new Promise<void>((resolve) => fakePlate!.listen(0, resolve));
+    const address = fakePlate.address();
+    if (typeof address !== 'object' || !address) throw new Error('no address');
+    return `http://127.0.0.1:${address.port}`;
+  }
+
+  it('reports a confirmed proof when the plate answers the probed endpoint with this fixture\'s own header', async () => {
+    const plateUrl = await listenFakePlate((_req, res) => {
+      res.writeHead(200, { 'content-type': 'application/json', 'x-jig-fixture': 'overdue-heavy' });
+      res.end();
+    });
+    const { url } = await serve({ getPlateUrl: () => plateUrl });
+    await fetch(`${url}/api/fixtures`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ name: 'overdue-heavy', seed: 42 }),
+    });
+    const res = await fetch(`${url}/api/fixtures/overdue-heavy/load`, { method: 'POST' });
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.active).toBe('overdue-heavy');
+    expect(body.proof).toEqual({ ok: true, header: 'x-jig-fixture', value: 'overdue-heavy' });
+  });
+
+  it('reports an honest not-confirmed proof when the plate answers WITHOUT the fixture header', async () => {
+    const plateUrl = await listenFakePlate((_req, res) => {
+      res.writeHead(200, { 'content-type': 'application/json' });
+      res.end();
+    });
+    const { url } = await serve({ getPlateUrl: () => plateUrl });
+    await fetch(`${url}/api/fixtures`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ name: 'overdue-heavy', seed: 42 }),
+    });
+    const res = await fetch(`${url}/api/fixtures/overdue-heavy/load`, { method: 'POST' });
+    const body = await res.json();
+    expect(body.proof).toEqual({ ok: false, reason: 'not-confirmed' });
+  });
+
+  it('reports no-endpoints honestly when the fixture has no response data to probe at all (Angular-only survey)', async () => {
+    const noEndpointsSurvey = (): Survey => ({
+      jigFormat: JIG_FORMAT,
+      stack: ['angular'],
+      components: [],
+      routes: [],
+      endpoints: [],
+      schemas: [],
+      docs: [],
+      generatedAt: '2026-09-05T00:00:00.000Z',
+    });
+    const { url } = await serve({ survey: noEndpointsSurvey, getPlateUrl: () => 'http://127.0.0.1:1' });
+    await fetch(`${url}/api/fixtures`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ name: 'overdue-heavy', seed: 42 }),
+    });
+    const res = await fetch(`${url}/api/fixtures/overdue-heavy/load`, { method: 'POST' });
+    const body = await res.json();
+    expect(body.proof).toEqual({ ok: false, reason: 'no-endpoints' });
+  });
+
+  it('reports unreachable honestly when the plate cannot be reached at all', async () => {
+    const { url } = await serve({ getPlateUrl: () => 'http://127.0.0.1:1' });
+    await fetch(`${url}/api/fixtures`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ name: 'overdue-heavy', seed: 42 }),
+    });
+    const res = await fetch(`${url}/api/fixtures/overdue-heavy/load`, { method: 'POST' });
+    const body = await res.json();
+    expect(body.proof).toEqual({ ok: false, reason: 'unreachable' });
+  });
+
+  it('omits proof entirely when no getPlateUrl thunk was wired at all (unchanged prior contract)', async () => {
+    const { url } = await serve();
+    await fetch(`${url}/api/fixtures`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ name: 'a', seed: 1 }),
+    });
+    const res = await fetch(`${url}/api/fixtures/a/load`, { method: 'POST' });
+    expect(await res.json()).toEqual({ active: 'a' });
   });
 });
 
