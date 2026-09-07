@@ -11,8 +11,6 @@ export interface AdvancedDrawerProps {
   prompts: Prompt[];
   rulersOn: boolean;
   onRulersChange: (on: boolean) => void;
-  mirrorOn: boolean;
-  onMirrorChange: (on: boolean) => void;
   /** Pre-built by the caller (App.tsx already holds the plate refs Fixture/Toolpath need) —
    * AdvancedDrawer only gives them a slot, keeping this component's own test surface about
    * layout and the switches, not the panels' own internals (already covered by their own
@@ -26,15 +24,15 @@ export interface AdvancedDrawerProps {
 /** "Advanced, switched on: the SIM strip; the spine; rulers & guides; the mirror; the scrap bin
  * count; fixtures; the toolpath; MCP status. Off, and the plate is whole again" (concept D). Kept
  * behind the rail's Advanced switch — everything v0.1 had that is not the loop, one toggle away
- * (AMENDMENT-1 §4). */
+ * (AMENDMENT-1 §4). The mirror is the one instrument not here yet (#8): S12 shipped its switch
+ * as a no-op, and a control that answers nothing is a floor item — it is words until a built
+ * Prompt keeps its before. */
 export function AdvancedDrawer({
   wiring,
   connected,
   prompts,
   rulersOn,
   onRulersChange,
-  mirrorOn,
-  onMirrorChange,
   fixturePanel,
   toolpathBar,
   shop,
@@ -54,11 +52,10 @@ export function AdvancedDrawer({
               <input type="checkbox" checked={rulersOn} onChange={(e) => onRulersChange(e.target.checked)} aria-label="rulers & guides" />
               rulers &amp; guides
             </label>
-            <label className="jig-advanced__switch">
-              <input type="checkbox" checked={mirrorOn} onChange={(e) => onMirrorChange(e.target.checked)} aria-label="the mirror — before | after" />
-              the mirror — before | after
-            </label>
           </div>
+          {/* #8: the S12 mirror switch was a disclosed no-op — a switch that does nothing is a
+              floor item. Words in its place until a built Prompt keeps a snapshot at Ready. */}
+          <span className="jig-advanced__say">the mirror — before | after — returns once a built prompt keeps its before; a build's files are on its built line in Prompts</span>
           <span className="jig-advanced__say">
             scrap bin · <b>{scrapCount}</b>
             {scrapCount > 0 ? ' · counted, regenerable — nothing is deleted' : ''}

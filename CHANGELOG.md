@@ -55,7 +55,7 @@ serviceable prompt, we kick that prompt off."* One loop, one button, one command
   `BenchState` live in core); #9 the logbook drawer is fed by the build stream and the target's
   own log (filters human · Claude · bench · app; Esc closes).
 - **Docs** — `docs/TEST-RUN.md` rewritten for the loop (one `npx jigbench`, the Clamp screen,
-  Point → requirement → Polish → hold Ready → Build → Built → *before*, the Advanced tour, your
+  Point → requirement → Polish → hold Ready → Build → Built, the Advanced tour, your
   own repo); `docs/ROADMAP.md` (AMENDMENT §6: the stacks after 0.2.0); README and `docs/USING.md`
   in the amended tongue.
 

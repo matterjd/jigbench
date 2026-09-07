@@ -110,10 +110,11 @@ m:ss`.
 
 ## Built
 
-The prompt in hand in **Prompts** carries the **built** line: **before — the plate as it was**
-flips the plate to the release snapshot and back, and **refine — go again** opens a new draft on
-the same target with the words pre-filled — the loop's second lap. Claude's changes are in the
-repo's working tree; Jig wrote none of them (`git status` shows exactly what changed).
+The prompt in hand in **Prompts** carries the **built** line — *built · 3 files* and the files
+Claude touched, listed — and **refine — go again**, which opens a new draft on the same target
+with the words pre-filled: the loop's second lap. Claude's changes are in the repo's working
+tree; Jig wrote none of them (`git status` shows exactly what changed). A *before* — the plate
+as it was at Ready — is not kept for a prompt yet (#8); the plate shows the app after the build.
 
 ## Prompts
 
@@ -142,8 +143,8 @@ clock. *"nothing leaves the machine."* `Esc` or **close** puts it away.
 ## Advanced
 
 Everything v0.1 had that is not the loop, one switch away at the rail's foot: the wiring strip,
-**the spine** (every prompt on its four-rung ladder), **rulers & guides**, **the mirror — before |
-after**, the scrap bin count, **fixtures** (reproducible test data from the survey's schemas —
+**the spine** (every prompt on its four-rung ladder), **rulers & guides**, a line saying where the
+mirror went (it returns once a built prompt keeps its *before* — #8), the scrap bin count, **fixtures** (reproducible test data from the survey's schemas —
 `new fixture`, **load**, **fill the form**), **toolpath** (**record** Hand clicks on the plate,
 name it, **replay**), and **MCP — the secondary door** (which agent is connected). Switch it off
 and the plate is whole again.

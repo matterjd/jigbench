@@ -121,14 +121,14 @@ describe('App (S12: the quiet bench)', () => {
     expect(screen.getByText(/not installed/)).toBeTruthy();
   });
 
-  it('the Advanced drawer is absent by default, and appears (with the spine, rulers switch, mirror switch, Fixtures, Toolpath, MCP) once the switch is on', async () => {
+  it('the Advanced drawer is absent by default, and appears (with the spine, rulers switch, Fixtures, Toolpath, MCP — and no mirror switch, #8) once the switch is on', async () => {
     render(<App />);
     expect(screen.queryByLabelText(/rulers & guides/i)).toBeNull();
 
     fireEvent.click(screen.getByLabelText(/Advanced — everything that is not the loop/i));
 
     await waitFor(() => expect(screen.getByLabelText(/rulers & guides/i)).toBeTruthy());
-    expect(screen.getByLabelText(/the mirror/i)).toBeTruthy();
+    expect(screen.queryByLabelText(/the mirror/i)).toBeNull(); // #8: no control that does nothing
     expect(await screen.findByText(/no fixtures yet/i)).toBeTruthy();
     expect(await screen.findByText(/no toolpaths yet/i)).toBeTruthy();
     expect(screen.getByText(/none connected/i)).toBeTruthy();
