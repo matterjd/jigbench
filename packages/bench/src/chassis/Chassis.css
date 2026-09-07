@@ -1,92 +1,53 @@
 .jig-chassis {
   display: grid;
   height: 100vh;
-  /* The chassis fallback (CHASSIS.md/TEST-RUN.md wave-4 fix): every track below has an
-     enforced floor (the plate's ~560x400 usable minimum, the tray's own collapsed/expanded
-     height). When the real viewport is smaller than the sum of those floors, the GRID's own
-     used size exceeds this box's fixed 100vh/100% — `auto` (not `hidden`) is what turns that
-     into a native scrollbar on the chassis itself, so the fallback is "the whole chassis
-     scrolls," never "a region gets clipped/hidden" (the wave-3 bug: the properties column's
-     tab body had no bound at all and grew past the tray, covering it — see
-     PropertiesColumn.css and TrayRegion.css for the two regions that actually own scrolling
-     now). */
+  /* Same fallback rule as v0.1 (never `hidden`): if the floored regions below sum past the
+     real viewport, the WHOLE chassis gets a native scrollbar rather than clipping a region. */
   overflow: auto;
   background: var(--bg0);
   color: var(--ink);
   font-family: var(--sans);
   font-size: 14px;
   line-height: 1.45;
-  grid-template-columns: 56px minmax(560px, 1fr) minmax(240px, 560px);
-  grid-template-rows: minmax(400px, 1fr) auto auto;
-  grid-template-areas:
-    'rail plate properties'
-    'tray tray tray'
-    'bottombar bottombar bottombar';
+  grid-template-rows: 1fr 28px; /* the bench · the status line (AMENDMENT-1 §4) */
+}
+
+.jig-chassis__bench {
+  display: grid;
+  grid-template-columns: 56px minmax(560px, 1fr) 340px;
+  min-height: 0;
+  min-width: 0;
 }
 
 .jig-chassis__rail {
-  grid-area: rail;
   min-height: 0;
   border-right: 1px solid var(--line);
 }
 
+.jig-chassis__centre {
+  display: grid;
+  grid-template-rows: minmax(400px, 1fr) auto; /* the plate's floor, then the Advanced drawer (0 when empty) */
+  min-height: 0;
+  min-width: 0;
+}
+
 .jig-chassis__plate {
-  grid-area: plate;
   min-width: 0;
   min-height: 0;
   position: relative;
 }
 
-.jig-chassis__properties {
-  grid-area: properties;
+.jig-chassis__advanced-slot {
+  min-width: 0;
+}
+
+.jig-chassis__column {
   min-width: 0;
   min-height: 0;
-  overflow: hidden; /* the tab body scrolls internally (PropertiesColumn.css) — this box never grows past its row */
   position: relative;
-  z-index: 1; /* stacking floor: the tray (below) must never sit under an overflowing properties column */
+  z-index: 1;
 }
 
-.jig-chassis__tray {
-  grid-area: tray;
-  min-width: 0;
+.jig-chassis__status-line {
   min-height: 0;
-  overflow: hidden;
-  border-top: 1px solid var(--line);
-  background: var(--bg1);
-  position: relative;
-  z-index: 2; /* the tray and its mark prompt are always above the properties column, never under it */
-}
-
-.jig-chassis__tray--collapsed {
-  /* Enough for the header (num/slug/ladder/badge), a slice of the human face, and the
-     pinned RELEASE + scrap actions at the bottom — with room to spare under the plate's
-     400px floor above at a 1280x720 window (TEST-RUN.md's first live test: RELEASE and the
-     drafted-by badge were both clipped at the old 56px). TrayRegion.css makes everything
-     between the header and the pinned footer its own internal scroller, so RELEASE is
-     visible without scrolling regardless of how long the human face gets. */
-  height: 260px;
-}
-
-.jig-chassis__tray--expanded {
-  height: 40vh;
-}
-
-@media (prefers-reduced-motion: no-preference) {
-  /* the drawer is a "drawer of record" (stone mass) — CHASSIS.md's motion-by-mass table */
-  .jig-chassis__tray {
-    transition: height var(--t-stone) var(--ease-settle);
-  }
-}
-
-.jig-chassis__bottom-bar {
-  grid-area: bottombar;
-  min-height: 0;
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  padding: 0 12px;
-  height: 32px;
-  border-top: 1px solid var(--line);
-  background: var(--bg0);
-  overflow: hidden;
 }
