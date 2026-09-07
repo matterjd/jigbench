@@ -64,9 +64,11 @@
  *     Replies `jig:snapshotted`.
  *
  * Outbound (plate -> bench):
- *   {type:'jig:pick', path, tag, text, component, componentClass, file, rect}
+ *   {type:'jig:pick', path, tag, text, component, componentClass, file, framework, rect}
  *     A loupe-mode click — the element's DOM path, tag, trimmed text, resolved
- *     component/file (when the survey names one), and viewport rect.
+ *     component/file (when the survey names one), a `framework` badge naming which runtime
+ *     resolver actually found the component ('angular'|'react'|'vue'|null — S16, see the
+ *     delimited block below), and viewport rect.
  *   {type:'jig:event', kind:'click'|'input', path, value}
  *     A hand-mode click or input, mirrored to the bench's event log (`value` only for input).
  *   {type:'jig:filled', filled:[...], missing:[...]} (S7)
@@ -282,6 +284,21 @@
 
   // ---- component resolution ------------------------------------------------
 
+  /* ==== S16 extension (AMENDMENT-1 §6/A5 — generic runtime component naming) — begin
+     delimited block ==========================================================================
+     Beyond Angular's dev-mode globals: chain Angular -> React -> Vue, each returning the
+     component name it found (or null), so `describeElement` can report a `framework` badge
+     alongside the name. RESEARCH-sweep-2026-09-05.md ("render-inspect" lens, refuted claim
+     1): React 19 removed Fiber's `_debugSource`, but the DOM-node -> fiber bridge is otherwise
+     unchanged — every host DOM node React manages still carries an own, enumerable
+     `__reactFiber$<random>` property holding its fiber, and each fiber still has `.type` (the
+     function/class component reference, or a plain string like 'div' for a host element) and
+     `.return` (the parent fiber). This never reads `_debugSource`/`_debugOwner` at all, so
+     nothing here depends on the dropped field. (React also stamps a sibling
+     `__reactProps$<random>` own property per host node holding just its current props — no
+     name information, so it isn't used here; it wasn't needed once fiber walking already
+     yields names.) Vue 3 dev builds attach `__vueParentComponent` directly to the DOM node. */
+
   /** Angular dev mode exposes these as console globals (Angular 9-20): DOM element -> live
    * component instance. Not guaranteed across versions, so every call is guarded. */
   function angularComponentName(el) {
@@ -300,6 +317,73 @@
     }
     return null;
   }
+
+  /** The React-assigned fiber key on a DOM node, or null when this element isn't one React
+   * manages at all. `Object.keys` only ever sees OWN enumerable properties, which is exactly
+   * what React assigns these as — never a prototype property, never non-enumerable. */
+  function reactFiberKey(el) {
+    var keys = Object.keys(el);
+    for (var i = 0; i < keys.length; i++) {
+      if (keys[i].indexOf('__reactFiber$') === 0) return keys[i];
+    }
+    return null;
+  }
+
+  /** Walks `fiber.return` looking for the nearest ancestor (inclusive of the leaf fiber
+   * itself) whose `.type` is a function or class component — never a host tag (`.type` is a
+   * plain string for those, e.g. 'div') — with a `displayName` or `name`. Depth-capped
+   * defensively; a real fiber tree is never anywhere near this deep. */
+  function reactComponentName(el) {
+    var key = reactFiberKey(el);
+    if (!key) return null;
+    try {
+      var node = el[key];
+      var depth = 0;
+      while (node && depth < 200) {
+        var type = node.type;
+        if (typeof type === 'function') {
+          var name = type.displayName || type.name;
+          if (name) return name;
+        }
+        node = node.return;
+        depth++;
+      }
+    } catch (err) {
+      // Fiber shape can vary across React versions/builds — degrade quietly, never throw
+      // from a hover/click handler.
+    }
+    return null;
+  }
+
+  /** Vue 3 dev builds attach `__vueParentComponent` directly to a DOM node it rendered.
+   * `.type.name` is the common case (an options-API or named `<script setup name="...">`
+   * component); `.type.__name` is the compiler-inferred name for a plain, unnamed
+   * `<script setup>` single-file component. */
+  function vueComponentName(el) {
+    try {
+      var instance = el.__vueParentComponent;
+      if (instance && instance.type) {
+        return instance.type.name || instance.type.__name || null;
+      }
+    } catch (err) {
+      // Degrade quietly, same as the other two resolvers.
+    }
+    return null;
+  }
+
+  /** The priority chain the brief names: Angular, then React, then Vue, then neither —
+   * `framework` is set only alongside a name that resolver actually found, never guessed. */
+  function resolveRuntimeComponent(el) {
+    var angular = angularComponentName(el);
+    if (angular) return { name: angular, framework: 'angular' };
+    var react = reactComponentName(el);
+    if (react) return { name: react, framework: 'react' };
+    var vue = vueComponentName(el);
+    if (vue) return { name: vue, framework: 'vue' };
+    return { name: null, framework: null };
+  }
+
+  /* ==== S16 extension — end delimited block ================================================ */
 
   /** Walks up from `el` and returns the nearest ancestor whose tag name (or, defensively,
    * whose `.matches()`) is named in the survey's component list. */
@@ -325,9 +409,16 @@
 
   function describeElement(el) {
     var match = surveyedMatch(el);
-    var component = angularComponentName(el) || (match ? match.name : undefined);
+    var runtime = resolveRuntimeComponent(el);
+    var component = runtime.name || (match ? match.name : undefined);
     var file = match ? match.file : undefined;
-    return { tag: el.tagName.toLowerCase(), component: component, componentClass: component, file: file };
+    return {
+      tag: el.tagName.toLowerCase(),
+      component: component,
+      componentClass: component,
+      file: file,
+      framework: runtime.framework,
+    };
   }
 
   // ---- messaging to the bench --------------------------------------------
@@ -352,6 +443,7 @@
       component: described.component,
       componentClass: described.componentClass,
       file: described.file,
+      framework: described.framework, // S16: 'angular' | 'react' | 'vue' | null
       rect: { x: rect.x, y: rect.y, width: rect.width, height: rect.height },
     });
   }
