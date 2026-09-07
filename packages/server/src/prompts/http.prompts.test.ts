@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { mkdtemp, readFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url';
 import WebSocket from 'ws';
 import { createJigServer, type JigServerHandle } from '../http.js';
 import { FakeOllamaDrafter } from '../orders/drafters/fake.js';
+import { logger } from '../logger.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const FAKE_CLAUDE = join(here, '..', 'build', '__fixtures__', 'fake-claude.mjs');
@@ -240,4 +241,34 @@ describe('REST — /api/prompts', () => {
     expect(builtState.status.claude.state).toBe('built');
     expect(builtState.status.claude.files).toEqual(['x.ts']);
   }, 15_000);
+
+  // CI run 34148382041: a work order the S11 migration can't parse used to disappear with
+  // only a server-log WARN to show for it — no caller of `/api/state` (the bench included)
+  // had any way to know a work order had been silently dropped. `migration.skipped` is how
+  // that stops being silent.
+  it('/api/state carries migration.skipped when a work order fails to migrate', async () => {
+    const repoRoot = await mkdtemp(join(tmpdir(), 'jig-http-prompts-migration-'));
+    const { mkdir, writeFile } = await import('node:fs/promises');
+    await mkdir(join(repoRoot, '.jig', 'work-orders'), { recursive: true });
+    await writeFile(join(repoRoot, '.jig', 'work-orders', '0009-broken.md'), 'not a valid work order', 'utf8');
+
+    // Deliberately-malformed fixture, expected to log the "S11 migration ... failed to
+    // migrate" WARN — that line is the CI-run-34148382041 regression signal elsewhere, so it's
+    // suppressed here; `migration.skipped` on the fetched state below is the real assertion.
+    const warnSpy = vi.spyOn(logger, 'warn').mockImplementation(() => {});
+    handle = await createJigServer({
+      repoRoot,
+      port: 0,
+      openBrowser: false,
+      benchDistDir: join(tmpdir(), 'jig-no-such-bench-dist'),
+      drafters: { ollama: new FakeOllamaDrafter({ available: false }) },
+      claude: { command: 'jig-test-no-such-claude-binary' },
+    });
+    warnSpy.mockRestore();
+
+    const state = await (await fetch(`${handle.url}/api/state`)).json();
+    expect(state.migration.skipped).toEqual([
+      { entry: '0009-broken.md', error: expect.stringContaining('parseWorkOrder') },
+    ]);
+  });
 });

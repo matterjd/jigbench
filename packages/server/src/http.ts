@@ -29,7 +29,7 @@ import { attachTrialFitRoute } from './trialfit/route.js'; // S8
 import { SketchStore } from './sketch/store.js'; // S9
 import { attachSketchesRoute } from './sketch/route.js'; // S9
 // === S11 prompts + build runner: imports (delimited block; owned by packages/server/src/{prompts,build}/*) ===
-import { PromptStore } from './prompts/store.js';
+import { PromptStore, type MigrationSkip } from './prompts/store.js';
 import { PromptService } from './prompts/service.js';
 import { attachPromptsRoute } from './prompts/route.js';
 import { BuildRunner } from './build/runner.js';
@@ -136,7 +136,10 @@ export interface JigServerHandle {
 // mid-session is picked up the next time a Build is actually attempted (`PromptService.build()`
 // always re-checks for real) even though this badge may lag until then — a disclosed v0.2
 // trade-off, not an oversight.
-const promptContextByStore = new WeakMap<JigStore, { promptService: PromptService; getClaudeInstalled: () => boolean }>();
+const promptContextByStore = new WeakMap<
+  JigStore,
+  { promptService: PromptService; getClaudeInstalled: () => boolean; getMigrationSkipped: () => MigrationSkip[] }
+>();
 // === end S11 block ===
 
 // S6, folded into JigStore.getState() itself (retest defect 22, 2026-09-06 evening):
@@ -149,6 +152,11 @@ const promptContextByStore = new WeakMap<JigStore, { promptService: PromptServic
 function composedState(store: JigStore): ReturnType<JigStore['getState']> & {
   wiring: ReturnType<JigStore['getState']>['wiring'] & { claude: 'installed' | 'none' }; // S11
   status: { claude: ReturnType<PromptService['claudeStatus']> }; // S11
+  // CI run 34148382041: a work order the S11 migration can't parse used to vanish with only
+  // a server-log WARN to show for it. `migration.skipped` is that failure surfaced the same
+  // way `wiring.claude`/`status.claude` already are — every existing call site (six of them)
+  // picks it up for free.
+  migration: { skipped: MigrationSkip[] }; // S11
 } {
   const state = store.getState();
   const promptCtx = promptContextByStore.get(store); // S11
@@ -156,6 +164,7 @@ function composedState(store: JigStore): ReturnType<JigStore['getState']> & {
     ...state,
     wiring: { ...state.wiring, claude: promptCtx?.getClaudeInstalled() ? 'installed' : 'none' }, // S11
     status: { claude: promptCtx?.promptService.claudeStatus() ?? { state: 'idle' } }, // S11
+    migration: { skipped: promptCtx?.getMigrationSkipped() ?? [] }, // S11
   };
 }
 function broadcastState(wss: WebSocketServer, store: JigStore): void {
@@ -464,7 +473,11 @@ export async function createJigServer(options: CreateJigServerOptions): Promise<
   // --- S11: `wiring.claude` snapshot — see composedState's own comment for why this is a
   // one-time-at-startup check rather than a live one on every call. ---------------------------
   const claudeInstalled = await runner.isClaudeAvailable();
-  promptContextByStore.set(store, { promptService, getClaudeInstalled: () => claudeInstalled });
+  promptContextByStore.set(store, {
+    promptService,
+    getClaudeInstalled: () => claudeInstalled,
+    getMigrationSkipped: () => promptStore.migrationSkipped(),
+  });
   // -----------------------------------------------------------------------------------------
 
   // --- S6: the .jig/ watcher — the MCP process (ADR-001) is a SEPARATE process from this

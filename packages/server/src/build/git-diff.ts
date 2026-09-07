@@ -1,4 +1,5 @@
 import { spawn } from 'node:child_process';
+import { realpath } from 'node:fs/promises';
 import { relative, resolve } from 'node:path';
 
 /**
@@ -36,18 +37,39 @@ async function gitTopLevel(repoRoot: string): Promise<string | null> {
   return top.length > 0 ? top : null;
 }
 
-/** One `git status --porcelain` line is `XY path` or, for a rename, `XY orig -> new` — the
- * path (or the rename's destination) starts at column 3. `git`'s porcelain format never
- * quotes a path unless it contains characters needing escaping; the outer quotes (when
- * present) are stripped so a plain compare against other paths still works. */
-function parsePorcelainPaths(stdout: string): string[] {
-  return stdout
-    .split('\n')
-    .map((l) => l.replace(/\r$/, ''))
-    .filter((l) => l.length > 3)
-    .map((l) => l.slice(3).trim())
-    .map((p) => (p.includes(' -> ') ? p.slice(p.indexOf(' -> ') + 4) : p))
-    .map((p) => p.replace(/^"(.*)"$/, '$1'));
+/**
+ * Parses `git status --porcelain -z` output. `-z` NUL-separates every record and NEVER
+ * quotes or C-escapes a path — the plain `--porcelain` format (kept only in history/tests as
+ * a comparison point) quotes any path needing it (a space, a rename, non-ASCII bytes) and
+ * C-escapes non-ASCII bytes as octal (`"caf\303\251.txt"` for `café.txt`), which a bare
+ * `.replace(/^"(.*)"$/, '$1')` strips the quotes from but never un-escapes — `-z` sidesteps
+ * that whole class outright (verified live on this desk, git 2.47.1, against a renamed file
+ * with a space and a unicode filename).
+ *
+ * Each record is `XY path\0`. A rename/copy record (status starting `R`/`C`) is followed by
+ * ONE MORE NUL-terminated field — the origin path, with no ` -> ` separator in `-z` mode — so
+ * that field is consumed and discarded; only the current (destination) path is wanted here.
+ *
+ * The backslash-to-forward-slash and leading-`./`-strip below are defensive: real `git`
+ * status output on this desk never needed either (`-z` paths were already forward-slashed
+ * with no prefix), but they cost nothing and guard against a future/other git build that
+ * emits either shape.
+ */
+function parsePorcelainZ(stdout: string): string[] {
+  const tokens = stdout.split('\0');
+  const paths: string[] = [];
+  for (let i = 0; i < tokens.length; i++) {
+    const token = tokens[i];
+    if (token.length === 0) continue;
+    const status = token.slice(0, 2);
+    let path = token.slice(3);
+    if (status[0] === 'R' || status[0] === 'C') {
+      i++; // the next field is the rename/copy origin path — not needed, skip over it
+    }
+    path = path.split('\\').join('/').replace(/^\.\//, '');
+    paths.push(path);
+  }
+  return paths;
 }
 
 export interface GitStatusSnapshot {
@@ -61,12 +83,21 @@ export interface GitStatusSnapshot {
 export async function gitStatusSnapshot(repoRoot: string): Promise<GitStatusSnapshot | null> {
   const topLevel = await gitTopLevel(repoRoot);
   if (!topLevel) return null;
-  const { code, stdout } = await run('git', ['status', '--porcelain'], repoRoot);
+  const { code, stdout } = await run('git', ['status', '--porcelain', '-z'], repoRoot);
   if (code !== 0) return null;
 
-  const repoRootAbs = resolve(repoRoot);
+  // `repoRoot` can reach this module through a path that is LEXICALLY different from, but
+  // points at the very same directory as, what git's own `--show-toplevel` reports — an NTFS
+  // junction, or (confirmed against the actual CI failure) an 8.3-shortened path segment
+  // (GitHub's windows-latest runner sets `%TEMP%` to `C:\Users\RUNNER~1\...`; `git` resolves
+  // that alias to its long canonical form, e.g. `C:\Users\runneradmin\...`, before reporting
+  // `--show-toplevel`). `resolve(repoRoot)` alone never reconciles that: `path.relative`
+  // between the two forms produces a `../`-laden escape instead of the plain filename —
+  // reproduced live on this desk with both an 8.3 alias and a plain junction. `fs.realpath`
+  // canonicalises the same way git does, so both sides of the `relative()` call below agree.
+  const repoRootAbs = await realpath(repoRoot).catch(() => resolve(repoRoot));
   const paths = new Set(
-    parsePorcelainPaths(stdout).map((p) => relative(repoRootAbs, resolve(topLevel, p)).split('\\').join('/')),
+    parsePorcelainZ(stdout).map((p) => relative(repoRootAbs, resolve(topLevel, p)).split('\\').join('/')),
   );
   return { topLevel, paths };
 }
@@ -79,3 +110,7 @@ export async function gitStatusSnapshot(repoRoot: string): Promise<GitStatusSnap
 export function filesTouchedBetween(before: GitStatusSnapshot, after: GitStatusSnapshot): string[] {
   return [...after.paths].filter((p) => !before.paths.has(p)).sort();
 }
+
+/** Exported for direct unit coverage of the `-z` record parser (rename/copy pairing, the
+ * defensive backslash/`./` normalisation) without needing a live `git` process per case. */
+export const __test__ = { parsePorcelainZ };
