@@ -1,7 +1,10 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { createServer } from 'node:net';
+import { copyFile, mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { join } from 'node:path';
+import { invocation } from './detect.js';
 import { TargetRunner } from './runner.js';
 
 const fixturesDir = fileURLToPath(new URL('./__fixtures__', import.meta.url));
@@ -93,4 +96,38 @@ describe('TargetRunner', () => {
     ).rejects.toThrow(/did not answer/i);
     expect(runner.getState().status).toBe('none');
   });
+
+  // #10 (S17a follow-up): "verify the win32 `cmd.exe /d /s /c npm run <script>` invocation on
+  // the CI runner's Node". Every other test here spawns `node` directly; this one goes through
+  // the SAME `invocation('npm', ...)` `POST /api/target/start` builds — `cmd.exe /d /s /c npm
+  // run start` on Windows, plain `npm run start` elsewhere — against a real package.json in a
+  // temp repo, so the platform-specific spawn is proven on both CI legs, not just described.
+  it('start(): an `npm run <script>` invocation — the route\'s own — comes up on this platform', async () => {
+    const repoRoot = await mkdtemp(join(tmpdir(), 'jig-runner-npm-'));
+    try {
+      const port = await freePort();
+      await copyFile(SERVER_FIXTURE, join(repoRoot, 'server.mjs'));
+      await writeFile(
+        join(repoRoot, 'package.json'),
+        JSON.stringify({ name: 'jig-runner-npm-fixture', private: true, scripts: { start: `node server.mjs ${port}` } }),
+        'utf8',
+      );
+      const states: string[] = [];
+      runner = new TargetRunner({
+        onLog: () => {},
+        onStateChange: (s) => states.push(s.status),
+        probeIntervalMs: 100,
+        probeTimeoutMs: 30_000,
+      });
+      await runner.start({ ...invocation('npm', ['run', 'start']), cwd: repoRoot, port });
+      const state = runner.getState();
+      expect(state.status).toBe('up');
+      if (state.status === 'up') expect(state.url).toBe(`http://localhost:${port}`);
+      expect(states).toEqual(['starting', 'up']);
+      await runner.stop();
+      expect(runner.getState()).toEqual({ status: 'none' });
+    } finally {
+      await rm(repoRoot, { recursive: true, force: true });
+    }
+  }, 40_000);
 });

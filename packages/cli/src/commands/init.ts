@@ -1,10 +1,8 @@
 import { existsSync } from 'node:fs';
 import { readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import { initJigTree } from '@jigbench/server';
+import { ensureGitignoreEntry, formatMcpJsonDiff, initJigTree, mergeMcpJson } from '@jigbench/server';
 import { resolveRepoRoot } from '../repo-root.js';
-import { formatMcpJsonDiff, mergeMcpJson } from '../mcp-json.js';
-import { ensureGitignoreEntry } from '../gitignore.js';
 import { printHuman } from '../human-output.js';
 
 export interface InitCommandOptions {
@@ -43,7 +41,9 @@ export async function runInitCommand(options: InitCommandOptions): Promise<InitC
   // ALWAYS baked into the entry so the served root never depends on cwd-based re-detection
   // at all — the same unconditional guarantee `claude-desktop-config.ts` already gives its
   // entry, for the same reason (no cwd to rely on there either).
-  const { merged, changed: mcpChanged } = mergeMcpJson(existingMcpJson, { repoRoot });
+  // #10: the same `mergeMcpJson` `POST /api/setup/mcp` uses (packages/server/src/setup/) —
+  // one definition of the entry, whichever door wrote it.
+  const { merged, changed: mcpChanged } = mergeMcpJson(existingMcpJson, repoRoot);
   if (mcpChanged) {
     printHuman(formatMcpJsonDiff(existingMcpJson, merged));
     await writeFile(mcpJsonPath, `${JSON.stringify(merged, null, 2)}\n`, 'utf8');

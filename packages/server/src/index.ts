@@ -99,6 +99,11 @@ export type { TargetBenchView, TargetRouteContext } from './target/route.js';
 export { attachSetupRoute } from './setup/route.js';
 export type { SetupBenchView, SetupRouteContext } from './setup/route.js';
 export { mergeMcpJson, formatMcpJsonDiff } from './setup/mcp-json.js';
+export type { McpJsonMergeResult } from './setup/mcp-json.js';
+// #10: the CLI's `init` / `mcp install` call these three setup modules instead of carrying
+// their own copies — the dependency direction (`cli` -> `server`) is the one that compiles.
+export { ensureGitignoreEntry } from './setup/gitignore.js';
 export { claudeDesktopConfigPath, mergeClaudeDesktopConfig, formatClaudeDesktopConfigDiff } from './setup/desktop-config.js';
+export type { ClaudeDesktopConfigPathOptions } from './setup/desktop-config.js';
 export { isSameOriginOrAbsent } from './same-origin.js';
 // === end S17a block ===
