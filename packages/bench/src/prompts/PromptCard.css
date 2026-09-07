@@ -1,0 +1,246 @@
+/* The prompt card — the loop's one control surface (AMENDMENT-1 §4). z3 held: lifted over the
+   plate with the one earned shadow in the default view. Ported from concept D's .card. */
+.jig-prompt-card {
+  position: absolute;
+  z-index: 8;
+  width: 340px;
+  max-height: calc(100% - 24px);
+  overflow: auto;
+  background: var(--bg1);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  box-shadow: var(--shadow-held);
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.jig-prompt-card__head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.jig-prompt-card__title {
+  font: 700 12.5px/1.3 var(--mono);
+  color: var(--ink);
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.jig-prompt-card__close {
+  width: 24px;
+  height: 24px;
+  display: grid;
+  place-items: center;
+  border-radius: var(--r-micro);
+  color: var(--dim);
+}
+
+.jig-prompt-card__close:hover {
+  background: var(--bg2);
+  color: var(--ink);
+}
+
+.jig-prompt-card__file {
+  font: 11px/1.4 var(--mono);
+  color: var(--faint);
+}
+
+.jig-prompt-card textarea {
+  width: 100%;
+  min-height: 76px;
+  background: var(--bg2);
+  border: 1px solid var(--line);
+  border-radius: var(--r-inner);
+  padding: 8px 10px;
+  font-size: 13px;
+  line-height: 1.45;
+  resize: vertical;
+}
+
+.jig-prompt-card__acc-title {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--dim);
+}
+
+.jig-prompt-card__acc-list {
+  list-style: none;
+  margin: 4px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 4px;
+}
+
+.jig-prompt-card__acc-list input {
+  background: var(--bg2);
+  border: 1px solid var(--line);
+  border-radius: var(--r-micro);
+  padding: 4px 8px;
+  font-size: 12.5px;
+  width: 100%;
+}
+
+.jig-prompt-card__acts {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.jig-prompt-card__hair {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 30px;
+  padding: 0 10px;
+  border-radius: var(--r-inner);
+  border: 1px solid var(--line);
+  background: var(--bg1);
+  color: var(--ink);
+  font-size: 12.5px;
+  font-weight: 600;
+}
+
+.jig-prompt-card__hair:hover {
+  background: var(--bg2);
+}
+
+.jig-prompt-card__hair:disabled {
+  color: var(--dim);
+  cursor: not-allowed;
+}
+
+.jig-prompt-card__oath,
+.jig-prompt-card__build {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  height: 34px;
+  padding: 0 14px 0 10px;
+  border-radius: var(--r-inner);
+  border: 1px solid var(--line);
+  color: var(--dim);
+  background: var(--bg1);
+  font-size: 12.5px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  user-select: none;
+  touch-action: none;
+}
+
+.jig-prompt-card__oath .jig-prompt-card__pair,
+.jig-prompt-card__build .jig-prompt-card__pair {
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: 0;
+  font-size: 12px;
+  opacity: 0.9;
+}
+
+.jig-prompt-card__ring {
+  width: 18px;
+  height: 18px;
+}
+
+.jig-prompt-card__ring circle {
+  fill: none;
+  stroke-width: 2.5;
+  stroke: currentColor;
+}
+
+.jig-prompt-card__ring .track {
+  opacity: 0.3;
+}
+
+.jig-prompt-card__ring .fill {
+  stroke-dasharray: 44;
+  stroke-dashoffset: 44;
+  transform: rotate(-90deg);
+  transform-origin: 50% 50%;
+}
+
+.jig-prompt-card__oath--ember,
+.jig-prompt-card__build--ember {
+  border-color: var(--ember);
+  color: var(--ember);
+  background: var(--ember-soft);
+  cursor: pointer;
+}
+
+.jig-prompt-card__oath--holding {
+  background: var(--ember);
+  color: var(--on-accent);
+  box-shadow: var(--shadow-held);
+  transform: translateY(-1px);
+}
+
+.jig-prompt-card__oath--holding .jig-prompt-card__ring .fill {
+  stroke-dashoffset: 0;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .jig-prompt-card__oath--holding .jig-prompt-card__ring .fill {
+    transition: stroke-dashoffset var(--t-oath) linear;
+  }
+}
+
+.jig-prompt-card__oath:disabled,
+.jig-prompt-card__build:disabled {
+  cursor: not-allowed;
+}
+
+.jig-prompt-card__say {
+  font-size: 12.5px;
+  color: var(--dim);
+}
+
+.jig-prompt-card__say b {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.jig-prompt-card__foot {
+  font: 11px/1.4 var(--mono);
+  color: var(--faint);
+}
+
+.jig-prompt-card__stream {
+  border-left: 3px solid var(--wyrd);
+  padding: 6px 10px;
+  background: var(--wyrd-soft);
+  border-radius: 0 var(--r-inner) var(--r-inner) 0;
+}
+
+.jig-prompt-card__stream-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font: 700 11px/1 var(--mono);
+  color: var(--wyrd);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: 6px;
+}
+
+.jig-prompt-card__stream ol {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.jig-prompt-card__stream li {
+  font: 12px/1.4 var(--mono);
+  color: var(--wyrd);
+}

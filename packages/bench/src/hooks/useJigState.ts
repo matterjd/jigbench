@@ -1,14 +1,35 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { JigState } from '@jigbench/core';
+
+/** S11's build-stream frame — rides the same socket as the state broadcast, mirrored here as a
+ * loosely-typed passthrough (the real `BuildStreamEvent` union lives in
+ * `delegate/build-s11:packages/server/src/build/types.ts`, not on `main` yet — see
+ * `packages/bench/src/prompts/types.ts` for the local seam). */
+export interface BuildEventFrame {
+  id: string;
+  event: unknown;
+  elapsedMs: number;
+}
 
 export interface UseJigStateResult {
   state: JigState | null;
   connected: boolean;
+  /** The most recent `{type:'build', id, event, elapsedMs}` frame, or null before the first one
+   * (or after a fresh connection resets it). Consumers (usePrompts.ts) diff on `id`+`event`
+   * identity to know a new one arrived. */
+  lastBuildEvent: BuildEventFrame | null;
 }
 
 interface StateMessage {
   type: 'state';
   state: JigState;
+}
+
+interface BuildMessage {
+  type: 'build';
+  id: string;
+  event: unknown;
+  elapsedMs: number;
 }
 
 function isStateMessage(value: unknown): value is StateMessage {
@@ -17,6 +38,16 @@ function isStateMessage(value: unknown): value is StateMessage {
     value !== null &&
     (value as { type?: unknown }).type === 'state' &&
     'state' in value
+  );
+}
+
+function isBuildMessage(value: unknown): value is BuildMessage {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    (value as { type?: unknown }).type === 'build' &&
+    'id' in value &&
+    'event' in value
   );
 }
 
@@ -33,6 +64,7 @@ const MAX_RETRY_MS = 10_000;
 export function useJigState(): UseJigStateResult {
   const [state, setState] = useState<JigState | null>(null);
   const [connected, setConnected] = useState(false);
+  const [lastBuildEvent, setLastBuildEvent] = useState<BuildEventFrame | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -53,6 +85,8 @@ export function useJigState(): UseJigStateResult {
         try {
           const parsed: unknown = JSON.parse(event.data);
           if (isStateMessage(parsed)) setState(parsed.state);
+          else if (isBuildMessage(parsed))
+            setLastBuildEvent({ id: parsed.id, event: parsed.event, elapsedMs: parsed.elapsedMs });
         } catch {
           // Malformed frame — ignore it rather than crash the bench over one bad message.
         }
@@ -79,5 +113,5 @@ export function useJigState(): UseJigStateResult {
     };
   }, []);
 
-  return { state, connected };
+  return { state, connected, lastBuildEvent };
 }

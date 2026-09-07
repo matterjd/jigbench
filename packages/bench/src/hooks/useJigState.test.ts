@@ -84,6 +84,27 @@ describe('useJigState', () => {
     expect(result.current.state).toEqual(state);
   });
 
+  it('captures a build-stream message ({type:"build", id, event, elapsedMs} — S11) as lastBuildEvent without disturbing state', async () => {
+    const { result } = renderHook(() => useJigState());
+    act(() => {
+      FakeWebSocket.instances[0]!.triggerMessage({ type: 'state', state });
+    });
+    act(() => {
+      FakeWebSocket.instances[0]!.triggerMessage({
+        type: 'build',
+        id: '0003',
+        event: { kind: 'text', text: 'editing invoice-list.component.html' },
+        elapsedMs: 1200,
+      });
+    });
+    expect(result.current.lastBuildEvent).toEqual({
+      id: '0003',
+      event: { kind: 'text', text: 'editing invoice-list.component.html' },
+      elapsedMs: 1200,
+    });
+    expect(result.current.state).toEqual(state); // the state broadcast is untouched by a build frame
+  });
+
   it('reconnects after the socket closes', async () => {
     renderHook(() => useJigState());
     expect(FakeWebSocket.instances).toHaveLength(1);
