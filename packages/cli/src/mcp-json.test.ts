@@ -53,6 +53,19 @@ describe('mergeMcpJson', () => {
     const { changed } = mergeMcpJson(existing, { repoRoot: '/some/other/repo' });
     expect(changed).toBe(false);
   });
+
+  // Retest defect 22 (2026-09-06 evening): `resolveRepoRoot()` on Windows returns a
+  // backslash path (`path.resolve`'s native form) — embedded as-is in `.mcp.json`, that's a
+  // JSON string every JSON-unaware human editor mangles differently, and it stands out from
+  // every other forward-slash path Jig already emits (`jigPaths`, `docs/clamp.ts`,
+  // `orders/shop-face.ts`). The served root itself is unaffected either way (Node accepts
+  // both separators on Windows), but the entry itself must always read with forward slashes.
+  it('normalizes a Windows-style backslash repoRoot to forward slashes', () => {
+    const { merged } = mergeMcpJson(undefined, { repoRoot: 'C:\\Users\\matte\\source\\repos\\jigbench\\examples\\ledger-angular' });
+    expect(merged).toEqual({
+      mcpServers: { jig: { command: 'npx', args: ['jigbench', 'mcp', '--repo', 'C:/Users/matte/source/repos/jigbench/examples/ledger-angular'] } },
+    });
+  });
 });
 
 describe('formatMcpJsonDiff', () => {

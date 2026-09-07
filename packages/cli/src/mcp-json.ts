@@ -22,9 +22,17 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
+// Retest defect 22 (2026-09-06 evening): every other logical path Jig emits (`jigPaths`,
+// `docs/clamp.ts`'s toPosix, `orders/shop-face.ts`'s toPosix) is forward-slash-only — the
+// `.mcp.json` entry's `--repo` value is the one place that was still embedding
+// `resolveRepoRoot()`'s native (backslash, on Windows) form verbatim.
+function toPosix(path: string): string {
+  return path.replace(/\\/g, '/');
+}
+
 function jigEntry(options: MergeMcpJsonOptions): { command: string; args: string[] } {
   if (!options.repoRoot) return { command: JIG_MCP_ENTRY.command, args: [...JIG_MCP_ENTRY.args] };
-  return { command: 'npx', args: ['jigbench', 'mcp', '--repo', options.repoRoot] };
+  return { command: 'npx', args: ['jigbench', 'mcp', '--repo', toPosix(options.repoRoot)] };
 }
 
 /** Merges the `jig` MCP server entry into whatever `.mcp.json` already contains. Every

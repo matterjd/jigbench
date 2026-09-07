@@ -38,7 +38,13 @@ export async function runMcpCommand(options: McpCommandOptions): Promise<void> {
   await initJigTree(repoRoot);
 
   const surveyFile = join(jigPaths(repoRoot).survey, 'survey.json');
-  if (!existsSync(surveyFile)) {
+  const surveyFound = existsSync(surveyFile);
+  // Retest defect 22 (2026-09-06 evening): "pass and connected! did not see it reflected in
+  // jig" was a wrong-root failure with nothing printed anywhere to say so. This is the one
+  // line an agent (or a human reading its transcript) can check against what the bench
+  // itself is watching — logged to stderr, never stdout (stdout is JSON-RPC only).
+  logger.info('jigbench mcp: serving repo root', { repoRoot, surveyFound });
+  if (!surveyFound) {
     logger.info('no survey found yet — running one now', { repoRoot });
     await runSurvey(repoRoot);
   }
