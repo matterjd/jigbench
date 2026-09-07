@@ -41,3 +41,21 @@
   text-decoration: none;
   border-radius: var(--ledger-radius-s);
 }
+
+.invoice-list__overdue {
+  white-space: nowrap;
+}
+
+.invoice-list__overdue-badge {
+  display: inline-block;
+  padding: var(--ledger-space-1) var(--ledger-space-2);
+  border-radius: var(--ledger-radius-s);
+  background: color-mix(in srgb, var(--ledger-color-danger) 12%, transparent);
+  color: var(--ledger-color-danger);
+  font-family: var(--ledger-font-mono);
+  font-size: var(--ledger-font-size-s);
+}
+
+.invoice-list__overdue-none {
+  opacity: 0.4;
+}

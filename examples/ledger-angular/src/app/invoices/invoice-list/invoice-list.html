@@ -11,6 +11,7 @@
         <th>Customer</th>
         <th>Issued</th>
         <th>Due</th>
+        <th>Overdue</th>
         <th>Total</th>
         <th>Status</th>
       </tr>
@@ -22,12 +23,19 @@
           <td>{{ invoice.customerName }}</td>
           <td>{{ invoice.issuedOn }}</td>
           <td>{{ invoice.dueOn }}</td>
+          <td class="invoice-list__overdue">
+            @if (daysOverdue(invoice); as days) {
+              <span class="invoice-list__overdue-badge">{{ days }} {{ days === 1 ? 'day' : 'days' }}</span>
+            } @else {
+              <span class="invoice-list__overdue-none" aria-label="not overdue">—</span>
+            }
+          </td>
           <td>{{ invoice.total | money }}</td>
           <td><app-status-chip [status]="invoice.status" /></td>
         </tr>
       } @empty {
         <tr>
-          <td colspan="6" class="invoice-list__empty">No invoices yet.</td>
+          <td colspan="7" class="invoice-list__empty">No invoices yet.</td>
         </tr>
       }
     </tbody>
