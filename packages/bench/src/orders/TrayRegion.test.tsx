@@ -288,7 +288,7 @@ describe('TrayRegion — marks: the tool is "mark" and a pick arrives', () => {
         return Promise.resolve({ ok: true, json: async () => ({}) });
       }) as unknown as typeof fetch;
 
-      setTool('mark');
+      setTool('point'); // S12: 'mark' folded into 'point' (CHASSIS.md v0.2 §2)
       const pick = { type: 'jig:pick' as const, path: 'body > app-invoice-list', tag: 'app-invoice-list', text: 'Invoices', component: 'InvoiceListComponent', rect: { x: 0, y: 0, width: 1, height: 1 } };
 
       render(<TrayRegion workOrders={[]} lastPick={pick} fetchImpl={fetchImpl} />);

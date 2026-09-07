@@ -4,22 +4,22 @@ import { getTool, setTool, useTool } from './toolState.js';
 
 afterEach(() => {
   cleanup();
-  setTool('hand');
+  setTool('point');
 });
 
 describe('toolState', () => {
-  it('defaults to hand', () => {
-    expect(getTool()).toBe('hand');
+  it('defaults to point (concept D: Point is the rail\'s first, initially-active tool)', () => {
+    expect(getTool()).toBe('point');
   });
 
   it('setTool updates the module-level current tool and every subscriber sees it', () => {
     const { result } = renderHook(() => useTool());
+    expect(result.current.tool).toBe('point');
+
+    act(() => setTool('hand'));
+
+    expect(getTool()).toBe('hand');
     expect(result.current.tool).toBe('hand');
-
-    act(() => setTool('mark'));
-
-    expect(getTool()).toBe('mark');
-    expect(result.current.tool).toBe('mark');
   });
 
   it('setTool to the same tool is a no-op — no listener notification fires', () => {
@@ -30,7 +30,7 @@ describe('toolState', () => {
     });
     const before = renders;
 
-    act(() => setTool('hand')); // already 'hand' — must not notify
+    act(() => setTool('point')); // already 'point' — must not notify
 
     expect(renders).toBe(before);
   });
@@ -39,15 +39,15 @@ describe('toolState', () => {
     const a = renderHook(() => useTool());
     const b = renderHook(() => useTool());
 
-    act(() => a.result.current.setTool('loupe'));
+    act(() => a.result.current.setTool('sketch'));
 
-    expect(getTool()).toBe('loupe');
-    expect(a.result.current.tool).toBe('loupe');
-    expect(b.result.current.tool).toBe('loupe');
+    expect(getTool()).toBe('sketch');
+    expect(a.result.current.tool).toBe('sketch');
+    expect(b.result.current.tool).toBe('sketch');
   });
 
-  it('every declared tool is assignable and readable back', () => {
-    const tools = ['hand', 'loupe', 'mark', 'fixture', 'toolpath', 'sketch'] as const;
+  it('every declared tool is assignable and readable back — exactly point, sketch, hand (S12: Loupe/Mark folded into Point; Fixture/Toolpath are Advanced-drawer panels, not rail tools)', () => {
+    const tools = ['point', 'sketch', 'hand'] as const;
     for (const t of tools) {
       act(() => setTool(t));
       expect(getTool()).toBe(t);

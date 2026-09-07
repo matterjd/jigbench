@@ -19,7 +19,7 @@ export interface TrayPick {
 export interface TrayRegionProps {
   workOrders: readonly WorkOrder[];
   /** The plate's last loupe pick, when the bench has one wired in (S4). Only acted on
-   * while the current tool is `'mark'`. */
+   * while the current tool is `'point'` (S12: the old `'mark'` tool folded into it). */
   lastPick?: TrayPick | null;
   /** `JigState.marks` — used only to look up the order-in-hand's own mark, so its DOM
    * path can be posted to the plate as `jig:highlight`. */
@@ -315,7 +315,10 @@ export function TrayRegion({ workOrders, lastPick, marks, iframeRef, plateOrigin
   }, []);
 
   useEffect(() => {
-    if (tool === 'mark' && lastPick && lastPick !== handledPick.current) {
+    // S12: the rail's 'mark' tool folded into 'point' (CHASSIS.md v0.2 §2) — this component is
+    // retired from the default view (App.tsx no longer mounts it) but stays compiling and
+    // internally consistent per the slice's "reorganise, do not delete" instruction.
+    if (tool === 'point' && lastPick && lastPick !== handledPick.current) {
       setPromptOpen(true);
       setPromptValue('');
     }

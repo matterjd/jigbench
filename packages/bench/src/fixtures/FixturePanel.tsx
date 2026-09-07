@@ -333,7 +333,12 @@ export function FixturePanel({ iframeRef, plateOrigin, lastPickPath, survey, fet
           <input value={name} onChange={(e) => setName(e.target.value)} />
         </label>
         <label>
-          seed (optional)
+          {/* COMMISSION.md §3 bans "seed" as Fixture's surface word — the human-visible label
+              says "key" (FLOOR-PASS-D-2026-09-07.md's disagreement #2). The state name, the
+              wire field (body.seed, shared with the core FixtureSummary schema), and this
+              CSS class are internal identifiers, unchanged — renaming those is an API change,
+              not a copy change, and out of this slice's scope. */}
+          key (optional)
           <input value={seed} onChange={(e) => setSeed(e.target.value)} />
         </label>
         <button type="submit">new fixture</button>

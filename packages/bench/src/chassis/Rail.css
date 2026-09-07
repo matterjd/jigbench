@@ -86,3 +86,78 @@
   white-space: normal;
   pointer-events: none;
 }
+
+/* The rail's foot: everything that is not the loop, one switch away (AMENDMENT-1 §4). */
+.jig-rail__gap {
+  flex: 1;
+}
+
+.jig-rail__advanced {
+  display: grid;
+  justify-items: center;
+  gap: 4px;
+  padding-bottom: 4px;
+  cursor: pointer;
+  color: var(--dim);
+  font-size: 11px; /* floor item 3: nothing under 11px unless paired with a non-text signal */
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  position: relative;
+}
+
+.jig-rail__advanced input {
+  position: absolute;
+  opacity: 0;
+  width: 1px;
+  height: 1px;
+}
+
+/* A small switch — the word "Advanced" is always beside it (floor item 6: colour never alone). */
+.jig-rail__sw {
+  position: relative;
+  display: inline-block;
+  width: 26px;
+  height: 15px;
+  border-radius: var(--r-pill);
+  border: 1px solid var(--line);
+  background: var(--bg2);
+}
+
+.jig-rail__sw::after {
+  content: '';
+  position: absolute;
+  top: 1px;
+  left: 1px;
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  background: var(--dim);
+}
+
+.jig-rail__advanced input:checked + .jig-rail__sw {
+  border-color: var(--ink);
+}
+
+.jig-rail__advanced input:checked + .jig-rail__sw::after {
+  transform: translateX(11px);
+  background: var(--ink);
+}
+
+.jig-rail__advanced input:focus-visible + .jig-rail__sw {
+  outline: 2px solid var(--storm);
+  outline-offset: 2px;
+}
+
+.jig-rail__advanced input:checked ~ .jig-rail__advanced-word {
+  color: var(--ink);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .jig-rail__sw,
+  .jig-rail__sw::after {
+    transition:
+      border-color var(--t-feather) var(--ease-standard),
+      background var(--t-feather) var(--ease-standard),
+      transform var(--t-feather) var(--ease-standard);
+  }
+}

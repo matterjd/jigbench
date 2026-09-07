@@ -1,12 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { App } from './App.js';
 import { setTool } from './tools/toolState.js';
+import { setAdvanced } from './chassis/advancedState.js';
 
 // A minimal fake — App composes the whole chassis with no injection point of its own (unlike
 // SimStrip's `fetchImpl` prop), so this is the one place exercising them together needs to
 // stub the two things App reaches for globally: the WebSocket useJigState opens, and the
-// fetch calls SimStrip/the docs count/the plate poll issue.
+// fetch calls SimStrip/the plate poll/the prompts list issue.
 class FakeWebSocket {
   static instances: FakeWebSocket[] = [];
   readyState = 1;
@@ -33,218 +34,154 @@ const wiring = {
   toolpath: 'none' as const,
   sketch: 'none' as const,
   docs: 'none' as const,
+  claude: 'none' as const,
 };
 
-describe('App', () => {
+function stubFetch(extra?: (url: string) => Response | undefined): void {
+  vi.stubGlobal(
+    'fetch',
+    vi.fn((input: RequestInfo | URL) => {
+      const url = String(input);
+      const extraResponse = extra?.(url);
+      if (extraResponse) return Promise.resolve(extraResponse);
+      if (url.includes('/api/prompts')) return Promise.resolve({ ok: false, status: 404, json: () => Promise.resolve({ error: 'not found' }) } as Response);
+      return Promise.resolve({ ok: true, json: () => Promise.resolve({ wiring, shop: null, status: { claude: { state: 'idle' } } }) } as Response);
+    }),
+  );
+}
+
+describe('App (S12: the quiet bench)', () => {
   beforeEach(() => {
     FakeWebSocket.instances = [];
     vi.stubGlobal('WebSocket', FakeWebSocket);
-    vi.stubGlobal(
-      'fetch',
-      vi.fn((input: RequestInfo | URL) => {
-        const url = String(input);
-        if (url.includes('/api/docs')) return Promise.resolve({ ok: true, json: () => Promise.resolve({ files: [] }) } as Response);
-        return Promise.resolve({ ok: true, json: () => Promise.resolve({ wiring }) } as Response);
-      }),
-    );
+    stubFetch();
   });
 
   afterEach(() => {
     cleanup();
     vi.unstubAllGlobals();
-    setTool('hand');
+    setTool('point');
+    setAdvanced(false);
   });
 
-  it('renders the rail, the plate, the properties column, the tray, and the bottom bar', () => {
+  it('renders exactly the loop: the rail (Point/Sketch/Hand), the plate, the right column\'s three tabs, and the status line', () => {
     render(<App />);
 
-    // rail
-    expect(screen.getByRole('button', { name: /Hand — move the plate/ })).toBeTruthy();
-    expect(screen.getByRole('button', { name: /^Loupe —/ })).toBeTruthy();
+    expect(screen.getByRole('button', { name: /^Point —/ })).toBeTruthy();
+    expect(screen.getByRole('button', { name: /^Sketch —/ })).toBeTruthy();
+    expect(screen.getByRole('button', { name: /^Hand —/ })).toBeTruthy();
 
     // plate: no /api/plate shape in this fixture's fetch mock, so it degrades to the honest
     // "no target" state rather than an iframe.
     expect(screen.getByText(/Plate — where the app renders/)).toBeTruthy();
     expect(screen.getByText(/No target is set/)).toBeTruthy();
 
-    // properties column: three tabs
-    expect(screen.getByRole('tab', { name: /Loupe/ })).toBeTruthy();
-    expect(screen.getByRole('tab', { name: /Gauges/ })).toBeTruthy();
-    expect(screen.getByRole('tab', { name: /Survey/ })).toBeTruthy();
+    expect(screen.getByRole('tab', { name: /Prompts/ })).toBeTruthy();
+    expect(screen.getByRole('tab', { name: /Inspect/ })).toBeTruthy();
+    expect(screen.getByRole('tab', { name: /Design system/ })).toBeTruthy();
 
-    // tray: S5's real TrayRegion, mounted with the (empty) work-order list from state — the
-    // wave-3 merge replaced S4's "arrives with S5" placeholder with the real component.
-    expect(screen.getByText(/No marks yet\./)).toBeTruthy();
+    expect(screen.getByRole('button', { name: /Claude/ })).toBeTruthy();
+  });
 
-    // bottom bar: SimStrip + S5's real ShopLane, also mounted with the (empty) work-order list.
-    expect(screen.getByLabelText('sim: what is wired')).toBeTruthy();
-    expect(screen.getByLabelText('the shop — connected agents')).toBeTruthy();
-    expect(screen.getByText(/none connected/)).toBeTruthy();
+  it('the Prompts tab says the bench is ahead of its server when /api/prompts 404s (S11 not on main yet)', async () => {
+    render(<App />);
+    await waitFor(() => expect(screen.getByText(/the bench is ahead of its server — prompts arrive with S11/i)).toBeTruthy());
+  });
+
+  it('the status line reads "not installed" when wiring.claude is none', () => {
+    render(<App />);
+    expect(screen.getByText(/not installed/)).toBeTruthy();
+  });
+
+  it('the Advanced drawer is absent by default, and appears (with the spine, rulers switch, mirror switch, Fixtures, Toolpath, MCP) once the switch is on', async () => {
+    render(<App />);
+    expect(screen.queryByLabelText(/rulers & guides/i)).toBeNull();
+
+    fireEvent.click(screen.getByLabelText(/Advanced — everything that is not the loop/i));
+
+    await waitFor(() => expect(screen.getByLabelText(/rulers & guides/i)).toBeTruthy());
+    expect(screen.getByLabelText(/the mirror/i)).toBeTruthy();
+    expect(await screen.findByText(/no fixtures yet/i)).toBeTruthy();
+    expect(await screen.findByText(/no toolpaths yet/i)).toBeTruthy();
+    expect(screen.getByText(/none connected/i)).toBeTruthy();
+  });
+
+  it('switching to Sketch swaps the plate for the sketch sheet', async () => {
+    stubFetch((url) => (url.includes('/api/sketches') ? ({ ok: true, json: () => Promise.resolve({ sketches: [] }) } as Response) : undefined));
+    render(<App />);
+    fireEvent.click(screen.getByRole('button', { name: /^Sketch —/ }));
+    expect(await screen.findByText(/no sketches yet/i)).toBeTruthy();
+    expect(screen.queryByText(/Plate — where the app renders/)).toBeNull();
   });
 
   it('the command palette opens on Ctrl+K and lists the rail\'s tools', () => {
     render(<App />);
     fireEvent.keyDown(window, { key: 'k', ctrlKey: true });
     expect(screen.getByRole('dialog')).toBeTruthy();
-    expect(screen.getAllByText('Loupe').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Point').length).toBeGreaterThan(0);
   });
 
-  it('integration seam 1: selecting the Fixture tool from the rail shows the Fixture panel', async () => {
-    render(<App />);
-    fireEvent.click(screen.getByRole('button', { name: /^Fixture —/ }));
-
-    expect(screen.getByRole('tab', { name: /Fixture/ }).getAttribute('aria-selected')).toBe('true');
-    // FixturePanel resolves its GET /api/fixtures call (the App-level fetch stub degrades to
-    // the shared `{ wiring }` shape, which has no `fixtures`/`active` keys) and renders its
-    // own empty state — proof the real S7 component is mounted, not a placeholder.
-    expect(await screen.findByText('no fixtures yet.')).toBeTruthy();
-  });
-
-  it('integration seam (S8): selecting the Toolpath tool from the rail shows the Toolpath panel', async () => {
-    render(<App />);
-    fireEvent.click(screen.getByRole('button', { name: /^Toolpath —/ }));
-
-    expect(screen.getByRole('tab', { name: /Toolpath/ }).getAttribute('aria-selected')).toBe('true');
-    // ToolpathBar resolves its GET /api/toolpaths call (the App-level fetch stub degrades to
-    // the shared `{ wiring }` shape, which has no `toolpaths` key) and renders its own honest
-    // empty state — proof the real S8 component is mounted, not a placeholder.
-    expect(await screen.findByText(/no toolpaths yet/i)).toBeTruthy();
-  });
-
-  it('integration seam (S8): the plate stays PlateBench (never the trial-fit mirror) when no order is at trial-fit', () => {
-    render(<App />);
-    // Same assertion the first test in this file already makes — restated here to name WHY
-    // it matters post-S8: TrialFitMirror must never take over the plate slot by default.
-    expect(screen.getByText(/Plate — where the app renders/)).toBeTruthy();
-    expect(screen.queryByText(/trial fit · not yet/i)).toBeNull();
-  });
-
-  it('integration seam (S8): the plate slot swaps to the trial-fit mirror once a real order reaches trial-fit', () => {
-    render(<App />);
-    const workOrder = {
-      jigFormat: 1,
-      id: '0007',
-      slug: 'rename-the-total-column',
-      state: 'trial-fit',
-      draftedBy: 'model',
-      marks: [],
-      human: { what: 'x', why: 'y', where: 'z', acceptance: [] },
-      shop: { files: [], patterns: [], tests: [], brief: 'x', trialFit: { summary: 'renamed it', files: [] } },
-      log: [],
-    };
-    const state = {
-      survey: { jigFormat: 1, stack: [], components: [], routes: [], endpoints: [], schemas: [], docs: [], generatedAt: 'now' },
-      gauges: { jigFormat: 1, gauges: [], generatedAt: 'now' },
-      marks: [],
-      workOrders: [workOrder],
-      wiring,
-    };
-
-    act(() => {
-      FakeWebSocket.instances[0].onmessage?.({ data: JSON.stringify({ type: 'state', state }) });
-    });
-
-    // PlateBench's own "no target" text is gone — the mirror's own frame region took over
-    // the exact same layout slot.
-    expect(screen.queryByText(/Plate — where the app renders/)).toBeNull();
-    expect(screen.getByText(/renamed it/i)).toBeTruthy();
-  });
-
-  it('integration seam (S8): printed dismissing order A\'s mirror does not suppress a LATER order B reaching trial-fit (found live-driving the real bench, exactly the N=2 case)', () => {
-    render(<App />);
-    const orderA = {
-      jigFormat: 1,
-      id: '0001',
-      slug: 'a',
-      state: 'trial-fit',
-      draftedBy: 'person',
-      marks: [],
-      human: { what: 'x', why: 'y', where: 'z', acceptance: [] },
-      shop: { files: [], patterns: [], tests: [], brief: 'x', trialFit: { summary: 'A done', files: [] } },
-      log: [],
-    };
-    const stateWithA = {
-      survey: { jigFormat: 1, stack: [], components: [], routes: [], endpoints: [], schemas: [], docs: [], generatedAt: 'now' },
-      gauges: { jigFormat: 1, gauges: [], generatedAt: 'now' },
-      marks: [],
-      workOrders: [orderA],
-      wiring,
-    };
-    act(() => {
-      FakeWebSocket.instances[0].onmessage?.({ data: JSON.stringify({ type: 'state', state: stateWithA }) });
-    });
-    expect(screen.getByText(/A done/i)).toBeTruthy(); // mirror showing order A
-
-    fireEvent.click(screen.getByRole('button', { name: /printed/i }));
-    expect(screen.getByText(/Plate — where the app renders/)).toBeTruthy(); // back to single frame
-
-    const orderB = { ...orderA, id: '0002', shop: { ...orderA.shop, trialFit: { summary: 'B done', files: [] } } };
-    const stateWithBoth = { ...stateWithA, workOrders: [orderA, orderB] };
-    act(() => {
-      FakeWebSocket.instances[0].onmessage?.({ data: JSON.stringify({ type: 'state', state: stateWithBoth }) });
-    });
-
-    // Order B is new — its trial-fit must surface even though A's mirror was dismissed.
-    expect(screen.getByText(/B done/i)).toBeTruthy();
-  });
-
-  it('integration seam (S8): captures the release-moment snapshot once the plate is up and an order is released', async () => {
-    // Reconfigures the shared fetch stub so /api/plate reports the primary plate "up" (every
-    // other test in this file leaves it "none" on purpose, since they don't need
-    // plateOrigin) — useAutoSnapshot only ever fires once plateOrigin is known.
-    vi.stubGlobal(
-      'fetch',
-      vi.fn((input: RequestInfo | URL) => {
-        const url = String(input);
-        if (url.includes('/api/docs')) return Promise.resolve({ ok: true, json: () => Promise.resolve({ files: [] }) } as Response);
-        if (url.includes('/api/plate')) {
-          return Promise.resolve({ ok: true, json: () => Promise.resolve({ target: 'http://localhost:4200', port: 4601, status: 'up', changes: [] }) } as Response);
-        }
-        return Promise.resolve({ ok: true, json: () => Promise.resolve({ wiring }) } as Response);
-      }),
+  it('Point selects a component on the plate and opens the prompt card anchored to it', async () => {
+    stubFetch((url) =>
+      url.includes('/api/plate')
+        ? ({ ok: true, json: () => Promise.resolve({ target: 'http://localhost:4200', port: 4601, status: 'up', changes: [] }) } as Response)
+        : undefined,
     );
-
     render(<App />);
-    const iframe = await waitFor(() => {
-      const el = document.querySelector('iframe');
-      if (!el) throw new Error('no iframe yet');
-      return el as HTMLIFrameElement;
+    await waitFor(() => {
+      if (!document.querySelector('iframe')) throw new Error('no iframe yet');
     });
-    const posted: unknown[] = [];
-    Object.defineProperty(iframe, 'contentWindow', { value: { postMessage: (msg: unknown) => posted.push(msg) } });
 
-    const released = {
-      jigFormat: 1,
-      id: '0007',
-      slug: 'x',
-      state: 'released',
-      draftedBy: 'person',
-      marks: [],
-      human: { what: 'x', why: 'y', where: 'z', acceptance: [] },
-      log: [],
-    };
-    const state = {
-      survey: { jigFormat: 1, stack: [], components: [], routes: [], endpoints: [], schemas: [], docs: [], generatedAt: 'now' },
-      gauges: { jigFormat: 1, gauges: [], generatedAt: 'now' },
-      marks: [],
-      workOrders: [released],
-      wiring,
-    };
     act(() => {
-      FakeWebSocket.instances[0].onmessage?.({ data: JSON.stringify({ type: 'state', state }) });
+      window.dispatchEvent(
+        new MessageEvent('message', {
+          data: {
+            type: 'jig:pick',
+            path: 'app-invoice-list',
+            tag: 'app-invoice-list',
+            text: 'Invoices',
+            component: 'InvoiceListComponent',
+            file: 'src/app/invoices/invoice-list/invoice-list.component.ts',
+            rect: { x: 100, y: 100, width: 200, height: 60 },
+          },
+          origin: 'http://localhost:4601',
+        }),
+      );
     });
 
-    await waitFor(() => expect(posted).toContainEqual({ type: 'jig:snapshot' }));
+    const dialog = await screen.findByRole('dialog', { name: /prompt card/i });
+    expect(within(dialog).getByText('InvoiceListComponent')).toBeTruthy();
   });
 
-  it('switching the tool via the rail is reflected in the Loupe tab\'s mode toggle', () => {
+  it('typing in the open card creates a draft prompt (optimistically, even though /api/prompts 404s) and it appears in the Prompts tab', async () => {
+    stubFetch((url) =>
+      url.includes('/api/plate')
+        ? ({ ok: true, json: () => Promise.resolve({ target: 'http://localhost:4200', port: 4601, status: 'up', changes: [] }) } as Response)
+        : undefined,
+    );
     render(<App />);
-    fireEvent.click(screen.getByRole('button', { name: /^Loupe —/ }));
-    // The Properties column defaults to the Loupe tab, whose mode toggle should now read
-    // "loupe" as pressed — the rail and the properties column share one source of truth
-    // (toolState), not two independent copies.
-    const loupeModeButtons = screen.getAllByRole('button', { name: /^Loupe$/ });
-    const pressedOne = loupeModeButtons.find((b) => b.getAttribute('aria-pressed') === 'true');
-    expect(pressedOne).toBeTruthy();
+    await waitFor(() => {
+      if (!document.querySelector('iframe')) throw new Error('no iframe yet');
+    });
+    act(() => {
+      window.dispatchEvent(
+        new MessageEvent('message', {
+          data: { type: 'jig:pick', path: 'x', tag: 'div', text: '', component: 'InvoiceListComponent', file: 'x.ts', rect: { x: 0, y: 0, width: 10, height: 10 } },
+          origin: 'http://localhost:4601',
+        }),
+      );
+    });
+    await screen.findByRole('dialog', { name: /prompt card/i });
+
+    fireEvent.change(screen.getByPlaceholderText(/what should change here/i), { target: { value: 'show days overdue' } });
+
+    expect(screen.getByPlaceholderText(/what should change here/i)).toHaveProperty('value', 'show days overdue');
+
+    // The real bug a live-browser check caught: with no /api/prompts on this server, the typed
+    // text never becomes a real Prompt, but it must still count as a draft for the CARD's own
+    // ember rule — Ready has to light up once there are words, whether or not anything persisted.
+    const ready = screen.getByRole('button', { name: /Ready — hold/i });
+    expect(ready.className).toMatch(/ember/);
+    expect(ready.hasAttribute('disabled')).toBe(false);
   });
 });

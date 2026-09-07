@@ -1,27 +1,26 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import type { LogEntry } from '@jigbench/core';
 import { Chassis } from './chassis/Chassis.js';
 import { Rail } from './chassis/Rail.js';
-import { PropertiesColumn, type PropertiesTab } from './chassis/PropertiesColumn.js';
-import { SurveyPane } from './chassis/SurveyPane.js';
+import { RightColumn, type RightColumnTab } from './chassis/RightColumn.js';
+import { InspectPane } from './chassis/InspectPane.js';
+import { StatusLine } from './chassis/StatusLine.js';
+import { AdvancedDrawer } from './chassis/AdvancedDrawer.js';
+import { useAdvanced } from './chassis/advancedState.js';
 import { GaugesPanel } from './gauges/GaugesPanel.js';
 import { selectorsForGauge } from './gauges/resolveGaugeUsage.js';
-import { LoupeReadout } from './plate/LoupeReadout.js';
 import { PlateBench, type PlateBenchHandle } from './plate/PlateBench.js';
 import type { PlateEvent, PlatePick } from './plate/usePlateBridge.js';
 import { CommandPalette, type PaletteDocsResult } from './palette/CommandPalette.js';
 import { FixturePanel } from './fixtures/index.js';
 import { ToolpathBar } from './toolpath/ToolpathBar.js';
 import { SketchSheet } from './sketch/SketchSheet.js';
-import { SketchProperties } from './sketch/SketchProperties.js';
-import { TrialFitMirror } from './trialfit/TrialFitMirror.js';
-import { useAutoSnapshot } from './trialfit/useAutoSnapshot.js';
-import { TrayRegion } from './orders/TrayRegion.js';
-import { ShopLane } from './shop/ShopLane.js';
 import { Logbook } from './components/Logbook.js';
-import { SimStrip } from './components/SimStrip.js';
 import { useJigState } from './hooks/useJigState.js';
 import { useTool } from './tools/toolState.js';
+import { usePrompts } from './prompts/usePrompts.js';
+import { PromptsPane } from './prompts/PromptsPane.js';
+import { PromptCard } from './prompts/PromptCard.js';
+import { composedExtras, type BuildStreamEvent, type Prompt, type PromptTarget } from './prompts/types.js';
 import './App.css';
 
 interface DocsSearchResult {
@@ -31,92 +30,135 @@ interface DocsSearchResult {
   snippet?: string;
 }
 
+interface CardTarget {
+  kind: 'element' | 'sketch';
+  title: string;
+  file?: string;
+  promptTarget: PromptTarget;
+  anchorRect: { x: number; y: number; w: number; h: number };
+}
+
+/** True when `prompt.target` names the same thing `target` does — element targets match by
+ * component name (the survey's own identity for a component); a sketch target matches any
+ * other sketch target (this build has one sketch open at a time — CONCERN: multi-sketch
+ * disambiguation is a later slice's problem). */
+function targetsMatch(a: PromptTarget, b: PromptTarget): boolean {
+  if (a.kind !== b.kind) return false;
+  if (a.kind === 'element') return !!a.component && a.component === b.component;
+  if (a.kind === 'sketch') return true;
+  return false;
+}
+
 export function App() {
-  const { state, connected } = useJigState();
+  const { state, connected, lastBuildEvent } = useJigState();
   const { tool, setTool } = useTool();
+  const { advanced } = useAdvanced();
   const plateRef = useRef<PlateBenchHandle>(null);
   const plateIframeRef = useRef<HTMLIFrameElement>(null);
+  const plateBoxRef = useRef<HTMLDivElement>(null);
   const [plateOrigin, setPlateOrigin] = useState<string | null>(null);
+  const [plateSize, setPlateSize] = useState({ w: 0, h: 0 });
   const [lastPick, setLastPick] = useState<PlatePick | null>(null);
-  const [propertiesTab, setPropertiesTab] = useState<PropertiesTab>('loupe');
-  const [docsCount, setDocsCount] = useState<number | undefined>(undefined);
-  // S8: the toolpath recorder's own seam (PlateBench's onEvent) and the trial-fit mirror's
-  // "one printed affordance returns to a single frame" override.
-  const [lastEvent, setLastEvent] = useState<PlateEvent | null>(null);
-  const [forceSinglePlate, setForceSinglePlate] = useState(false);
+  const [lastEvent, setLastEvent] = useState<PlateEvent | null>(null); // Toolpath's own seam
+  const [rightTab, setRightTab] = useState<RightColumnTab>('prompts');
+  const [rulersOn, setRulersOn] = useState(false);
+  const [mirrorOn, setMirrorOn] = useState(false);
+  const [logbookOpen, setLogbookOpen] = useState(false);
+  const [cardTarget, setCardTarget] = useState<CardTarget | null>(null);
+  const [cardOpen, setCardOpen] = useState(false);
+  const [localText, setLocalText] = useState('');
+  const [localAcceptance, setLocalAcceptance] = useState<string[]>([]);
+  const [beforeIds, setBeforeIds] = useState<Set<string>>(new Set());
 
+  const extras = composedExtras(state);
+  const prompts = usePrompts({ buildEvent: lastBuildEvent, claudeStatus: extras.status?.claude });
+
+  // Measures the plate's own box (the outer chassis region, not the cross-origin iframe inside
+  // it) so the card can place itself against a plate-local rect it never had to walk the DOM
+  // to get — see PromptCard.tsx's anchorRect path and CHASSIS.md v0.2 §2.
   useEffect(() => {
-    let cancelled = false;
-    fetch('/api/docs')
-      .then((res) => res.json())
-      .then((data: { files: unknown[] }) => {
-        if (!cancelled) setDocsCount(Array.isArray(data.files) ? data.files.length : 0);
-      })
-      .catch(() => {
-        if (!cancelled) setDocsCount(0);
-      });
-    return () => {
-      cancelled = true;
-    };
+    const el = plateBoxRef.current;
+    if (!el) return;
+    function measure(): void {
+      if (el) setPlateSize({ w: el.clientWidth, h: el.clientHeight });
+    }
+    measure();
+    if (typeof ResizeObserver !== 'undefined') {
+      const observer = new ResizeObserver(measure);
+      observer.observe(el);
+      return () => observer.disconnect();
+    }
+    window.addEventListener('resize', measure);
+    return () => window.removeEventListener('resize', measure);
   }, []);
 
-  // One source of truth for "what mode is the plate in": the rail's tool (toolState is a
-  // shared external store, so this fires whether the tool changed via the rail, a keyboard
-  // shortcut, or the command palette). Loupe and Mark both put the plate in loupe mode; Hand
-  // returns it to hand — Fixture/Toolpath/Sketch leave the plate's mode alone (S4 brief).
+  // One source of truth for "what mode is the plate in" (AMENDMENT-1 A3): Point puts the plate
+  // in loupe mode (it carries the old loupe's hover); Hand returns it to hand; Sketch leaves the
+  // plate's mode alone (it isn't even the mounted component while Sketch is active).
   useEffect(() => {
     if (tool === 'hand') plateRef.current?.setMode('hand');
-    else if (tool === 'loupe' || tool === 'mark') plateRef.current?.setMode('loupe');
+    else if (tool === 'point') plateRef.current?.setMode('loupe');
   }, [tool]);
 
-  // Integration seam 1: the rail's Fixture tool switches the properties column to the
-  // Fixture tab (S7 built FixturePanel but never touched App.tsx/the rail — CHASSIS.md
-  // names Fixture as one properties-column tab alongside Loupe/Gauges/Survey).
+  // A new Point pick opens the card, anchored to the pick's own rect (already plate-local —
+  // usePlateBridge's PlatePick.rect, posted by the loupe script inside the cross-origin iframe).
   useEffect(() => {
-    if (tool === 'fixture') setPropertiesTab('fixture');
-  }, [tool]);
+    if (tool !== 'point' || !lastPick) return;
+    setCardTarget({
+      kind: 'element',
+      title: lastPick.component ?? lastPick.tag,
+      file: lastPick.file,
+      promptTarget: { kind: 'element', path: lastPick.path, component: lastPick.component, file: lastPick.file },
+      anchorRect: { x: lastPick.rect.x, y: lastPick.rect.y, w: lastPick.rect.width, h: lastPick.rect.height },
+    });
+    setCardOpen(true);
+    setLocalText('');
+    setLocalAcceptance([]);
+  }, [lastPick, tool]);
 
-  // Integration seam (S8): the rail's Toolpath tool switches the properties column to the
-  // Toolpath tab, the exact same pattern as Fixture above.
-  useEffect(() => {
-    if (tool === 'toolpath') setPropertiesTab('toolpath');
-  }, [tool]);
+  function openSketchCard(): void {
+    setCardTarget({
+      kind: 'sketch',
+      title: 'build this screen',
+      promptTarget: { kind: 'sketch' },
+      anchorRect: { x: 0, y: 0, w: plateSize.w, h: plateSize.h },
+    });
+    setCardOpen(true);
+    setLocalText('');
+    setLocalAcceptance([]);
+  }
 
-  // Integration seam (S9): the rail's Sketch tool switches the properties column to the
-  // Sketch tab, the exact same pattern as Fixture/Toolpath above.
-  useEffect(() => {
-    if (tool === 'sketch') setPropertiesTab('sketch');
-  }, [tool]);
+  const matchedPrompt: Prompt | null = cardTarget
+    ? prompts.prompts.find((p) => p.state !== 'scrapped' && targetsMatch(p.target, cardTarget.promptTarget)) ?? null
+    : null;
 
-  // S8 (CHASSIS.md's trial-fit mode): "the plate region splits into two frames" once the
-  // order in hand reaches trial-fit — swaps PlateBench out for TrialFitMirror in the exact
-  // same layout slot below, rather than editing PlateBench.tsx itself (a restricted,
-  // delimited-block-only file). `forceSinglePlate` is the "one printed affordance" override;
-  // it clears itself whenever the SET of trial-fit order ids changes — not just when it goes
-  // empty — so dismissing order A's mirror never suppresses a LATER order B's trial-fit too
-  // (found live-driving the real bench: with #0001 already dismissed, #0002 reaching
-  // trial-fit stayed hidden until this fix — the exact N=2 case one order alone can't catch).
-  const workOrders = state?.workOrders ?? [];
-  const trialFitIds = workOrders
-    .filter((w) => w.state === 'trial-fit')
-    .map((w) => w.id)
-    .sort()
-    .join(',');
-  const prevTrialFitIds = useRef(trialFitIds);
-  useEffect(() => {
-    if (trialFitIds !== prevTrialFitIds.current) {
-      setForceSinglePlate(false);
-      prevTrialFitIds.current = trialFitIds;
+  const cardText = matchedPrompt?.requirement ?? localText;
+  const cardAcceptance = matchedPrompt?.acceptance ?? localAcceptance;
+  // "a draft is not saved until it has words" (concept D) — but once it HAS words, it is a
+  // draft for the card's own purposes whether or not a real Prompt exists yet server-side.
+  // Without this fallback, a server with no /api/prompts (S11 not on main) leaves cardState
+  // stuck at 'none' forever, and Ready never lights up even though the words are right there —
+  // a real bug a live-browser check against the actual (S11-less) main server caught.
+  const cardState = matchedPrompt?.state ?? (cardText.trim() ? 'draft' : 'none');
+
+  async function handleCardTextChange(text: string): Promise<void> {
+    if (matchedPrompt) {
+      await prompts.edit(matchedPrompt.id, { requirement: text });
+      return;
     }
-  }, [trialFitIds]);
-  const showTrialFitMirror = trialFitIds.length > 0 && !forceSinglePlate;
+    setLocalText(text);
+    if (text.trim() && cardTarget) {
+      await prompts.create({ requirement: text, acceptance: localAcceptance, target: cardTarget.promptTarget });
+    }
+  }
 
-  // Captures the release-moment "before" snapshot (TrialFitMirror.tsx's left frame) while
-  // the PRIMARY plate is still showing the as-is app — it has to happen here, not inside
-  // TrialFitMirror itself, which only mounts once the order has already reached trial-fit
-  // (by then the primary plate's iframe is gone). Found missing while driving the live
-  // bench: GET /api/plate/snapshot/:id 404'd because nothing had ever posted one.
-  useAutoSnapshot(workOrders, plateIframeRef, plateOrigin);
+  async function handleCardAcceptanceChange(lines: string[]): Promise<void> {
+    if (matchedPrompt) {
+      await prompts.edit(matchedPrompt.id, { acceptance: lines });
+      return;
+    }
+    setLocalAcceptance(lines);
+  }
 
   const survey = state?.survey;
   const gauges = state?.gauges.gauges;
@@ -126,54 +168,120 @@ export function App() {
     [lastPick, survey],
   );
 
-  const allLogEntries: LogEntry[] = useMemo(() => (state?.workOrders ?? []).flatMap((wo) => wo.log), [state]);
-
   function lightGauge(name: string): void {
     const gauge = gauges?.find((g) => g.name === name);
     if (gauge) plateRef.current?.highlight(selectorsForGauge(gauge, survey?.components ?? []));
   }
 
+  const buildingId = extras.status?.claude.state === 'building' ? extras.status.claude.id : null;
+  const activeStream: BuildStreamEvent[] = buildingId ? (prompts.buildStreams[buildingId] ?? []) : [];
+  const lastEventText =
+    buildingId && activeStream.length > 0
+      ? (() => {
+          const last = activeStream[activeStream.length - 1];
+          return last.kind === 'text' || last.kind === 'raw' ? last.text : last.kind === 'tool' ? `${last.name} · ${last.target}` : undefined;
+        })()
+      : undefined;
+
+  const scrapCount = prompts.prompts.filter((p) => p.state === 'scrapped').length;
+  const allLogEntries = useMemo(() => [], []); // CONCERN: the logbook has no event source yet in this slice — see report.
+
   return (
     <>
       <Chassis
-        rail={<Rail />}
+        rail={<Rail postToPlate={(message) => plateRef.current?.post({ ...message })} />}
         plate={
-          tool === 'sketch' ? (
-            <SketchSheet gauges={gauges} />
-          ) : showTrialFitMirror ? (
-            <TrialFitMirror workOrders={workOrders} onPrinted={() => setForceSinglePlate(true)} />
-          ) : (
-            <PlateBench
-              ref={plateRef}
-              survey={survey}
-              gauges={gauges}
-              onPick={setLastPick}
-              onEvent={setLastEvent}
-              iframeRef={plateIframeRef}
-              onPlateOriginChange={setPlateOrigin}
-            />
-          )
-        }
-        properties={
-          <PropertiesColumn
-            activeTab={propertiesTab}
-            onTabChange={setPropertiesTab}
-            gaugesCount={gauges?.length}
-            surveyCount={survey?.components.length}
-            loupe={
-              <LoupeReadout
-                lastPick={lastPick}
-                mode={tool === 'loupe' || tool === 'mark' ? 'loupe' : 'hand'}
-                onModeChange={(m) => setTool(m === 'loupe' ? 'loupe' : 'hand')}
+          <div ref={plateBoxRef} style={{ position: 'absolute', inset: 0 }}>
+            {tool === 'sketch' ? (
+              <SketchSheet gauges={gauges} onBuildScreen={openSketchCard} />
+            ) : (
+              <PlateBench
+                ref={plateRef}
                 survey={survey}
                 gauges={gauges}
-                onGaugeSelect={(name) => {
-                  setPropertiesTab('gauges');
-                  lightGauge(name);
+                onPick={setLastPick}
+                onEvent={setLastEvent}
+                iframeRef={plateIframeRef}
+                onPlateOriginChange={setPlateOrigin}
+                showRulers={rulersOn}
+              />
+            )}
+            {cardTarget && (
+              <PromptCard
+                open={cardOpen}
+                title={cardTarget.title}
+                file={cardTarget.file}
+                anchorEl={null}
+                plateEl={null}
+                anchorRect={cardTarget.anchorRect}
+                plateSize={plateSize}
+                state={cardState}
+                text={cardText}
+                acceptance={cardAcceptance}
+                drafterWired={state?.wiring.drafter === 'wired'}
+                polishing={false}
+                buildStream={matchedPrompt ? (prompts.buildStreams[matchedPrompt.id] ?? []) : []}
+                builtSummary={matchedPrompt?.builds.length ? { files: matchedPrompt.builds[matchedPrompt.builds.length - 1].filesTouched.length, durationMs: 0 } : undefined}
+                onTextChange={(text) => void handleCardTextChange(text)}
+                onAcceptanceChange={(lines) => void handleCardAcceptanceChange(lines)}
+                onPolish={() => matchedPrompt && void prompts.polish(matchedPrompt.id)}
+                onReadyComplete={() => matchedPrompt && void prompts.ready(matchedPrompt.id)}
+                onBuild={() => matchedPrompt && void prompts.build(matchedPrompt.id)}
+                onClose={() => setCardOpen(false)}
+              />
+            )}
+          </div>
+        }
+        advancedDrawer={
+          advanced ? (
+            <AdvancedDrawer
+              wiring={state?.wiring ?? null}
+              connected={connected}
+              prompts={prompts.prompts}
+              rulersOn={rulersOn}
+              onRulersChange={setRulersOn}
+              mirrorOn={mirrorOn}
+              onMirrorChange={setMirrorOn}
+              fixturePanel={<FixturePanel iframeRef={plateIframeRef} plateOrigin={plateOrigin} lastPickPath={lastPick?.path ?? null} survey={survey} />}
+              toolpathBar={<ToolpathBar lastEvent={lastEvent} post={(message) => plateRef.current?.post(message)} />}
+              shop={state?.shop ?? null}
+              scrapCount={scrapCount}
+            />
+          ) : undefined
+        }
+        column={
+          <RightColumn
+            activeTab={rightTab}
+            onTabChange={setRightTab}
+            promptsCount={prompts.prompts.filter((p) => p.state !== 'scrapped').length}
+            prompts={
+              <PromptsPane
+                status={prompts.status}
+                message={prompts.message}
+                prompts={prompts.prompts}
+                hand={prompts.hand}
+                buildStream={prompts.hand ? (prompts.buildStreams[prompts.hand.id] ?? []) : []}
+                cardOpen={cardOpen}
+                onSelect={prompts.selectHand}
+                onBuild={(id) => void prompts.build(id)}
+                onScrap={(id) => void prompts.scrap(id)}
+                onRestore={(id) => void prompts.restore(id)}
+                onBeforeToggle={(id, on) =>
+                  setBeforeIds((prev) => {
+                    const next = new Set(prev);
+                    if (on) next.add(id);
+                    else next.delete(id);
+                    return next;
+                  })
+                }
+                onRefine={(p) => {
+                  setLocalText(p.requirement);
+                  setLocalAcceptance(p.acceptance);
                 }}
               />
             }
-            gauges={
+            inspect={<InspectPane lastPick={lastPick} survey={survey} gauges={gauges} onGaugeSelect={(name) => { setRightTab('design'); lightGauge(name); }} />}
+            design={
               <GaugesPanel
                 gauges={gauges ?? []}
                 survey={survey}
@@ -182,64 +290,40 @@ export function App() {
                 onClearHighlight={() => plateRef.current?.clearHighlight()}
               />
             }
-            survey={<SurveyPane survey={survey} docsCount={docsCount} />}
-            fixture={
-              <FixturePanel
-                iframeRef={plateIframeRef}
-                plateOrigin={plateOrigin}
-                lastPickPath={lastPick?.path ?? null}
-                survey={survey}
-              />
-            }
-            toolpath={<ToolpathBar lastEvent={lastEvent} post={(message) => plateRef.current?.post(message)} />}
-            sketch={<SketchProperties gauges={gauges} />}
           />
         }
-        tray={
-          <TrayRegion
-            workOrders={state?.workOrders ?? []}
-            lastPick={lastPick}
-            marks={state?.marks}
-            iframeRef={plateIframeRef}
-            plateOrigin={plateOrigin}
+        statusLine={
+          <StatusLine
+            wired={extras.wiring?.claude === 'installed'}
+            status={extras.status?.claude}
+            lastEventText={lastEventText}
+            logbookOpen={logbookOpen}
+            onToggleLogbook={() => setLogbookOpen((v) => !v)}
           />
-        }
-        bottomBar={
-          <>
-            <SimStrip wiring={state?.wiring ?? null} connected={connected} />
-            <p className={`jig-appbar__connection jig-appbar__connection--${connected ? 'ok' : 'warn'}`}>
-              <span aria-hidden="true" className="jig-appbar__connection-dot" />
-              bench socket: {connected ? 'open' : 'reconnecting'}
-            </p>
-            <Logbook entries={allLogEntries} />
-            <ShopLane workOrders={state?.workOrders ?? []} wiring={state?.wiring ?? null} shop={state?.shop ?? null} />
-          </>
         }
       />
+      {logbookOpen && <Logbook entries={allLogEntries} />}
       <CommandPalette
         tools={[
-          { tool: 'hand', word: 'Hand', pair: 'move the plate' },
-          { tool: 'loupe', word: 'Loupe', pair: 'point at anything and see what it is' },
-          { tool: 'mark', word: 'Mark', pair: 'a highlighted spot with a request attached' },
-          { tool: 'fixture', word: 'Fixture', pair: 'a reproducible set of test data' },
-          { tool: 'toolpath', word: 'Toolpath', pair: 'a recorded click sequence, replayable' },
+          { tool: 'point', word: 'Point', pair: 'click a component to open the prompt card' },
           { tool: 'sketch', word: 'Sketch', pair: 'a screen that does not exist yet' },
+          { tool: 'hand', word: 'Hand', pair: 'the app takes your clicks' },
         ]}
         components={(survey?.components ?? []).map((c) => ({ name: c.name, file: c.file, selector: c.selector }))}
         routes={survey?.routes ?? []}
         gauges={(gauges ?? []).map((g) => ({ name: g.name, pair: `${String(g.$value)} · ${g.category}` }))}
-        workOrders={(state?.workOrders ?? []).map((w) => ({ id: w.id, slug: w.slug, state: w.state }))}
+        workOrders={[]}
         onSelectTool={setTool}
         onSelectComponent={(c) => {
-          setPropertiesTab('loupe');
+          setRightTab('inspect');
           plateRef.current?.highlight([c.selector]);
         }}
         onSelectRoute={(path) => plateRef.current?.navigate(path)}
         onSelectGauge={(name) => {
-          setPropertiesTab('gauges');
+          setRightTab('design');
           lightGauge(name);
         }}
-        onSelectWorkOrder={(id) => window.dispatchEvent(new CustomEvent('jig:select-order', { detail: { id } }))}
+        onSelectWorkOrder={() => {}}
         onPrinted={() => plateRef.current?.clearHighlight()}
         onDocsQuery={async (query): Promise<PaletteDocsResult[]> => {
           const res = await fetch(`/api/docs?q=${encodeURIComponent(query)}`);

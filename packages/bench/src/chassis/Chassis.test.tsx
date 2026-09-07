@@ -9,55 +9,46 @@ const HERE = dirname(fileURLToPath(import.meta.url));
 
 afterEach(cleanup);
 
-describe('Chassis', () => {
-  it('renders every region CHASSIS.md names', () => {
+describe('Chassis (S12: rail | plate(+advanced drawer) | column, one status line)', () => {
+  it('renders rail, plate, column, and the status line', () => {
     render(
       <Chassis
         rail={<div>rail content</div>}
         plate={<div>plate content</div>}
-        properties={<div>properties content</div>}
-        tray={<div>tray content</div>}
-        bottomBar={<div>bottom bar content</div>}
+        column={<div>column content</div>}
+        statusLine={<div>status line content</div>}
       />,
     );
     expect(screen.getByText('rail content')).toBeTruthy();
     expect(screen.getByText('plate content')).toBeTruthy();
-    expect(screen.getByText('properties content')).toBeTruthy();
-    expect(screen.getByText('tray content')).toBeTruthy();
-    expect(screen.getByText('bottom bar content')).toBeTruthy();
+    expect(screen.getByText('column content')).toBeTruthy();
+    expect(screen.getByText('status line content')).toBeTruthy();
   });
 
-  it('the tray region is collapsed (~56px) by default', () => {
+  it('does not render an Advanced drawer region at all when none is given (off by default)', () => {
     const { container } = render(
-      <Chassis rail={<div />} plate={<div />} properties={<div />} tray={<div />} bottomBar={<div />} />,
+      <Chassis rail={<div />} plate={<div />} column={<div />} statusLine={<div />} />,
     );
-    const tray = container.querySelector('.jig-chassis__tray') as HTMLElement;
-    expect(tray.className).toContain('jig-chassis__tray--collapsed');
+    expect(container.querySelector('.jig-chassis__advanced-slot')?.textContent).toBe('');
   });
 
-  it('expands the tray region when trayExpanded is true', () => {
-    const { container } = render(
+  it('renders the Advanced drawer content when given', () => {
+    render(
       <Chassis
         rail={<div />}
         plate={<div />}
-        properties={<div />}
-        tray={<div />}
-        bottomBar={<div />}
-        trayExpanded
+        column={<div />}
+        statusLine={<div />}
+        advancedDrawer={<div>advanced drawer content</div>}
       />,
     );
-    const tray = container.querySelector('.jig-chassis__tray') as HTMLElement;
-    expect(tray.className).toContain('jig-chassis__tray--expanded');
-    expect(tray.className).not.toContain('jig-chassis__tray--collapsed');
+    expect(screen.getByText('advanced drawer content')).toBeTruthy();
   });
 });
 
-// Wave-4 fix (TEST-RUN.md's first live test): the chassis is a CSS grid, and jsdom does not
-// run a real layout engine (getBoundingClientRect/getComputedStyle report nothing useful for
-// grid tracks here) — same as TrayRegion.test.tsx's "design floor: ember" suite, this reads
-// the actual rules out of Chassis.css, the only reliable way to pin the layout contract in
-// this test environment.
-describe('Chassis — layout contract: the grid never overflows the window', () => {
+// jsdom runs no real layout engine, so (same pattern as the v0.1 Chassis/floor tests) the grid
+// contract is pinned by reading the actual CSS rules, not by measuring boxes.
+describe('Chassis — layout contract', () => {
   const css = readFileSync(join(HERE, 'Chassis.css'), 'utf8');
 
   function ruleFor(selector: string): string {
@@ -67,45 +58,29 @@ describe('Chassis — layout contract: the grid never overflows the window', () 
     return match[0];
   }
 
-  it('the chassis root fills the viewport exactly, with the whole-chassis fallback scroll', () => {
+  it('the root fills the viewport with one row for the bench and one 28px row for the status line, with a whole-chassis fallback scroll', () => {
+    // `\s*\{` in ruleFor only matches whitespace-then-brace immediately after the selector, so
+    // '.jig-chassis' here correctly misses '.jig-chassis__bench {' (no whitespace before '__').
     const root = ruleFor('.jig-chassis');
     expect(root).toMatch(/height:\s*100vh/);
-    // NOT `overflow: hidden` — that would clip an over-minimum layout instead of scrolling it.
     expect(root).toMatch(/overflow:\s*auto/);
+    expect(root).toMatch(/grid-template-rows:\s*1fr\s+28px/);
   });
 
-  it('the plate row and the plate/properties columns carry an explicit usable floor (~560x400)', () => {
-    const root = ruleFor('.jig-chassis');
-    expect(root).toMatch(/grid-template-rows:\s*minmax\(400px,\s*1fr\)/);
-    expect(root).toMatch(/grid-template-columns:\s*56px\s+minmax\(560px,\s*1fr\)\s+minmax\(240px,\s*560px\)/);
+  it('the bench splits into rail (56px) | centre (flexible) | column (340px)', () => {
+    const bench = ruleFor('.jig-chassis__bench');
+    expect(bench).toMatch(/grid-template-columns:\s*56px\s+minmax\(560px,\s*1fr\)\s+340px/);
   });
 
-  it('every region is min-height: 0 (and the plate/properties columns are also min-width: 0) so none can push another off-screen', () => {
-    for (const region of ['rail', 'plate', 'properties', 'tray', 'bottom-bar']) {
-      expect(ruleFor(`.jig-chassis__${region}`)).toMatch(/min-height:\s*0/);
-    }
-    expect(ruleFor('.jig-chassis__plate')).toMatch(/min-width:\s*0/);
-    expect(ruleFor('.jig-chassis__properties')).toMatch(/min-width:\s*0/);
+  it('the centre stacks the plate (a floored 1fr) over the advanced-drawer slot (auto — 0 height when empty)', () => {
+    const centre = ruleFor('.jig-chassis__centre');
+    expect(centre).toMatch(/grid-template-rows:\s*minmax\(400px,\s*1fr\)\s+auto/);
   });
 
-  // Defect 3: "the tray and its mark prompt are never under the properties column."
-  it('stacks the tray above the properties column', () => {
-    const trayZ = Number(ruleFor('.jig-chassis__tray').match(/z-index:\s*(\d+)/)?.[1]);
-    const propsZ = Number(ruleFor('.jig-chassis__properties').match(/z-index:\s*(\d+)/)?.[1]);
-    expect(Number.isNaN(trayZ)).toBe(false);
-    expect(Number.isNaN(propsZ)).toBe(false);
-    expect(trayZ).toBeGreaterThan(propsZ);
-  });
-
-  // Defects 5 & 6: the collapsed tray must be tall enough for the header, the badge, a slice
-  // of the human face, AND the pinned RELEASE/scrap footer — not the old fixed 56px.
-  it('the collapsed tray is taller than the old 56px, and still leaves the plate its 400px floor at 1280x720', () => {
-    const collapsed = ruleFor('.jig-chassis__tray--collapsed');
-    const heightMatch = collapsed.match(/height:\s*(\d+)px/);
-    expect(heightMatch).toBeTruthy();
-    const trayHeight = Number(heightMatch![1]);
-    expect(trayHeight).toBeGreaterThan(56);
-    const bottomBarHeight = 32; // .jig-chassis__bottom-bar's fixed height, asserted elsewhere
-    expect(720 - trayHeight - bottomBarHeight).toBeGreaterThanOrEqual(400);
+  it('every region is min-height/min-width: 0 so none can push another off-screen', () => {
+    expect(ruleFor('.jig-chassis__centre')).toMatch(/min-height:\s*0/);
+    expect(ruleFor('.jig-chassis__centre')).toMatch(/min-width:\s*0/);
+    expect(ruleFor('.jig-chassis__plate')).toMatch(/min-height:\s*0/);
+    expect(ruleFor('.jig-chassis__column')).toMatch(/min-height:\s*0/);
   });
 });

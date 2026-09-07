@@ -122,6 +122,17 @@ describe('FixturePanel — honest note when the survey has no endpoints', () => 
   });
 });
 
+describe('FixturePanel — the tongue: "key," never "seed" (COMMISSION.md §3, FLOOR-PASS-D-2026-09-07.md)', () => {
+  it('labels the reproducibility field "key," and never shows the word "seed" as surface text', async () => {
+    const { fetchImpl } = routedFetch({ 'GET /api/fixtures': emptyList });
+    render(<FixturePanel fetchImpl={fetchImpl} />);
+    await waitFor(() => expect(screen.getByText(/no fixtures yet/i)).toBeTruthy());
+
+    expect(screen.getByText(/key \(optional\)/i)).toBeTruthy();
+    expect(screen.queryByText(/^seed\b/i)).toBeNull();
+  });
+});
+
 describe('FixturePanel — create', () => {
   it('creates a fixture with just a name — no seed key sent when the seed field is blank', async () => {
     const { fetchImpl, calls } = routedFetch({
@@ -148,7 +159,10 @@ describe('FixturePanel — create', () => {
     await waitFor(() => expect(screen.getByText(/no fixtures yet/i)).toBeTruthy());
 
     fireEvent.change(screen.getByLabelText(/name/i), { target: { value: 'a' } });
-    fireEvent.change(screen.getByLabelText(/seed/i), { target: { value: '7' } });
+    // The form field is labelled "key" (COMMISSION.md §3 bans "seed" as surface text for
+    // Fixture) — the wire field name (body.seed, unchanged, an API concern out of scope here)
+    // is a separate thing from the word shown to a human.
+    fireEvent.change(screen.getByLabelText(/key/i), { target: { value: '7' } });
     fireEvent.click(screen.getByRole('button', { name: /new fixture/i }));
 
     await waitFor(() => expect(calls.some((c) => c.method === 'POST')).toBe(true));

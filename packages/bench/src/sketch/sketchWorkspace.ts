@@ -184,6 +184,23 @@ export function moveElement(id: string, x: number, y: number, grid: number = DEF
   });
 }
 
+/** Sets an element's position to EXACTLY the given coordinates — no grid re-snapping. Used by
+ * the drag handler after it has already run the candidate through `resolveSnap.ts` (grid first,
+ * then alignment to another element's edge/centre within 6px) — re-snapping here would silently
+ * undo a fine alignment that landed a few pixels off the raw grid line (S13, concept D's
+ * snapTo()). `moveElement` above stays the grid-only path used for programmatic moves that
+ * never went through alignment. */
+export function placeElementAt(id: string, x: number, y: number): void {
+  const sketch = state.activeSketch;
+  if (!sketch) return;
+  setState({
+    activeSketch: {
+      ...sketch,
+      elements: sketch.elements.map((e) => (e.id === id ? { ...e, x, y } : e)),
+    },
+  });
+}
+
 export function resizeElement(id: string, w: number, h: number, grid: number = DEFAULT_GRID): void {
   const sketch = state.activeSketch;
   if (!sketch) return;

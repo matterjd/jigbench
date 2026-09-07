@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { SketchSheet } from './SketchSheet.js';
 import { resetSketchWorkspaceForTests, setPaletteTool } from './sketchWorkspace.js';
@@ -175,6 +175,67 @@ describe('SketchSheet — save / printed', () => {
 
     expect(screen.queryByTestId(/^sketch-element-/)).toBeNull();
     expect(screen.queryByRole('button', { name: /^printed$/i })).toBeNull();
+  });
+});
+
+describe('SketchSheet — real snapping: grid, then alignment to other elements\' edges (S13)', () => {
+  it('dragging an element near another element\'s edge lands the final position on a 4px-grid multiple AND draws an alignment line at the matching edge, even when the raw drag position is off both', async () => {
+    const created = { jigFormat: 1, id: '0001', name: 'S', createdAt: 'a', updatedAt: 'a', size: { w: 900, h: 700 }, elements: [], links: [] };
+    const { fetchImpl } = routedFetch({ 'GET /api/sketches': { sketches: [] }, 'POST /api/sketches': created });
+    render(<SketchSheet fetchImpl={fetchImpl} gauges={[]} />);
+    await screen.findByText(/no sketches yet/i);
+    fireEvent.change(screen.getByPlaceholderText(/name this sketch/i), { target: { value: 'S' } });
+    fireEvent.click(screen.getByRole('button', { name: /^new$/i }));
+    const sheet = await screen.findByLabelText('sketch sheet');
+
+    // Element A (the neighbour): a 160x96 box at (32,128) — right edge 192, top edge 128.
+    fireEvent.click(sheet, { clientX: 32, clientY: 128 });
+    await screen.findByTestId(/^sketch-element-/);
+    // Element B (to be dragged): a second 160x96 box, far away at (400,400).
+    fireEvent.click(sheet, { clientX: 400, clientY: 400 });
+    const elements = await screen.findAllByTestId(/^sketch-element-/);
+    expect(elements).toHaveLength(2);
+    const elementB = elements[1];
+    expect(elementB.style.left).toBe('400px');
+    expect(elementB.style.top).toBe('400px');
+
+    // Drag B so its raw (pre-alignment) grid-snapped position is 188,124 — 4px off A's right
+    // edge (192) and top edge (128), well within the 6px alignment threshold.
+    fireEvent.mouseDown(elementB, { clientX: 450, clientY: 450 });
+    fireEvent.mouseMove(window, { clientX: 450 - 211, clientY: 450 - 275 });
+
+    // While the drag holds: final coordinates already land exactly on the neighbour's edges —
+    // multiples of 4 — not the raw 188/124 grid-only snap. An alignment line is drawn on each
+    // held axis, at the matching edge.
+    expect(elementB.style.left).toBe('192px');
+    expect(elementB.style.top).toBe('128px');
+    expect(Number.parseInt(elementB.style.left, 10) % 4).toBe(0);
+    expect(Number.parseInt(elementB.style.top, 10) % 4).toBe(0);
+    const vLine = screen.getByTestId('sketch-align-v');
+    const hLine = screen.getByTestId('sketch-align-h');
+    expect(vLine.style.left).toBe('192px');
+    expect(hLine.style.top).toBe('128px');
+
+    fireEvent.mouseUp(window);
+
+    // Releasing the drag clears the alignment lines again.
+    expect(screen.queryByTestId('sketch-align-v')).toBeNull();
+  });
+});
+
+describe('SketchSheet — "build this screen" is a prompt target (S12/S13)', () => {
+  it('renders a "build this screen" button that calls onBuildScreen when an open sketch is on the sheet', async () => {
+    const created = { jigFormat: 1, id: '0001', name: 'S', createdAt: 'a', updatedAt: 'a', size: { w: 640, h: 480 }, elements: [], links: [] };
+    const { fetchImpl } = routedFetch({ 'GET /api/sketches': { sketches: [] }, 'POST /api/sketches': created });
+    const onBuildScreen = vi.fn();
+    render(<SketchSheet fetchImpl={fetchImpl} onBuildScreen={onBuildScreen} />);
+    await screen.findByText(/no sketches yet/i);
+    fireEvent.change(screen.getByPlaceholderText(/name this sketch/i), { target: { value: 'S' } });
+    fireEvent.click(screen.getByRole('button', { name: /^new$/i }));
+    await screen.findByLabelText('sketch sheet');
+
+    fireEvent.click(screen.getByRole('button', { name: /build this screen/i }));
+    expect(onBuildScreen).toHaveBeenCalled();
   });
 });
 

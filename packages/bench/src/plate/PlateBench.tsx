@@ -36,6 +36,9 @@ export interface PlateBenchProps {
   /** S8: mirrors the bridge's raw `jig:event` stream up — the toolpath recorder needs every
    * click/input with its DOM path, the same pattern `onPick`/`onModeChange` already use. */
   onEvent?: (event: PlateEvent) => void;
+  /** S12 (AMENDMENT-1 §4): "no rulers or guides by default" — the app fills the plate. Off by
+   * default; the Advanced drawer's "rulers & guides" switch is the only way to turn this on. */
+  showRulers?: boolean;
 }
 
 export interface PlateBenchHandle {
@@ -55,7 +58,7 @@ export interface PlateBenchHandle {
  * `usePlateBridge` postMessage wiring; the Loupe readout itself now lives in the Properties
  * column (`onPick`/`onModeChange` mirror the bridge's state up there). */
 export const PlateBench = forwardRef<PlateBenchHandle, PlateBenchProps>(function PlateBench(
-  { survey, gauges, fetchImpl, onPick, onModeChange, iframeRef: externalIframeRef, onPlateOriginChange, onEvent },
+  { survey, gauges, fetchImpl, onPick, onModeChange, iframeRef: externalIframeRef, onPlateOriginChange, onEvent, showRulers = false },
   ref,
 ) {
   const internalIframeRef = useRef<HTMLIFrameElement>(null);
@@ -134,10 +137,10 @@ export const PlateBench = forwardRef<PlateBenchHandle, PlateBenchProps>(function
           </div>
         )}
         <div className="jig-plate-bench__surface">
-          <PlateRulers cursor={null} />
-          <div className="jig-plate-bench__viewport">
+          {showRulers && <PlateRulers cursor={null} />}
+          <div className={'jig-plate-bench__viewport' + (showRulers ? ' jig-plate-bench__viewport--with-rulers' : '')}>
             <PlateFrame ref={iframeRef} status={status} />
-            <PlateGuides rect={bridge.lastPick?.rect ?? null} grid={grid} />
+            {showRulers && <PlateGuides rect={bridge.lastPick?.rect ?? null} grid={grid} />}
           </div>
         </div>
       </Panel>
