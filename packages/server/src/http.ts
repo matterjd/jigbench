@@ -12,6 +12,7 @@ import type { PlateProxyHandle } from './plate/proxy.js';
 import { logger } from './logger.js';
 import { JigWatcher } from './watcher.js'; // S6
 import { watchShopFreshness, SHOP_FRESHNESS_TICK_MS } from './shop-freshness.js'; // S6 fix (wave-4 finding 3)
+import { isSameOriginOrAbsent } from './same-origin.js'; // S17a — extracted so fs/route.ts can reuse it too
 // === S5 orders: imports (delimited block; owned by packages/server/src/orders/*) ===
 import { OrdersService } from './orders/service.js';
 import { OrderConflictError, OrderNotFoundError } from './orders/errors.js';
@@ -35,9 +36,19 @@ import { attachPromptsRoute } from './prompts/route.js';
 import { BuildRunner } from './build/runner.js';
 import type { BuildRunnerLike } from './build/types.js';
 // === end S11 block ===
+// S17a (AMENDMENT-1 §7, A6): "createJigServer becomes a host holding zero or one current
+// bench" — that host is `bench/host.ts`'s `createBenchHost`, a SEPARATE implementation this
+// file delegates to (below) rather than being rewritten around, so every existing caller/test
+// here (all of which always pass `repoRoot`) keeps its exact current behaviour byte-for-byte.
+// `bench/host.ts`'s own module doc explains the split and its scope boundary.
+import { createBenchHost } from './bench/host.js';
 
 export interface CreateJigServerOptions {
-  repoRoot: string;
+  /** S17a: optional — omitted, `createJigServer` boots through `bench/host.ts` instead,
+   * serving with NO repo clamped (the Clamp screen's server side) until a `POST /api/clamp`.
+   * Every option below this point applies only to the repoRoot-given path (unchanged from
+   * before S17a); `bench/host.ts` has its own, narrower option set for the no-repo path. */
+  repoRoot?: string;
   port?: number;
   /** Interface to bind to. Defaults to loopback-only — the bench is a local dev tool and
    * has no business being reachable from the LAN. */
@@ -72,22 +83,9 @@ export interface CreateJigServerOptions {
   // === end S11 block ===
 }
 
-/** True when `origin` is absent (a non-browser client — curl, an MCP client, the CLI itself
- * — never sends one) or matches `host` (the request's own `Host` header) exactly. Browsers
- * always send `Origin` on a cross-origin fetch/XHR and on same-origin state-changing
- * requests too, so comparing it against the request's own Host is a same-origin check that
- * needs no hardcoded port — it works whether the bench is on its configured port or, in
- * tests, an OS-assigned one. A request from any other page's Origin fails this regardless
- * of which interface the server is bound to. */
-export function isSameOriginOrAbsent(origin: string | undefined, host: string | undefined): boolean {
-  if (!origin) return true;
-  if (!host) return false;
-  try {
-    return new URL(origin).host === host;
-  } catch {
-    return false;
-  }
-}
+// isSameOriginOrAbsent now lives in ./same-origin.js (S17a) — re-exported here so any
+// existing import of it from './http.js' keeps working unchanged.
+export { isSameOriginOrAbsent } from './same-origin.js';
 
 /** Reads a numeric `status`/`statusCode` off a thrown error (the shape node's http-errors —
  * and therefore body-parser's PayloadTooLargeError — actually use) without resorting to
@@ -419,6 +417,17 @@ function buildApp(
 }
 
 export async function createJigServer(options: CreateJigServerOptions): Promise<JigServerHandle> {
+  // S17a: no repoRoot at all -> the new host (bench/host.ts), which can start with zero
+  // clamped repos and later clamp/unclamp/re-clamp at runtime. The cast is deliberate: a
+  // `BenchHostHandle` is a narrower, DIFFERENT shape (no `fixtureStore`/`toolpathStore`/etc.
+  // fields — those features aren't mounted on this path yet, see that file's module doc) —
+  // every field `JigServerHandle` promises that this path doesn't have is one nothing on
+  // this path ever reads; every existing caller of `createJigServer` always passes
+  // `repoRoot`, so this branch is exercised only by brand-new (S17a) call sites.
+  if (!options.repoRoot) {
+    return createBenchHost(options) as unknown as JigServerHandle;
+  }
+
   const { repoRoot, port = 4600, host = '127.0.0.1', openBrowser = false } = options;
 
   const store = new JigStore(repoRoot);
