@@ -2,6 +2,7 @@ import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState, 
 import type { Gauge, Survey } from '@jigbench/core';
 import { Chip } from '../components/Chip.js';
 import { Panel } from '../components/Panel.js';
+import { loadedMessage, type LoadProof } from '../fixtures/loadProof.js';
 import { PlateFrame } from './PlateFrame.js';
 import { PlateRulers } from './PlateRulers.js';
 import { PlateGuides } from './PlateGuides.js';
@@ -80,10 +81,12 @@ export const PlateBench = forwardRef<PlateBenchHandle, PlateBenchProps>(function
   // but only every 4s via usePlatePoll; the event is instant and the panel already owns the
   // load/unload lifecycle, so this is the one source of truth, not a second poller).
   const [fixtureName, setFixtureName] = useState<string | null>(null);
+  const [fixtureProof, setFixtureProof] = useState<LoadProof | undefined>(undefined);
   useEffect(() => {
     function onFixtureLoaded(event: Event): void {
-      const detail = (event as CustomEvent<{ name: string | null }>).detail;
+      const detail = (event as CustomEvent<{ name: string | null; proof?: LoadProof }>).detail;
       setFixtureName(detail?.name ?? null);
+      setFixtureProof(detail?.proof);
     }
     window.addEventListener('jig:fixture-loaded', onFixtureLoaded);
     return () => window.removeEventListener('jig:fixture-loaded', onFixtureLoaded);
@@ -125,8 +128,8 @@ export const PlateBench = forwardRef<PlateBenchHandle, PlateBenchProps>(function
       <Panel title="Plate" className="jig-plate-bench__frame">
         {fixtureName && (
           <div className="jig-plate-bench__fixture-chip">
-            <Chip tone="storm" glyph="●">
-              fixture · {fixtureName} · loaded — the plate answers from it
+            <Chip tone={fixtureProof?.ok ? 'storm' : 'neutral'} glyph="●">
+              {loadedMessage(fixtureName, fixtureProof)}
             </Chip>
           </div>
         )}

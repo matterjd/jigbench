@@ -1,7 +1,21 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createRef } from 'react';
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { JIG_FORMAT, type Survey } from '@jigbench/core';
 import { FixturePanel } from './FixturePanel.js';
+
+function surveyWith(endpoints: Survey['endpoints']): Survey {
+  return {
+    jigFormat: JIG_FORMAT,
+    stack: ['angular'],
+    components: [],
+    routes: [],
+    endpoints,
+    schemas: [],
+    docs: [],
+    generatedAt: '2026-09-07T00:00:00.000Z',
+  };
+}
 
 afterEach(() => cleanup());
 
@@ -76,6 +90,38 @@ describe('FixturePanel — list', () => {
   });
 });
 
+// Matter's retest-18: surveying `--repo examples/ledger-angular` alone (the Angular adapter
+// contributes component-model schemas but never endpoints — that's the .NET adapter's job)
+// yields a Fixture whose `responses` map is permanently empty, so the plate can never answer
+// a real request from it. The panel must SAY so, in words, rather than let Matter discover it
+// only via a missing terminal header.
+describe('FixturePanel — honest note when the survey has no endpoints', () => {
+  it('says so when the survey has zero endpoints', async () => {
+    const { fetchImpl } = routedFetch({ 'GET /api/fixtures': emptyList });
+    render(<FixturePanel fetchImpl={fetchImpl} survey={surveyWith([])} />);
+    await waitFor(() => expect(screen.getByText(/this survey has no endpoints — survey the api too/i)).toBeTruthy());
+  });
+
+  it('says nothing when the survey has endpoints', async () => {
+    const { fetchImpl } = routedFetch({ 'GET /api/fixtures': emptyList });
+    render(
+      <FixturePanel
+        fetchImpl={fetchImpl}
+        survey={surveyWith([{ method: 'GET', path: '/api/invoices' }])}
+      />,
+    );
+    await waitFor(() => expect(screen.getByText(/no fixtures yet/i)).toBeTruthy());
+    expect(screen.queryByText(/survey the api too/i)).toBeNull();
+  });
+
+  it('says nothing when no survey prop is given at all — never guesses at a survey it was not told about', async () => {
+    const { fetchImpl } = routedFetch({ 'GET /api/fixtures': emptyList });
+    render(<FixturePanel fetchImpl={fetchImpl} />);
+    await waitFor(() => expect(screen.getByText(/no fixtures yet/i)).toBeTruthy());
+    expect(screen.queryByText(/survey the api too/i)).toBeNull();
+  });
+});
+
 describe('FixturePanel — create', () => {
   it('creates a fixture with just a name — no seed key sent when the seed field is blank', async () => {
     const { fetchImpl, calls } = routedFetch({
@@ -111,7 +157,7 @@ describe('FixturePanel — create', () => {
 });
 
 describe('FixturePanel — load / unload', () => {
-  it('loading a fixture posts :id/load, shows the loaded chip, and dispatches jig:fixture-loaded', async () => {
+  it('loading a fixture posts :id/load, shows the CONFIRMED loaded chip with the real x-jig-fixture value, and dispatches jig:fixture-loaded', async () => {
     let activeName: string | null = null; // a real fake fixtures API tracks its own state
     const { fetchImpl } = routedFetch({
       'GET /api/fixtures': () => ({
@@ -120,7 +166,7 @@ describe('FixturePanel — load / unload', () => {
       }),
       'POST /api/fixtures/overdue-heavy/load': () => {
         activeName = 'overdue-heavy';
-        return { active: activeName };
+        return { active: activeName, proof: { ok: true, header: 'x-jig-fixture', value: 'overdue-heavy' } };
       },
     });
     const events: unknown[] = [];
@@ -133,10 +179,59 @@ describe('FixturePanel — load / unload', () => {
 
       await waitFor(() => expect(screen.getByText(/loaded/i)).toBeTruthy());
       expect(screen.getByText(/the plate answers from it/i)).toBeTruthy();
-      expect(events).toEqual([{ name: 'overdue-heavy' }]);
+      // The proof line (Matter's retest-18): a REAL x-jig-fixture value read back from the
+      // plate, not the panel repeating the fixture name it already knew client-side.
+      expect(screen.getByText(/x-jig-fixture: overdue-heavy/i)).toBeTruthy();
+      // PlateBench's own plate-frame chip listens for this same event (integration seam 3) —
+      // the proof must ride along so that chip can say the same honest thing, never a second,
+      // independently-worded (and here, unconditionally confirmed) claim.
+      expect(events).toEqual([
+        { name: 'overdue-heavy', proof: { ok: true, header: 'x-jig-fixture', value: 'overdue-heavy' } },
+      ]);
     } finally {
       window.removeEventListener('jig:fixture-loaded', onLoaded);
     }
+  });
+
+  it('loading a fixture the plate does NOT confirm never claims "the plate answers from it" — says so honestly instead', async () => {
+    let activeName: string | null = null;
+    const { fetchImpl } = routedFetch({
+      'GET /api/fixtures': () => ({
+        fixtures: [{ id: 'overdue-heavy', name: 'overdue-heavy', seed: 1, createdAt: new Date().toISOString() }],
+        active: activeName,
+      }),
+      'POST /api/fixtures/overdue-heavy/load': () => {
+        activeName = 'overdue-heavy';
+        return { active: activeName, proof: { ok: false, reason: 'no-endpoints' } };
+      },
+    });
+    render(<FixturePanel fetchImpl={fetchImpl} />);
+    await waitFor(() => expect(screen.getByRole('button', { name: /^load$/i })).toBeTruthy());
+    fireEvent.click(screen.getByRole('button', { name: /^load$/i }));
+
+    await waitFor(() => expect(screen.getByText(/loaded/i)).toBeTruthy());
+    expect(screen.queryByText(/the plate answers from it/i)).toBeNull();
+    expect(screen.getByText(/survey the api too/i)).toBeTruthy();
+  });
+
+  it('loading when the server never wires a plate at all (no proof key) shows a neutral loaded state — no unverified claim', async () => {
+    let activeName: string | null = null;
+    const { fetchImpl } = routedFetch({
+      'GET /api/fixtures': () => ({
+        fixtures: [{ id: 'a', name: 'a', seed: 1, createdAt: new Date().toISOString() }],
+        active: activeName,
+      }),
+      'POST /api/fixtures/a/load': () => {
+        activeName = 'a';
+        return { active: activeName }; // no `proof` key — the prior, plate-less contract
+      },
+    });
+    render(<FixturePanel fetchImpl={fetchImpl} />);
+    await waitFor(() => expect(screen.getByRole('button', { name: /^load$/i })).toBeTruthy());
+    fireEvent.click(screen.getByRole('button', { name: /^load$/i }));
+
+    await waitFor(() => expect(screen.getByText(/loaded/i)).toBeTruthy());
+    expect(screen.queryByText(/the plate answers from it/i)).toBeNull();
   });
 
   it('unloading dispatches jig:fixture-loaded with a null name', async () => {
@@ -240,6 +335,70 @@ describe('FixturePanel — fill the form', () => {
         'http://localhost:4601',
       ),
     );
+
+    // close the loop so this test never leaves a dangling jig:filled wait behind it.
+    fireEvent(
+      window,
+      new MessageEvent('message', {
+        data: { type: 'jig:filled', filled: ['customerId', 'notes'], missing: [] },
+        origin: 'http://localhost:4601',
+      }),
+    );
+    await waitFor(() => expect(screen.getByText(/filled "CreateInvoiceRequest" onto the plate/i)).toBeTruthy());
+  });
+
+  // Matter's retest-18 asked, explicitly: "when nothing matches, the panel says which fields
+  // it could not match, in words" — not only the all-or-nothing "no schema matches" case
+  // below, but per-FIELD misses too (the Ledger form's real "Invoice" schema carries fields
+  // like `id`/`status`/`lines` that have no matching input on the New-invoice form at all —
+  // the loupe already reports these as `missing` in its `jig:filled` reply; the panel used to
+  // just say "filling ... onto the plate" and never look at that reply again).
+  it('reports which fields the loupe could NOT match, in words, once it replies', async () => {
+    const { fetchImpl } = routedFetch({
+      'GET /api/fixtures': {
+        fixtures: [{ id: 'a', name: 'a', seed: 1, createdAt: new Date().toISOString() }],
+        active: 'a',
+      },
+      'GET /api/fixtures/a': {
+        id: 'a',
+        name: 'a',
+        seed: 1,
+        forms: { Invoice: { customerId: 'c-1', issuedOn: '2026-09-01', id: 'inv-1', status: 'draft' } },
+      },
+      'POST /api/plate/fill': {
+        fields: [
+          { name: 'customerId', value: 'c-1' },
+          { name: 'issuedOn', value: '2026-09-01' },
+          { name: 'id', value: 'inv-1' },
+          { name: 'status', value: 'draft' },
+        ],
+      },
+    });
+    const postMessage = vi.fn();
+    const iframeRef = { current: { contentWindow: { postMessage } } } as unknown as React.RefObject<HTMLIFrameElement>;
+
+    render(<FixturePanel fetchImpl={fetchImpl} iframeRef={iframeRef} plateOrigin="http://localhost:4601" />);
+    await waitFor(() => expect(screen.getByRole('button', { name: /fill the form/i })).toBeTruthy());
+    fireEvent.click(screen.getByRole('button', { name: /fill the form/i }));
+
+    fireEvent(
+      window,
+      new MessageEvent('message', {
+        data: { type: 'jig:fill-fields', formPath: 'form:nth-of-type(1)', names: ['customerId', 'issuedOn'] },
+        origin: 'http://localhost:4601',
+      }),
+    );
+    await waitFor(() => expect(postMessage).toHaveBeenCalledWith(expect.objectContaining({ type: 'jig:fill' }), 'http://localhost:4601'));
+
+    fireEvent(
+      window,
+      new MessageEvent('message', {
+        data: { type: 'jig:filled', filled: ['customerId', 'issuedOn'], missing: ['id', 'status'] },
+        origin: 'http://localhost:4601',
+      }),
+    );
+
+    await waitFor(() => expect(screen.getByText(/could not match: id, status/i)).toBeTruthy());
   });
 
   it('says in words when nothing on the form matches any schema in the fixture', async () => {
