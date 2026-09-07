@@ -1,4 +1,4 @@
-import type { Express } from 'express';
+import type { IRouter } from 'express';
 import type { PlateProxyHandle } from './proxy.js';
 
 /** `GET /api/plate`'s `mirror` field (S8, CHASSIS.md's trial-fit mode) — deliberately a
@@ -23,8 +23,10 @@ export interface MirrorStatusReport {
  * way — omitted when no mirror is running (or no getter was supplied at all), never a literal
  * `null`. Async because checking the mirror's real reachability is async (`TrialFitMirror`'s
  * own `getStatus()` probes it), unlike the fixture getter above. */
+// S17b: `IRouter`, not `Express` — `bench/host.ts` mounts this on a per-bench `express.Router()`;
+// an Express app satisfies `IRouter` too, so every existing call site is unchanged.
 export function attachPlateRoute(
-  app: Express,
+  app: IRouter,
   plate: PlateProxyHandle,
   getActiveFixture?: () => string | null,
   getMirrorStatus?: () => Promise<MirrorStatusReport | null>,

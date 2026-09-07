@@ -2,6 +2,7 @@ import { JigStore } from '../store.js';
 import { JigWatcher } from '../watcher.js';
 import { createPlateProxy, type PlateProxyHandle } from '../plate/proxy.js';
 import { FixtureStore } from '../fixtures/store.js';
+import { SketchStore } from '../sketch/store.js'; // S17b
 import { createFixtureInterceptor } from '../fixtures/interceptor.js';
 import { PromptStore } from '../prompts/store.js';
 import { PromptService } from '../prompts/service.js';
@@ -17,8 +18,11 @@ import { logger } from '../logger.js';
  * proxy, the prompt store/service (+ its `BuildRunner`), the fixture store, and the shop
  * heartbeat read (already folded into `JigStore.getState()` itself — nothing extra to wire).
  *
- * Deliberately NOT bundled: `ToolpathStore`, `TrialFitMirror`/`SnapshotStore`, `SketchStore`,
- * `OrdersService` — those are S5/S7(-toolpath is S8)/S8/S9's own surfaces, "Advanced" per
+ * S17b folds the `SketchStore` in too — the loop (prompts, plate, fixtures, sketches, docs)
+ * rides `bench/host.ts` per bench now, through one swappable router; see that file.
+ *
+ * Deliberately NOT bundled: `ToolpathStore`, `TrialFitMirror`/`SnapshotStore`,
+ * `OrdersService` — those are S5/S8's own surfaces, "Advanced" per
  * AMENDMENT-1 §3, and out of this slice's named file scope. `createJigServer`'s EXISTING
  * `--repo`-at-boot path (every current test) keeps constructing them exactly as it does
  * today, untouched by this file. A server booted through `bench/host.ts` (no initial
@@ -56,6 +60,8 @@ export interface Bench {
   readonly repoRoot: string;
   readonly store: JigStore;
   readonly fixtureStore: FixtureStore;
+  /** S17b — the sketch data/lifecycle store, so the host's per-bench sketch route has one. */
+  readonly sketchStore: SketchStore;
   readonly promptStore: PromptStore;
   readonly promptService: PromptService;
   readonly runner: BuildRunnerLike;
@@ -89,6 +95,9 @@ export async function createBench(repoRoot: string, opts: CreateBenchOptions): P
   await fixtureStore.init();
   plate.addInterceptor?.(createFixtureInterceptor(fixtureStore));
 
+  const sketchStore = new SketchStore(repoRoot, store); // store satisfies SketchWiringSink (S17b)
+  await sketchStore.init();
+
   const promptStore = new PromptStore(repoRoot);
   await promptStore.init();
 
@@ -120,6 +129,7 @@ export async function createBench(repoRoot: string, opts: CreateBenchOptions): P
     repoRoot,
     store,
     fixtureStore,
+    sketchStore,
     promptStore,
     promptService,
     runner,

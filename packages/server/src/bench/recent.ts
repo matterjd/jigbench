@@ -48,3 +48,23 @@ export async function recordRecentBench(
   await atomicWriteFile(file, JSON.stringify(next, null, 2) + '\n');
   return next;
 }
+
+/** S17b: the fields a bench learns AFTER its clamp — the target URL the human started or
+ * pointed at, the docs folder they clamped — patched onto that repo's entry in place. */
+export type RecentBenchPatch = Partial<Pick<RecentBenchEntry, 'lastUsedTargetUrl' | 'docsFolder'>>;
+
+/** Patches ONE entry (matched by `repoRoot`) in place: never reorders the list, never bumps
+ * `clampedAt` — only a clamp does that (`recordRecentBench`). A no-op — nothing written, not
+ * even an empty file — when the repo is not in the list at all. Returns the resulting list
+ * (unchanged in the no-op case) so a caller can broadcast it without a second read. */
+export async function updateRecentBench(
+  repoRoot: string,
+  patch: RecentBenchPatch,
+  file: string = defaultRecentBenchesFile(),
+): Promise<RecentBenchEntry[]> {
+  const existing = await readRecentBenches(file);
+  if (!existing.some((e) => e.repoRoot === repoRoot)) return existing;
+  const next = existing.map((e) => (e.repoRoot === repoRoot ? { ...e, ...patch } : e));
+  await atomicWriteFile(file, JSON.stringify(next, null, 2) + '\n');
+  return next;
+}

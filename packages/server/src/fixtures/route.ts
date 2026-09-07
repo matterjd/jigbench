@@ -1,4 +1,4 @@
-import type { Express, NextFunction, Request, Response } from 'express';
+import type { IRouter, NextFunction, Request, Response } from 'express';
 import type { Fixture, Survey } from '@jigbench/core';
 import {
   FixtureNameConflictError,
@@ -81,8 +81,10 @@ function sendError(res: Response, status: number, message: string): void {
  * with no plate wired gets the prior contract back unchanged: `load` responds with just
  * `{ active }`, no `proof` key at all.
  */
+// S17b: `IRouter`, not `Express` — `bench/host.ts` mounts this on a per-bench `express.Router()`;
+// an Express app satisfies `IRouter` too, so every existing call site is unchanged.
 export function attachFixturesRoute(
-  app: Express,
+  app: IRouter,
   fixtureStore: FixtureStore,
   getSurvey: () => Survey,
   getPlateUrl?: () => string | undefined,

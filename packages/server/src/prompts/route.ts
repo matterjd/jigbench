@@ -1,5 +1,5 @@
 import { readFile } from 'node:fs/promises';
-import type { Express, NextFunction, Request, Response } from 'express';
+import type { IRouter, NextFunction, Request, Response } from 'express';
 import { PromptStateSchema } from '@jigbench/core';
 import { ClaudeNotInstalledError, PolishUnavailableError, PromptBuildConflictError, PromptConflictError } from './errors.js';
 import { PromptNotFoundError } from './store.js';
@@ -41,7 +41,9 @@ function mapPromptError(err: unknown, res: Response, next: NextFunction): void {
   next(err);
 }
 
-export function attachPromptsRoute(app: Express, prompts: PromptService): void {
+// S17b: `IRouter`, not `Express` — `bench/host.ts` mounts this on a per-bench `express.Router()`;
+// an Express app satisfies `IRouter` too, so every existing call site is unchanged.
+export function attachPromptsRoute(app: IRouter, prompts: PromptService): void {
   app.get('/api/prompts', (req, res) => {
     const stateParam = typeof req.query.state === 'string' ? req.query.state : undefined;
     const parsedState = stateParam ? PromptStateSchema.safeParse(stateParam) : undefined;

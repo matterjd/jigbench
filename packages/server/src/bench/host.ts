@@ -2,24 +2,31 @@ import { existsSync } from 'node:fs';
 import { stat } from 'node:fs/promises';
 import { createServer as createHttpServer, type IncomingMessage, type Server as HttpServer } from 'node:http';
 import { join } from 'node:path';
-import express, { type NextFunction, type Request, type Response } from 'express';
+import express, { type NextFunction, type Request, type Response, type Router } from 'express';
 import { WebSocketServer, type WebSocket } from 'ws';
 import open from 'open';
+import type { DetectedTargetSummary } from '@jigbench/core';
 import { isSameOriginOrAbsent } from '../same-origin.js';
 import { attachBenchServing, type BenchServeMode } from '../bench-serve.js';
 import { defaultBenchDistDir } from '../default-bench-dist.js';
 import { logger } from '../logger.js';
 import { runSurveyAndWrite } from '../survey/run.js';
 import { clampDocs } from '../docs/clamp.js';
+import { createDocsRoute } from '../docs/route.js';
+import { attachPromptsRoute } from '../prompts/route.js';
+import { attachPlateRoute } from '../plate/route.js';
+import { attachFixturesRoute } from '../fixtures/route.js';
+import { attachSketchesRoute } from '../sketch/route.js';
 import { attachFsRoute } from '../fs/route.js';
 import { TargetRunner, type TargetRunnerLike } from '../target/runner.js';
 import { attachTargetRoute } from '../target/route.js';
+import { detectDevScript, type DetectedTarget } from '../target/detect.js';
 import { attachSetupRoute } from '../setup/route.js';
 import type { BuildRunnerLike, BuildStreamEvent } from '../build/types.js';
 import type { OllamaLike } from '../orders/drafters/ollama.js';
 import { createBench, type Bench } from './bench.js';
 import { validateClampPath } from './validate-clamp-path.js';
-import { defaultRecentBenchesFile, readRecentBenches, recordRecentBench } from './recent.js';
+import { defaultRecentBenchesFile, readRecentBenches, recordRecentBench, updateRecentBench } from './recent.js';
 
 /**
  * S17a (AMENDMENT-1 §7, A6): "`createJigServer` becomes a host holding zero or one current
@@ -30,10 +37,12 @@ import { defaultRecentBenchesFile, readRecentBenches, recordRecentBench } from '
  * unified into one.
  *
  * Bundle boundary: this host owns exactly `bench/bench.ts`'s Bench (JigStore, watcher, plate,
- * fixtures, prompts) plus the target runner and the fs/setup/clamp surfaces. It does NOT mount
- * `orders`/`toolpath`/`trialfit`/`sketch` routes — those are Advanced-tier (AMENDMENT-1 §3)
- * and out of this slice's file scope; a server booted with no initial `--repo` does not expose
- * them yet (disclosed gap for whichever slice wires the Clamp screen's full feature set).
+ * fixtures, prompts, sketches) plus the target runner and the fs/setup/clamp surfaces. S17b:
+ * THE LOOP — `/api/prompts`, `/api/plate`, `/api/fixtures`, `/api/sketches`, `/api/docs` —
+ * is mounted per bench through one swappable `express.Router` (see `currentRouter` below),
+ * built on every clamp and dropped on unclamp. It still does NOT mount `orders`/`toolpath`/
+ * `trialfit` routes — those are Advanced-tier (AMENDMENT-1 §3) and out of scope here; a
+ * server booted with no initial `--repo` does not expose them (a disclosed gap).
  */
 
 export interface CreateBenchHostOptions {
@@ -97,12 +106,29 @@ function repoRootOf(bench: Bench | null): string | null {
   return bench ? bench.repoRoot : null;
 }
 
+/** S17b: `target/detect.ts`'s full result (command/args/cwd are the runner's business)
+ * reduced to the wire shape the Clamp screen renders — what "Start the app" would run. */
+function summarizeDetectedTarget(detected: DetectedTarget | null): DetectedTargetSummary | null {
+  if (!detected) return null;
+  return {
+    ...(detected.script === undefined ? {} : { script: detected.script }),
+    port: detected.port,
+    source: detected.source,
+  };
+}
+
 export async function createBenchHost(options: CreateBenchHostOptions = {}): Promise<BenchHostHandle> {
   const { port = 4600, host = '127.0.0.1', openBrowser = false } = options;
   const recentBenchesFile = options.recentBenchesFile ?? defaultRecentBenchesFile();
   const benchOrigin = `http://localhost:${port}`;
 
   let currentBench: Bench | null = null;
+  /** S17b: the loop's routes for the CURRENT bench — one `express.Router` built fresh on
+   * every clamp (each attach function closes over that bench's own stores/services) and
+   * dropped on unclamp, so a route never outlives the bench it answers for. Mounted ONCE in
+   * the app (below) through a thunk that dispatches into whichever router is current, or
+   * falls through to express's own 404 when nothing is clamped. */
+  let currentRouter: Router | null = null;
   const wss = new WebSocketServer({ noServer: true });
 
   function broadcastRaw(payload: unknown): void {
@@ -123,6 +149,12 @@ export async function createBenchHost(options: CreateBenchHostOptions = {}): Pro
           Promise.resolve(currentBench.plate.start(state.url)).catch((err: unknown) =>
             logger.warn('bench host: could not wire the plate to the started target', String(err)),
           );
+          // S17b: remember the URL on this repo's recent entry — the Clamp screen offers it
+          // back next time. Off the request path; broadcast again once it is on disk so the
+          // `recent` list a connected bench holds carries it too.
+          updateRecentBench(currentBench.repoRoot, { lastUsedTargetUrl: state.url }, recentBenchesFile)
+            .then(() => broadcastState())
+            .catch((err: unknown) => logger.warn('bench host: could not remember the target url', String(err)));
         }
         broadcastState();
       },
@@ -162,6 +194,7 @@ export async function createBenchHost(options: CreateBenchHostOptions = {}): Pro
   }
 
   async function closeCurrentBench(): Promise<void> {
+    currentRouter = null; // S17b — the loop stops answering before the bench it served closes
     await targetRunner.stop();
     if (currentBench) {
       await currentBench.close();
@@ -169,11 +202,26 @@ export async function createBenchHost(options: CreateBenchHostOptions = {}): Pro
     }
   }
 
+  /** S17b: the loop, for one bench — see `currentRouter`. Every attach function here is the
+   * same one `http.ts`'s --repo-at-boot path mounts on its app; only the mount point differs. */
+  function buildLoopRouter(bench: Bench): Router {
+    const router = express.Router();
+    attachPromptsRoute(router, bench.promptService);
+    attachPlateRoute(router, bench.plate, () => bench.store.getActiveFixture());
+    attachFixturesRoute(router, bench.fixtureStore, () => bench.store.getState().survey, () => bench.plate.url);
+    attachSketchesRoute(router, bench.sketchStore, () => bench.store.getState().gauges);
+    router.get('/api/docs', createDocsRoute(bench.repoRoot));
+    return router;
+  }
+
   /** The one place a repo becomes THE clamped bench — `POST /api/clamp` and an initial
    * `--repo` at boot both funnel through this. Closes whatever bench/target was live first
-   * (re-clamp semantics), then: construct -> survey -> auto-clamp `docs/` when present ->
-   * record in recent benches -> broadcast. */
-  async function clampTo(repoRoot: string): Promise<{ survey: unknown; docsClamped: boolean; recent: unknown }> {
+   * (re-clamp semantics), then: construct (+ mount its loop router) -> survey (+ detect what
+   * "Start the app" would run) -> auto-clamp `docs/` when present -> record in recent
+   * benches -> broadcast. */
+  async function clampTo(
+    repoRoot: string,
+  ): Promise<{ survey: unknown; docsClamped: boolean; recent: unknown; detected: DetectedTargetSummary | null }> {
     await closeCurrentBench();
 
     const bench = await createBench(repoRoot, {
@@ -185,10 +233,15 @@ export async function createBenchHost(options: CreateBenchHostOptions = {}): Pro
       onBuildEvent: (id: string, event: BuildStreamEvent, elapsedMs: number) => broadcastRaw({ type: 'build', id, event, elapsedMs }),
     });
     currentBench = bench;
+    currentRouter = buildLoopRouter(bench); // S17b
     targetRunner = makeTargetRunner();
 
     const surveyResult = await runSurveyAndWrite(repoRoot);
     await bench.store.reload();
+
+    // S17b: the same detection `POST /api/target/start` will do, said up front so the Clamp
+    // screen can name the script (or ask for a URL when this is null).
+    const detected = summarizeDetectedTarget(detectDevScript(repoRoot, surveyResult.survey));
 
     let docsClamped = false;
     const docsDefault = join(repoRoot, 'docs');
@@ -204,7 +257,7 @@ export async function createBenchHost(options: CreateBenchHostOptions = {}): Pro
     const recent = await recordRecentBench({ repoRoot, clampedAt: new Date().toISOString() }, recentBenchesFile);
 
     broadcastState();
-    return { survey: surveyResult.survey, docsClamped, recent };
+    return { survey: surveyResult.survey, docsClamped, recent, detected };
   }
 
   const app = express();
@@ -260,6 +313,12 @@ export async function createBenchHost(options: CreateBenchHostOptions = {}): Pro
       next(err);
     }
   });
+
+  // S17b: the loop, per bench — see `currentRouter`. Mounted after the fixed routes and
+  // BEFORE the bench's static serving and the JSON error handler, so a loop route's own
+  // thrown error still lands in that handler, and with no bench clamped the request falls
+  // through exactly as an unknown `/api/*` path always has (express's own 404).
+  app.use((req, res, next) => (currentRouter ? currentRouter(req, res, next) : next()));
 
   const benchServeMode = attachBenchServing(app, {
     benchDistDir: options.benchDistDir ?? defaultBenchDistDir(),
