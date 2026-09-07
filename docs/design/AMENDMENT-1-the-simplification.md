@@ -104,3 +104,21 @@ Jig knows, Build runs Claude Code in the repo.
 | **APIs beyond .NET** | OpenAPI/Swagger documents first (framework-neutral); regex-lite fallbacks per language only where a spec is absent | v0.3 |
 
 The tongue and the floor do not change. `docs/ROADMAP.md` (S15) carries this table forward.
+
+## 7. Setup happens in the app (ruled 2026-09-07)
+
+**Matter:** *"Are we still keeping the terminal steps to hook up jig to repos? If we could have that
+setup happen via the app instead of terminal commands that would be great. Ideally for this build for
+Tuesday."* **A6 — RULED: one terminal command, ever — `npx jigbench`. Everything else is in the
+bench.** A **Clamp** screen opens when no repo is clamped (recent benches first): pick the repo folder
+in Jig's own folder browser (a page cannot receive a real path from the OS picker) or paste a path;
+the survey runs as you pick and shows what it found; **Start the app** runs the detected dev script
+inside the repo with its log visible (or take a URL); **Docs** picks a folder (default `./docs`);
+**Register with Claude Code** writes `.mcp.json` (diff first) and optionally the Desktop entry;
+**Open the bench**. A setup checklist lives one click from the status line. The CLI subcommands stay
+for scripts and CI; the bench never requires them.
+
+| Slice | What lands |
+|---|---|
+| **S17a · setup, server side** | re-clamp at runtime (one `Bench` per repo root: store, watcher, plate, prompts — created and torn down on clamp/unclamp); `GET /api/fs/roots` + `/api/fs/list?path=` (drives and folders, no file contents); `POST /api/clamp` {repoRoot} → survey + docs auto-clamp when `docs/` exists; `POST /api/target/{start,stop}` running the detected dev script inside the repo with a streamed log and a port probe; `POST /api/setup/mcp` (init) and `/api/setup/desktop`; `GET /api/setup` (the checklist); recent benches persisted under the user's home |
+| **S17b · the Clamp screen** (bench, after S12) | the screen and the checklist, in the quiet chassis; `npx jigbench` with no repo opens on it |
