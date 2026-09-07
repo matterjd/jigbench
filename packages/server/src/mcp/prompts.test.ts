@@ -68,4 +68,46 @@ describe('prompts/get implement-work-order', () => {
     expect(text).toContain('jig_report');
     await client.close();
   });
+
+  // Retest defect 23 (2026-09-06 evening): "I stopped here. everything stopped doing what
+  // we were expecting" — the prompt flow did nothing useful for an agent that had never
+  // seen Jig before. The prompt text must be self-contained: name every tool explicitly
+  // (including the resource-read fallback), state where the repo root is, and say what to
+  // do when the order isn't ready yet — never assume the agent already knows Jig's tongue.
+  it('names the jig_work_order tool as a fallback if resources are unsupported', async () => {
+    const { client } = await freshRig();
+    const result = await client.getPrompt({ name: 'implement-work-order', arguments: { id: '0001' } });
+    const text = result.messages.map((m) => (m.content.type === 'text' ? m.content.text : '')).join('\n');
+
+    expect(text).toContain('jig_work_order');
+    expect(text).toMatch(/resources? (is|are) (not|un)supported|if you (cannot|can't) read resources|fall ?back/i);
+    await client.close();
+  });
+
+  it('states that the repo root is the clamped folder jigbench mcp was started against', async () => {
+    const { client } = await freshRig();
+    const result = await client.getPrompt({ name: 'implement-work-order', arguments: { id: '0001' } });
+    const text = result.messages.map((m) => (m.content.type === 'text' ? m.content.text : '')).join('\n');
+
+    expect(text).toMatch(/repo root|clamped (folder|repo)/i);
+  });
+
+  it('says to stop and report if the work order is not released yet', async () => {
+    const { client } = await freshRig();
+    const result = await client.getPrompt({ name: 'implement-work-order', arguments: { id: '0001' } });
+    const text = result.messages.map((m) => (m.content.type === 'text' ? m.content.text : '')).join('\n');
+
+    expect(text).toMatch(/not\s+.?released|state is not released/i);
+    expect(text).toMatch(/stop\b/i);
+  });
+
+  it('names every tool the loop needs, explicitly, for an agent that has never seen Jig', async () => {
+    const { client } = await freshRig();
+    const result = await client.getPrompt({ name: 'implement-work-order', arguments: { id: '0001' } });
+    const text = result.messages.map((m) => (m.content.type === 'text' ? m.content.text : '')).join('\n');
+
+    for (const tool of ['jig_work_order', 'jig_claim', 'jig_report']) {
+      expect(text).toContain(tool);
+    }
+  });
 });
