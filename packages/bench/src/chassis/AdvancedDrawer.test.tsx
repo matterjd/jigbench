@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { AdvancedDrawer } from './AdvancedDrawer.js';
-import type { Prompt } from '../prompts/types.js';
+import type { Prompt } from '@jigbench/core';
 
 afterEach(() => cleanup());
 

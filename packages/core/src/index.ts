@@ -15,3 +15,5 @@ export * from './docs.js';
 export * from './rank.js';
 export * from './sketch.js'; // S9
 export * from './prompt.js'; // S11
+export * from './build.js'; // S17b (#7): the build stream + Claude status shapes the bench renders
+export * from './bench-state.js'; // S17b: the Bench host's /api/state shape (bench · target · recent)

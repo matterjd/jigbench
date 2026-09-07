@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { cleanup, render, screen } from '@testing-library/react';
 import { PromptSpine } from './PromptSpine.js';
-import type { Prompt } from '../prompts/types.js';
+import type { Prompt } from '@jigbench/core';
 
 afterEach(() => cleanup());
 

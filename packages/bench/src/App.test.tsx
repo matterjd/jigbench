@@ -83,9 +83,9 @@ describe('App (S12: the quiet bench)', () => {
     expect(screen.getByRole('button', { name: /Claude/ })).toBeTruthy();
   });
 
-  it('the Prompts tab says the bench is ahead of its server when /api/prompts 404s (S11 not on main yet)', async () => {
+  it('the Prompts tab says so in words when /api/prompts 404s (no repo clamped on this server)', async () => {
     render(<App />);
-    await waitFor(() => expect(screen.getByText(/the bench is ahead of its server — prompts arrive with S11/i)).toBeTruthy());
+    await waitFor(() => expect(screen.getByText(/no prompts route on this server — clamp a repo first/i)).toBeTruthy());
   });
 
   it('the status line reads "not installed" when wiring.claude is none', () => {

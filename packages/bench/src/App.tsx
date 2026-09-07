@@ -20,7 +20,7 @@ import { useTool } from './tools/toolState.js';
 import { usePrompts } from './prompts/usePrompts.js';
 import { PromptsPane } from './prompts/PromptsPane.js';
 import { PromptCard } from './prompts/PromptCard.js';
-import { composedExtras, type BuildStreamEvent, type Prompt, type PromptTarget } from './prompts/types.js';
+import type { BuildStreamEvent, Prompt, PromptTarget } from '@jigbench/core';
 import './App.css';
 
 interface DocsSearchResult {
@@ -70,8 +70,7 @@ export function App() {
   const [localAcceptance, setLocalAcceptance] = useState<string[]>([]);
   const [beforeIds, setBeforeIds] = useState<Set<string>>(new Set());
 
-  const extras = composedExtras(state);
-  const prompts = usePrompts({ buildEvent: lastBuildEvent, claudeStatus: extras.status?.claude });
+  const prompts = usePrompts({ buildEvent: lastBuildEvent, claudeStatus: state?.status?.claude, benchKey: state?.bench?.repoRoot ?? null });
 
   // Measures the plate's own box (the outer chassis region, not the cross-origin iframe inside
   // it) so the card can place itself against a plate-local rect it never had to walk the DOM
@@ -173,7 +172,7 @@ export function App() {
     if (gauge) plateRef.current?.highlight(selectorsForGauge(gauge, survey?.components ?? []));
   }
 
-  const buildingId = extras.status?.claude.state === 'building' ? extras.status.claude.id : null;
+  const buildingId = state?.status?.claude.state === 'building' ? state.status.claude.id : null;
   const activeStream: BuildStreamEvent[] = buildingId ? (prompts.buildStreams[buildingId] ?? []) : [];
   const lastEventText =
     buildingId && activeStream.length > 0
@@ -294,8 +293,8 @@ export function App() {
         }
         statusLine={
           <StatusLine
-            wired={extras.wiring?.claude === 'installed'}
-            status={extras.status?.claude}
+            wired={state?.wiring.claude === 'installed'}
+            status={state?.status?.claude}
             lastEventText={lastEventText}
             logbookOpen={logbookOpen}
             onToggleLogbook={() => setLogbookOpen((v) => !v)}

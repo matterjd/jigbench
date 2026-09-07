@@ -1,4 +1,4 @@
-import type { ClaudeStatus } from '../prompts/types.js';
+import type { ClaudeStatus } from '@jigbench/core';
 import './StatusLine.css';
 
 export interface StatusLineProps {

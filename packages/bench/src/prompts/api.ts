@@ -1,40 +1,33 @@
 // packages/bench/src/prompts/api.ts — a thin fetch client against S11's /api/prompts* routes.
 //
-// S11 (branch delegate/build-s11) is not merged to main, so these routes do not exist on the
-// server this worktree runs against. Every call here degrades to `{ ok: false }` on ANY failure
-// — a non-2xx status, a network error, or a malformed body — rather than throwing. The caller
-// (usePrompts.ts) turns a run of `ok:false` results into one honest sentence in the Prompts tab
-// ("the bench is ahead of its server — prompts arrive with S11"), never a blank pane or a
+// Every call here degrades to `{ ok: false }` on ANY failure — a non-2xx status, a network
+// error, or a malformed body — rather than throwing. The caller (usePrompts.ts) turns a run of
+// `ok:false` results into one honest sentence in the Prompts tab, never a blank pane or a
 // spinner (the FixturePanel honest-chip pattern, applied to a whole tab).
-import type {
-  CreatePromptInput,
-  PolishResult,
-  Prompt,
-  PromptEditInput,
-} from './types.js';
+//
+// The `Prompt`/`PromptTarget` shapes are `@jigbench/core`'s own (S17b folded issue #7: the S12
+// local mirror is gone). The three request/response shapes below are this client's — they
+// mirror `packages/server/src/prompts/service.ts`'s `CreatePromptInput`/`PromptEditSchema`/
+// `PolishResult`, which the bench may not import (server is off-limits to it).
+import type { Prompt, PromptTarget } from '@jigbench/core';
+import { request, type ApiResult } from '../api/request.js';
 
-export type ApiResult<T> = { ok: true; data: T } | { ok: false; status?: number; message: string };
+export type { ApiResult } from '../api/request.js';
 
-async function request<T>(url: string, fetchImpl: typeof fetch, init?: RequestInit): Promise<ApiResult<T>> {
-  try {
-    const res = await fetchImpl(url, init);
-    let body: unknown;
-    try {
-      body = await res.json();
-    } catch {
-      body = undefined;
-    }
-    if (!res.ok) {
-      const message =
-        body && typeof body === 'object' && 'error' in body && typeof (body as { error: unknown }).error === 'string'
-          ? (body as { error: string }).error
-          : `${url} answered ${res.status}`;
-      return { ok: false, status: res.status, message };
-    }
-    return { ok: true, data: body as T };
-  } catch (err) {
-    return { ok: false, message: err instanceof Error ? err.message : 'could not reach the bench server' };
-  }
+export interface CreatePromptInput {
+  requirement: string;
+  acceptance?: string[];
+  target?: PromptTarget;
+}
+
+export interface PromptEditInput {
+  requirement?: string;
+  acceptance?: string[];
+}
+
+export interface PolishResult {
+  requirement: string;
+  acceptance: string[];
 }
 
 export function listPrompts(fetchImpl: typeof fetch = fetch): Promise<ApiResult<Prompt[]>> {

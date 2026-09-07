@@ -14,12 +14,10 @@ import { logger } from '../logger.js';
 
 const MAX_RECENT = 10;
 
-export interface RecentBenchEntry {
-  repoRoot: string;
-  clampedAt: string;
-  lastUsedTargetUrl?: string;
-  docsFolder?: string;
-}
+// S17b: the entry shape lives in `@jigbench/core` (bench-state.ts) — it rides on `/api/state`
+// as `recent` and the Clamp screen renders it — re-exported here for every existing import.
+export type { RecentBenchEntry } from '@jigbench/core';
+import type { RecentBenchEntry } from '@jigbench/core';
 
 export function defaultRecentBenchesFile(): string {
   return join(homedir(), '.jig', 'recent.json');
