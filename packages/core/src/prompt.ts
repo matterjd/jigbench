@@ -137,6 +137,13 @@ export const PromptBuildRecordSchema = z.object({
   summary: z.string().optional(),
   /** `.jig/cache/builds/<promptId>-<buildId>.jsonl` — the full stream-json transcript. */
   transcriptPath: z.string().optional(),
+  /** Carried from the old ladder's retest-defect-5 fields (`WorkOrder.model`/`elapsedMs`,
+   * work-order.ts) by `migrateWorkOrder`'s synthetic build record — the model name and
+   * measured wall-clock cost of whatever drafted this build, when known. Both optional: a
+   * real `claude -p` Build (build/runner.ts) never sets either today (its own cost isn't
+   * tracked yet), so this is only ever populated on a migrated record. */
+  model: z.string().optional(),
+  elapsedMs: z.number().optional(),
 });
 export type PromptBuildRecord = z.infer<typeof PromptBuildRecordSchema>;
 
@@ -242,6 +249,8 @@ function buildLogLines(builds: readonly PromptBuildRecord[]): string[] {
     lines.push(`- started: ${b.startedAt}`);
     if (b.finishedAt) lines.push(`- finished: ${b.finishedAt}`);
     if (b.exitCode !== undefined) lines.push(`- exit code: ${b.exitCode}`);
+    if (b.model !== undefined) lines.push(`- model: ${b.model}`);
+    if (b.elapsedMs !== undefined) lines.push(`- elapsed: ${b.elapsedMs}`);
     if (b.transcriptPath) lines.push(`- transcript: ${b.transcriptPath}`);
     lines.push(`- files touched: ${b.filesTouched.length > 0 ? b.filesTouched.join(', ') : '_none_'}`);
     if (b.summary) lines.push('', b.summary);
@@ -289,8 +298,8 @@ function stripListMarkers(lines: string[]): string[] {
 }
 
 /** Re-derives the `## Builds` section back into `PromptBuildRecord[]` — the inverse of
- * `buildLogLines`. Tolerant of a hand-edited/missing field (`exitCode`/`transcriptPath`
- * absent, `summary` blank) since a human may edit this file directly. */
+ * `buildLogLines`. Tolerant of a hand-edited/missing field (`exitCode`/`transcriptPath`/
+ * `model`/`elapsedMs` absent, `summary` blank) since a human may edit this file directly. */
 function parseBuildLog(sections: Map<string, string[]>): PromptBuildRecord[] {
   const builds: PromptBuildRecord[] = [];
   for (const [heading, bodyLines] of sections) {
@@ -301,6 +310,8 @@ function parseBuildLog(sections: Map<string, string[]>): PromptBuildRecord[] {
     let finishedAt: string | undefined;
     let exitCode: number | undefined;
     let transcriptPath: string | undefined;
+    let model: string | undefined;
+    let elapsedMs: number | undefined;
     const filesTouched: string[] = [];
     const summaryLines: string[] = [];
     let pastFields = false;
@@ -310,6 +321,8 @@ function parseBuildLog(sections: Map<string, string[]>): PromptBuildRecord[] {
         const started = /^-\s*started:\s*(.+)$/.exec(line);
         const finished = /^-\s*finished:\s*(.+)$/.exec(line);
         const exit = /^-\s*exit code:\s*(-?\d+)$/.exec(line);
+        const modelLine = /^-\s*model:\s*(.+)$/.exec(line);
+        const elapsed = /^-\s*elapsed:\s*(-?\d+)$/.exec(line);
         const transcript = /^-\s*transcript:\s*(.+)$/.exec(line);
         const files = /^-\s*files touched:\s*(.+)$/.exec(line);
         if (started) {
@@ -322,6 +335,14 @@ function parseBuildLog(sections: Map<string, string[]>): PromptBuildRecord[] {
         }
         if (exit) {
           exitCode = Number.parseInt(exit[1]!, 10);
+          continue;
+        }
+        if (modelLine) {
+          model = modelLine[1]!;
+          continue;
+        }
+        if (elapsed) {
+          elapsedMs = Number.parseInt(elapsed[1]!, 10);
           continue;
         }
         if (transcript) {
@@ -346,6 +367,8 @@ function parseBuildLog(sections: Map<string, string[]>): PromptBuildRecord[] {
       startedAt,
       ...(finishedAt ? { finishedAt } : {}),
       ...(exitCode !== undefined ? { exitCode } : {}),
+      ...(model !== undefined ? { model } : {}),
+      ...(elapsedMs !== undefined ? { elapsedMs } : {}),
       filesTouched,
       ...(summaryLines.length > 0 ? { summary: summaryLines.join('\n').trim() } : {}),
       ...(transcriptPath ? { transcriptPath } : {}),
@@ -503,7 +526,10 @@ const LADDER_TO_PROMPT_STATE: Record<string, PromptState> = {
  * the context block — `files` maps directly, and `brief`/`patterns`/`tests` (which have no
  * structured home in `PromptContext`) are folded into `context.docs` as provenance-labelled
  * text so migration never silently drops information. A `trialFit` (the old "done" report)
- * becomes one synthetic `PromptBuildRecord` so build history survives the migration too. */
+ * becomes one synthetic `PromptBuildRecord` so build history survives the migration too — and
+ * when the order also carries retest-defect-5's `model`/`elapsedMs` (work-order.ts: the tray
+ * badge's model name + measured wall-clock draft cost), that rides along on the SAME synthetic
+ * record (`PromptBuildRecord.model`/`elapsedMs`) rather than being silently dropped. */
 export function migrateWorkOrder(wo: WorkOrder): Prompt {
   const requirement = [wo.human.what, wo.human.why].filter((s) => s.trim().length > 0).join('\n\n');
   const createdAt = wo.log[0]?.at ?? new Date().toISOString();
@@ -526,6 +552,8 @@ export function migrateWorkOrder(wo: WorkOrder): Prompt {
       exitCode: 0,
       filesTouched: [...wo.shop.trialFit.files],
       summary: wo.shop.trialFit.summary,
+      ...(wo.model !== undefined ? { model: wo.model } : {}),
+      ...(wo.elapsedMs !== undefined ? { elapsedMs: wo.elapsedMs } : {}),
     });
   }
 

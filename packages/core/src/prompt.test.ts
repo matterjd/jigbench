@@ -74,6 +74,26 @@ describe('Prompt — golden round-trip', () => {
     expect(parsePrompt(markdown)).toEqual(prompt);
   });
 
+  it('round-trips a build record carrying model/elapsedMs (migrateWorkOrder retest-defect-5 fields)', () => {
+    const prompt = samplePrompt({
+      state: 'built',
+      builds: [
+        {
+          id: 'migrated-0003',
+          startedAt: '2026-09-07T10:05:00.000Z',
+          finishedAt: '2026-09-07T10:07:12.000Z',
+          exitCode: 0,
+          filesTouched: ['src/app/invoice-list.component.ts'],
+          summary: 'Added the days-overdue badge.',
+          model: 'llama3.1',
+          elapsedMs: 4213,
+        },
+      ],
+    });
+    const markdown = serializePrompt(prompt);
+    expect(parsePrompt(markdown)).toEqual(prompt);
+  });
+
   it('round-trips a scrapped prompt with scrappedFrom recorded', () => {
     const prompt = samplePrompt({ state: 'scrapped', scrappedFrom: 'ready' });
     const markdown = serializePrompt(prompt);
@@ -245,6 +265,21 @@ describe('migrateWorkOrder', () => {
     expect(prompt.builds[0]!.summary).toBe('Added the days-overdue badge.');
     expect(prompt.builds[0]!.filesTouched).toEqual(['src/app/invoice-list.component.ts']);
     expect(prompt.builds[0]!.exitCode).toBe(0);
+  });
+
+  it('carries retest-defect-5 model/elapsedMs onto the synthetic build record', () => {
+    const wo = sampleWorkOrder({ draftedBy: 'model', model: 'llama3.1', elapsedMs: 4213 });
+    const prompt = migrateWorkOrder(wo);
+    expect(prompt.builds).toHaveLength(1);
+    expect(prompt.builds[0]!.model).toBe('llama3.1');
+    expect(prompt.builds[0]!.elapsedMs).toBe(4213);
+  });
+
+  it('omits model/elapsedMs from the synthetic build record when the work order never carried them', () => {
+    const prompt = migrateWorkOrder(sampleWorkOrder());
+    expect(prompt.builds).toHaveLength(1);
+    expect(prompt.builds[0]!.model).toBeUndefined();
+    expect(prompt.builds[0]!.elapsedMs).toBeUndefined();
   });
 
   it('a work order with no shop face migrates with an empty context and no builds', () => {
