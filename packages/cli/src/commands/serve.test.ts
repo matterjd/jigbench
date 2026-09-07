@@ -93,8 +93,8 @@ describe('runServeCommand', () => {
       target: 'http://localhost:9999',
       platePort: 0,
     });
-    expect(result.message).toContain('http://localhost:9999');
-    expect(result.message).not.toContain('4300');
+    expect(result.message).toContain('-> http://localhost:9999');
+    expect(result.message).not.toContain('-> http://localhost:4300'); // the full URL, never a bare port (see below)
   });
 
   // S16 (AMENDMENT-1 §6/A5): the generic web adapter's devServer guess (read off the survey)
@@ -129,8 +129,8 @@ describe('runServeCommand', () => {
         JSON.stringify({ projects: { demo: { architect: { serve: { options: { port: 4300 } } } } } }),
       );
       result = await runServeCommand({ repo: repoRoot, port: 0, open: false, platePort: 0 });
-      expect(result.message).toContain('http://localhost:5173');
-      expect(result.message).not.toContain('4300');
+      expect(result.message).toContain('-> http://localhost:5173');
+      expect(result.message).not.toContain('-> http://localhost:4300'); // the full URL, never a bare port (see below)
     });
 
     it('falls back to angular.json\'s port when the survey carries no devServer guess at all', async () => {
@@ -159,8 +159,10 @@ describe('runServeCommand', () => {
         target: 'http://localhost:9999',
         platePort: 0,
       });
-      expect(result.message).toContain('http://localhost:9999');
-      expect(result.message).not.toContain('5173');
+      expect(result.message).toContain('-> http://localhost:9999');
+      // The full URL, never a bare port: the bench's own OS-assigned port (port: 0) can carry
+      // the digits — CI run 34159682609 (windows) drew 55173 and failed a bare '5173' check.
+      expect(result.message).not.toContain('-> http://localhost:5173');
     });
   });
 });
