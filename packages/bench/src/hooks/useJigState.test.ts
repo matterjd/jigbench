@@ -105,6 +105,28 @@ describe('useJigState', () => {
     expect(result.current.state).toEqual(state); // the state broadcast is untouched by a build frame
   });
 
+  it('captures a {type:"target-log", line} frame (S17a) as lastTargetLog with a counting seq, leaving state untouched', () => {
+    const { result } = renderHook(() => useJigState());
+    act(() => {
+      FakeWebSocket.instances[0]!.triggerMessage({ type: 'state', state });
+    });
+    expect(result.current.lastTargetLog).toBeNull();
+
+    act(() => {
+      FakeWebSocket.instances[0]!.triggerMessage({ type: 'target-log', line: 'ng serve …' });
+    });
+    expect(result.current.lastTargetLog).toEqual({ line: 'ng serve …', seq: 1 });
+
+    // the SAME line again is still a NEW frame — seq is what lets a consumer diffing on
+    // identity (useLogbook's noteTargetLog) tell two identical lines apart
+    act(() => {
+      FakeWebSocket.instances[0]!.triggerMessage({ type: 'target-log', line: 'ng serve …' });
+    });
+    expect(result.current.lastTargetLog).toEqual({ line: 'ng serve …', seq: 2 });
+    expect(result.current.state).toEqual(state); // the state broadcast is untouched by both frames
+    expect(result.current.lastBuildEvent).toBeNull(); // and so is the build seam
+  });
+
   it('reconnects after the socket closes', async () => {
     renderHook(() => useJigState());
     expect(FakeWebSocket.instances).toHaveLength(1);
