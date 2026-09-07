@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { defaultRecentBenchesFile, readRecentBenches, recordRecentBench } from './recent.js';
+import { defaultRecentBenchesFile, readRecentBenches, recordRecentBench, updateRecentBench } from './recent.js';
 
 let dirs: string[] = [];
 afterEach(async () => {
@@ -73,5 +73,45 @@ describe('recordRecentBench', () => {
     expect(list[0].repoRoot).toBe('/repo/11');
     expect(list.some((e) => e.repoRoot === '/repo/0')).toBe(false);
     expect(list.some((e) => e.repoRoot === '/repo/1')).toBe(false);
+  });
+});
+
+// S17b: the target URL is remembered per recent bench — a patch to ONE entry, in place.
+describe('updateRecentBench', () => {
+  it('patches the matching entry in place — never reorders, never bumps clampedAt', async () => {
+    const file = await freshFile();
+    await recordRecentBench({ repoRoot: '/repo/a', clampedAt: '2026-01-01T00:00:00.000Z' }, file);
+    await recordRecentBench({ repoRoot: '/repo/b', clampedAt: '2026-01-02T00:00:00.000Z' }, file);
+
+    const list = await updateRecentBench('/repo/a', { lastUsedTargetUrl: 'http://localhost:8080' }, file);
+    expect(list).toEqual([
+      { repoRoot: '/repo/b', clampedAt: '2026-01-02T00:00:00.000Z' },
+      { repoRoot: '/repo/a', clampedAt: '2026-01-01T00:00:00.000Z', lastUsedTargetUrl: 'http://localhost:8080' },
+    ]);
+    expect(JSON.parse(await readFile(file, 'utf8'))).toEqual(list);
+  });
+
+  it('overwrites a prior lastUsedTargetUrl on the same entry', async () => {
+    const file = await freshFile();
+    await recordRecentBench({ repoRoot: '/repo/a', clampedAt: '2026-01-01T00:00:00.000Z', lastUsedTargetUrl: 'http://localhost:1' }, file);
+    const list = await updateRecentBench('/repo/a', { lastUsedTargetUrl: 'http://localhost:2' }, file);
+    expect(list[0].lastUsedTargetUrl).toBe('http://localhost:2');
+  });
+
+  it('is a no-op when the repo is not in the list — nothing added, nothing written', async () => {
+    const file = await freshFile();
+    await recordRecentBench({ repoRoot: '/repo/a', clampedAt: '2026-01-01T00:00:00.000Z' }, file);
+    const before = await readFile(file, 'utf8');
+
+    const list = await updateRecentBench('/repo/nowhere', { lastUsedTargetUrl: 'http://localhost:8080' }, file);
+    expect(list).toEqual([{ repoRoot: '/repo/a', clampedAt: '2026-01-01T00:00:00.000Z' }]);
+    expect(await readFile(file, 'utf8')).toBe(before);
+  });
+
+  it('is a no-op on a missing file too — it never creates one', async () => {
+    const file = await freshFile();
+    expect(await updateRecentBench('/repo/a', { lastUsedTargetUrl: 'http://localhost:8080' }, file)).toEqual([]);
+    const { pathExists } = await import('../fs-util.js');
+    expect(await pathExists(file)).toBe(false);
   });
 });

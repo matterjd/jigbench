@@ -1,4 +1,4 @@
-import type { Express, NextFunction, Request, Response } from 'express';
+import type { IRouter, NextFunction, Request, Response } from 'express';
 import { SketchLinkSchema, SketchElementSchema, type GaugeSet } from '@jigbench/core';
 import { z } from 'zod';
 import { SketchNotFoundError, SketchStore } from './store.js';
@@ -29,7 +29,9 @@ const UpdateSketchBodySchema = z.object({
  * thunk (not a snapshot), the same reasoning `fixtures/route.ts`'s `getSurvey` thunk
  * documents — a sketch rendered after a re-survey uses the CURRENT gauge set.
  */
-export function attachSketchesRoute(app: Express, sketchStore: SketchStore, getGaugeSet: () => GaugeSet): void {
+// S17b: `IRouter`, not `Express` — `bench/host.ts` mounts this on a per-bench `express.Router()`;
+// an Express app satisfies `IRouter` too, so every existing call site is unchanged.
+export function attachSketchesRoute(app: IRouter, sketchStore: SketchStore, getGaugeSet: () => GaugeSet): void {
   app.get('/api/sketches', (_req, res) => {
     res.json({ sketches: sketchStore.list() });
   });

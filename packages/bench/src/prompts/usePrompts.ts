@@ -10,7 +10,8 @@
 // accumulated per prompt id purely for the live stream ribbon — never trusted for prompt state.
 import { useEffect, useRef, useState } from 'react';
 import * as api from './api.js';
-import type { BuildStreamEvent, ClaudeStatus, CreatePromptInput, PolishResult, Prompt, PromptEditInput } from './types.js';
+import type { BuildStreamEvent, ClaudeStatus, Prompt } from '@jigbench/core';
+import type { CreatePromptInput, PolishResult, PromptEditInput } from './api.js';
 
 export type PromptsStatus = 'loading' | 'unavailable' | 'ready';
 
@@ -26,6 +27,9 @@ export interface UsePromptsOptions {
   buildEvent?: BuildEventFrameLike | null;
   /** state?.status?.claude from `/api/state` — the authoritative "a build just finished" signal. */
   claudeStatus?: ClaudeStatus;
+  /** The clamped repo root (`state.bench.repoRoot`, S17b) — the list is refetched whenever it
+   * changes, since a re-clamp swaps the whole `.jig/prompts/` tree underneath the bench. */
+  benchKey?: string | null;
 }
 
 export interface UsePromptsResult {
@@ -47,10 +51,10 @@ export interface UsePromptsResult {
   restore: (id: string) => Promise<void>;
 }
 
-const UNAVAILABLE_MESSAGE = 'the bench is ahead of its server — prompts arrive with S11';
+const UNAVAILABLE_MESSAGE = 'no prompts route on this server — clamp a repo first';
 
 export function usePrompts(options: UsePromptsOptions = {}): UsePromptsResult {
-  const { fetchImpl = fetch, buildEvent, claudeStatus } = options;
+  const { fetchImpl = fetch, buildEvent, claudeStatus, benchKey } = options;
   const [status, setStatus] = useState<PromptsStatus>('loading');
   const [prompts, setPrompts] = useState<Prompt[]>([]);
   const [handId, setHandId] = useState<string | null>(null);
@@ -71,7 +75,7 @@ export function usePrompts(options: UsePromptsOptions = {}): UsePromptsResult {
   useEffect(() => {
     void refresh();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [benchKey]);
 
   // Accumulate a NEW build-event frame (identity-compared, since useJigState hands back the
   // same object reference until the next message arrives) into that prompt's live stream.

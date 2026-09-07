@@ -1,5 +1,4 @@
 import type { Express } from 'express';
-import type { Bench } from '../bench/bench.js';
 import { detectDevScript, invocation } from './detect.js';
 import type { StartTargetInput, TargetRunnerLike } from './runner.js';
 import { logger } from '../logger.js';
@@ -12,8 +11,16 @@ import { logger } from '../logger.js';
  * fire-and-forget `draftOrder`.
  */
 
+/** S17b: the slice of a `Bench` this route reads (the repo to run in, the survey to detect
+ * from) — narrowed from the full `Bench` so `http.ts`'s --repo-at-boot path can mount it
+ * without constructing one. A `Bench` satisfies it structurally. */
+export interface TargetBenchView {
+  repoRoot: string;
+  store: { getState(): { survey: unknown } };
+}
+
 export interface TargetRouteContext {
-  getBench: () => Bench | null;
+  getBench: () => TargetBenchView | null;
   getRunner: () => TargetRunnerLike;
 }
 

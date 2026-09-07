@@ -42,6 +42,12 @@ import type { BuildRunnerLike } from './build/types.js';
 // here (all of which always pass `repoRoot`) keeps its exact current behaviour byte-for-byte.
 // `bench/host.ts`'s own module doc explains the split and its scope boundary.
 import { createBenchHost } from './bench/host.js';
+// === S17b: the setup surfaces on the --repo-at-boot path too (delimited block) ===
+import { attachFsRoute } from './fs/route.js';
+import { TargetRunner, type TargetState } from './target/runner.js';
+import { attachTargetRoute, type TargetBenchView } from './target/route.js';
+import { attachSetupRoute, type SetupBenchView } from './setup/route.js';
+// === end S17b block ===
 
 export interface CreateJigServerOptions {
   /** S17a: optional — omitted, `createJigServer` boots through `bench/host.ts` instead,
@@ -136,7 +142,15 @@ export interface JigServerHandle {
 // trade-off, not an oversight.
 const promptContextByStore = new WeakMap<
   JigStore,
-  { promptService: PromptService; getClaudeInstalled: () => boolean; getMigrationSkipped: () => MigrationSkip[] }
+  {
+    promptService: PromptService;
+    getClaudeInstalled: () => boolean;
+    getMigrationSkipped: () => MigrationSkip[];
+    /** S17b: the target runner's own state, layered on as `target` the same way — the entry
+     * is registered after `buildApp`, so before that (never observable: nothing listens yet)
+     * `composedState` answers an honest `{status: 'none'}`. */
+    getTargetState: () => TargetState;
+  }
 >();
 // === end S11 block ===
 
@@ -155,6 +169,11 @@ function composedState(store: JigStore): ReturnType<JigStore['getState']> & {
   // way `wiring.claude`/`status.claude` already are — every existing call site (six of them)
   // picks it up for free.
   migration: { skipped: MigrationSkip[] }; // S11
+  // S17b: the two fields `bench/host.ts` already sends that the status line's setup checklist
+  // and the Clamp screen read off `/api/state` — `bench` is never null on this path (a repo
+  // was clamped at boot); `target` is the runner's own `none → starting → up | down`.
+  bench: { repoRoot: string }; // S17b
+  target: TargetState; // S17b
 } {
   const state = store.getState();
   const promptCtx = promptContextByStore.get(store); // S11
@@ -163,6 +182,8 @@ function composedState(store: JigStore): ReturnType<JigStore['getState']> & {
     wiring: { ...state.wiring, claude: promptCtx?.getClaudeInstalled() ? 'installed' : 'none' }, // S11
     status: { claude: promptCtx?.promptService.claudeStatus() ?? { state: 'idle' } }, // S11
     migration: { skipped: promptCtx?.getMigrationSkipped() ?? [] }, // S11
+    bench: { repoRoot: store.repoRoot }, // S17b
+    target: promptCtx?.getTargetState() ?? { status: 'none' }, // S17b
   };
 }
 function broadcastState(wss: WebSocketServer, store: JigStore): void {
@@ -182,6 +203,8 @@ function buildApp(
   snapshotStore: SnapshotStore, // S8
   sketchStore: SketchStore, // S9
   promptStore: PromptStore, // S11
+  benchView: SetupBenchView & TargetBenchView, // S17b
+  targetRunner: TargetRunner, // S17b
 ): { app: Express; benchServeMode: BenchServeMode; orders: OrdersService; promptService: PromptService; runner: BuildRunnerLike } {
   const app = express();
   // 64kb: the bench's own request bodies (marks, work-order patches) are all small,
@@ -373,6 +396,17 @@ function buildApp(
 
   attachSketchesRoute(app, sketchStore, () => store.getState().gauges); // S9
 
+  // === S17b: the setup surfaces on this path too (delimited block) ===
+  // `bench/host.ts` mounts these same three for the no-repo boot; here they answer for the
+  // one repo clamped at boot, so the status line's setup checklist and "Start the app" (or a
+  // pasted URL) work whichever way the server came up. `benchView` is the narrow slice of a
+  // Bench the two route contexts actually read (`SetupBenchView`/`TargetBenchView`) — this
+  // path never constructs a full `Bench`.
+  attachFsRoute(app);
+  attachTargetRoute(app, { getBench: () => benchView, getRunner: () => targetRunner });
+  attachSetupRoute(app, { getBench: () => benchView, getTargetState: () => targetRunner.getState() });
+  // === end S17b block ===
+
   // === S11 prompts + build runner: construct + mount (delimited block) ===
   // `runner` reuses `options.drafters?.ollama` for `PromptService.polish()` — the same
   // `OllamaLike` test double (`FakeOllamaDrafter`) every existing HTTP test already injects,
@@ -466,6 +500,37 @@ export async function createJigServer(options: CreateJigServerOptions): Promise<
   // -----------------------------------------------------------------------------------------
 
   const wss = new WebSocketServer({ noServer: true });
+
+  // --- S17b: the target runner + the narrow bench view the setup/target routes read --------
+  // `claudeInstalled` is only knowable once `buildApp` has handed back the build runner
+  // (below), so the view reads it through a getter rather than capturing a stale `false`.
+  let claudeInstalled = false;
+  const benchView: SetupBenchView & TargetBenchView = {
+    repoRoot,
+    store,
+    get claudeInstalled() {
+      return claudeInstalled;
+    },
+  };
+  const targetRunner = new TargetRunner({
+    onLog: (line) => {
+      const payload = JSON.stringify({ type: 'target-log', line });
+      for (const client of wss.clients as Set<WebSocket>) {
+        if (client.readyState === client.OPEN) client.send(payload);
+      }
+    },
+    onStateChange: (state) => {
+      if (state.status === 'up' && options.plate) {
+        // Same normalisation `bench/host.ts` does: `PlateHost.start` may be sync or async.
+        Promise.resolve(options.plate.start(state.url)).catch((err: unknown) =>
+          logger.warn('could not wire the plate to the started target', String(err)),
+        );
+      }
+      broadcastState(wss, store);
+    },
+  });
+  // -----------------------------------------------------------------------------------------
+
   const { app, benchServeMode, orders, promptService, runner } = buildApp(
     store,
     wss,
@@ -476,16 +541,19 @@ export async function createJigServer(options: CreateJigServerOptions): Promise<
     snapshotStore,
     sketchStore,
     promptStore,
+    benchView, // S17b
+    targetRunner, // S17b
   );
   const httpServer: HttpServer = createHttpServer(app);
 
   // --- S11: `wiring.claude` snapshot — see composedState's own comment for why this is a
   // one-time-at-startup check rather than a live one on every call. ---------------------------
-  const claudeInstalled = await runner.isClaudeAvailable();
+  claudeInstalled = await runner.isClaudeAvailable();
   promptContextByStore.set(store, {
     promptService,
     getClaudeInstalled: () => claudeInstalled,
     getMigrationSkipped: () => promptStore.migrationSkipped(),
+    getTargetState: () => targetRunner.getState(), // S17b
   });
   // -----------------------------------------------------------------------------------------
 
@@ -556,6 +624,7 @@ export async function createJigServer(options: CreateJigServerOptions): Promise<
     promptService, // S11
     benchServeMode,
     async close() {
+      await targetRunner.stop(); // S17b — kills only what it started; a pointed-at URL has no pid
       watcher.stop(); // S6
       shopFreshness.stop(); // S6 fix (wave-4 finding 3)
       // wss was created with { noServer: true }, so close() alone won't drop connected

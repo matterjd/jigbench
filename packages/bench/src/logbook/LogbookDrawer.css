@@ -1,0 +1,198 @@
+/* The logbook: a drawer over the status line — z5, the one earned deep shadow while open
+   (concept D · The Quiet Bench, .logbook). Geometry: clear of the 56px rail on the left and
+   the 340px right column, sitting on the 28px status line. No motion: it is there or it is
+   not. Every colour is a token; nothing here renders under 11px. */
+.jig-logbook-drawer {
+  position: fixed;
+  left: 56px;
+  right: 340px;
+  bottom: 28px;
+  height: 300px;
+  z-index: 30;
+  background: var(--bg1);
+  border: 1px solid var(--line);
+  border-bottom: 0;
+  border-radius: var(--r) var(--r) 0 0;
+  box-shadow: var(--shadow-overlay);
+  display: grid;
+  grid-template-rows: 40px 1fr;
+  min-width: 0;
+}
+
+.jig-logbook-drawer__head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 12px;
+  border-bottom: 1px solid var(--line);
+  flex-wrap: nowrap;
+  overflow: hidden;
+  min-width: 0;
+}
+
+/* panel-title grammar: 11px/600 uppercase +0.14em */
+.jig-logbook-drawer__title {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--dim);
+  margin-right: 4px;
+  white-space: nowrap;
+}
+
+/* a hairline mono pill — one per actor with a row, plus "all" */
+.jig-logbook-drawer__filter {
+  font: 11px/1 var(--mono);
+  color: var(--dim);
+  background: var(--bg1);
+  border: 1px solid var(--line);
+  border-radius: var(--r-pill);
+  padding: 4px 8px;
+  white-space: nowrap;
+}
+
+.jig-logbook-drawer__filter:hover {
+  background: var(--bg2);
+}
+
+.jig-logbook-drawer__filter[aria-pressed='true'] {
+  color: var(--ink);
+  background: var(--bg3);
+}
+
+/* the one affordance back to the printed value — present only when a filter is on */
+.jig-logbook-drawer__printed {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 24px;
+  padding: 0 8px;
+  border-radius: var(--r-micro);
+  border: 1px solid var(--line);
+  color: var(--ink);
+  background: var(--bg1);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  white-space: nowrap;
+}
+
+.jig-logbook-drawer__printed:hover {
+  background: var(--bg2);
+}
+
+/* provenance: a path, an age, a separator — never load-bearing */
+.jig-logbook-drawer__prov {
+  margin-left: auto;
+  font: 11px/1.4 var(--mono);
+  color: var(--faint);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* the hairline grammar at the head's 24px height */
+.jig-logbook-drawer__close {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 24px;
+  padding: 0 8px;
+  margin-left: 8px;
+  border-radius: var(--r-inner);
+  border: 1px solid var(--line);
+  background: var(--bg1);
+  color: var(--ink);
+  font-size: 12.5px;
+  font-weight: 600;
+  white-space: nowrap;
+  flex: none;
+}
+
+.jig-logbook-drawer__close:hover {
+  background: var(--bg2);
+}
+
+.jig-logbook-drawer__body {
+  overflow: auto;
+  padding: 8px 12px;
+  min-height: 0;
+}
+
+.jig-logbook-drawer__rows {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.jig-logbook-drawer__row {
+  display: grid;
+  grid-template-columns: 52px 1fr auto;
+  gap: 10px;
+  padding: 5px 8px;
+  border-radius: var(--r-micro);
+  border-left: 3px solid var(--line);
+  align-items: baseline;
+  min-width: 0;
+}
+
+.jig-logbook-drawer__row--human {
+  border-left-color: var(--ink);
+}
+
+.jig-logbook-drawer__row--claude {
+  border-left-color: var(--wyrd);
+}
+
+.jig-logbook-drawer__row--model {
+  border-left-color: var(--dim);
+}
+
+.jig-logbook-drawer__age {
+  font: 11px/1.4 var(--mono);
+  color: var(--faint);
+  text-align: right;
+  white-space: nowrap;
+}
+
+.jig-logbook-drawer__what {
+  min-width: 0;
+}
+
+.jig-logbook-drawer__event {
+  display: block;
+  font-size: 12.5px;
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+
+.jig-logbook-drawer__note {
+  display: block;
+  font: 11px/1.4 var(--mono);
+  color: var(--dim);
+  overflow-wrap: anywhere;
+}
+
+.jig-logbook-drawer__who {
+  font: 11px/1.4 var(--mono);
+  color: var(--dim);
+  white-space: nowrap;
+}
+
+/* the honest empty — a sentence, never a blank */
+.jig-logbook-drawer__empty {
+  margin: 0;
+  padding: 8px 0;
+  color: var(--dim);
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+
+.jig-logbook-drawer__empty b {
+  color: var(--ink);
+  font-weight: 600;
+}

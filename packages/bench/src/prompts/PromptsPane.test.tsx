@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { PromptsPane } from './PromptsPane.js';
-import type { Prompt } from './types.js';
+import type { Prompt } from '@jigbench/core';
 
 afterEach(() => cleanup());
 
@@ -42,8 +42,8 @@ function baseProps(overrides: Partial<React.ComponentProps<typeof PromptsPane>> 
 
 describe('PromptsPane', () => {
   it('shows the honest "ahead of its server" sentence when the S11 routes are unavailable — never a blank pane or a spinner', () => {
-    render(<PromptsPane {...baseProps({ status: 'unavailable', message: 'the bench is ahead of its server — prompts arrive with S11' })} />);
-    expect(screen.getByText(/the bench is ahead of its server — prompts arrive with S11/i)).toBeTruthy();
+    render(<PromptsPane {...baseProps({ status: 'unavailable', message: 'no prompts route on this server — clamp a repo first' })} />);
+    expect(screen.getByText(/no prompts route on this server — clamp a repo first/i)).toBeTruthy();
   });
 
   it('shows an honest empty state when there are no prompts yet', () => {

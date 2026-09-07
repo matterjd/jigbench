@@ -2,8 +2,8 @@ import { existsSync } from 'node:fs';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import type { Express } from 'express';
+import type { JigState } from '@jigbench/core';
 import { clampDocs } from '../docs/clamp.js';
-import type { Bench } from '../bench/bench.js';
 import type { TargetState } from '../target/runner.js';
 import { claudeDesktopConfigPath, formatClaudeDesktopConfigDiff, mergeClaudeDesktopConfig } from './desktop-config.js';
 import { formatMcpJsonDiff, mergeMcpJson } from './mcp-json.js';
@@ -17,8 +17,18 @@ import { ensureGitignoreEntry } from './gitignore.js';
  * CLI's own `init`/`mcp install` "print the diff, --yes to write" contract.
  */
 
+/** S17b: the slice of a `Bench` these routes actually read — narrowed from the full `Bench`
+ * so `http.ts`'s --repo-at-boot path (which never constructs one) can mount them too. A
+ * `Bench` satisfies it structurally; `store.reload()` is what `POST /api/docs/clamp` calls
+ * after writing the docs index. */
+export interface SetupBenchView {
+  repoRoot: string;
+  store: { getState(): JigState; reload(): Promise<void> };
+  claudeInstalled: boolean;
+}
+
 export interface SetupRouteContext {
-  getBench: () => Bench | null;
+  getBench: () => SetupBenchView | null;
   getTargetState: () => TargetState;
   /** Test-only override — defaults to the real `claudeDesktopConfigPath()`. */
   getDesktopConfigPath?: () => string | undefined;

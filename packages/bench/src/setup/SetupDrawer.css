@@ -1,0 +1,105 @@
+/* A drawer above the status line, at the right — z5, the one earned deep shadow while open
+   (the logbook drawer's own shape, narrowed to the status line's right end). */
+.jig-setup-drawer {
+  position: fixed;
+  right: 12px;
+  bottom: 28px;
+  width: 440px;
+  max-width: calc(100vw - 24px);
+  max-height: 60vh;
+  overflow: auto;
+  z-index: 30;
+  background: var(--bg1);
+  border: 1px solid var(--line);
+  border-bottom: 0;
+  border-radius: var(--r) var(--r) 0 0;
+  box-shadow: var(--shadow-overlay);
+  display: grid;
+  gap: 10px;
+  padding: 0 12px 12px;
+  color: var(--ink);
+}
+
+.jig-setup-drawer__head {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 40px;
+  margin: 0 -12px;
+  padding: 0 12px;
+  background: var(--bg1);
+  border-bottom: 1px solid var(--line);
+}
+
+.jig-setup-drawer__title {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--dim);
+  margin: 0;
+}
+
+.jig-setup-drawer__head .jig-setup-drawer__hair {
+  margin-left: auto;
+}
+
+.jig-setup-drawer__kv {
+  display: grid;
+  grid-template-columns: 96px 1fr;
+  gap: 4px 10px;
+  font-size: 12.5px;
+  margin: 0;
+}
+
+.jig-setup-drawer__kv dt {
+  color: var(--dim);
+}
+
+.jig-setup-drawer__kv dd {
+  margin: 0;
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+
+.jig-setup-drawer__say {
+  font-size: 12.5px;
+  color: var(--dim);
+  line-height: 1.5;
+  margin: 0;
+}
+
+.jig-setup-drawer__hair {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 30px;
+  padding: 0 10px;
+  border-radius: var(--r-inner);
+  border: 1px solid var(--line);
+  background: var(--bg1);
+  color: var(--ink);
+  font-size: 12.5px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.jig-setup-drawer__hair:hover {
+  background: var(--bg2);
+}
+
+.jig-setup-drawer__hair:disabled {
+  color: var(--dim);
+  cursor: not-allowed;
+  background: var(--bg1);
+}
+
+.jig-setup-drawer__foot {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}

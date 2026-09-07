@@ -6,16 +6,11 @@
  * `BuildRunnerLike` without spawning a real process).
  */
 
-/** One compact, already-parsed event out of `claude -p --output-format stream-json`'s NDJSON
- * stream — see `build/runner.ts`'s `parseStreamEvent` for exactly which raw event shapes map
- * to which `kind` here. */
-export type BuildStreamEvent =
-  | { kind: 'init'; sessionId: string }
-  | { kind: 'text'; text: string }
-  | { kind: 'tool'; name: string; target: string }
-  | { kind: 'tool_result'; ok: boolean }
-  | { kind: 'result'; ok: boolean; sessionId?: string; summary?: string; numTurns?: number; costUsd?: number }
-  | { kind: 'raw'; text: string };
+// S17b (#7): `BuildStreamEvent` and `ClaudeStatus` moved to `@jigbench/core` (build.ts) so the
+// bench can import the real shapes instead of mirroring them — re-exported here so every
+// existing server import of `./build/types.js` keeps working unchanged.
+export type { BuildStreamEvent, ClaudeStatus } from '@jigbench/core';
+import type { BuildStreamEvent, ClaudeStatus } from '@jigbench/core';
 
 export interface BuildOutcome {
   /** `null` only when the process could not be spawned at all (see `ClaudeNotInstalledError`
@@ -40,11 +35,6 @@ export interface StartBuildInput {
    * called — `prompts/service.ts` forwards both straight onto the bench WS. */
   onEvent: (event: BuildStreamEvent, elapsedMs: number) => void;
 }
-
-export type ClaudeStatus =
-  | { state: 'idle' }
-  | { state: 'building'; id: string; elapsed: number }
-  | { state: 'built'; id: string; files: string[]; elapsed: number };
 
 /** The subset of `BuildRunner` that `PromptService` actually calls — widened to an interface
  * (same trick as `orders/service.ts`'s `OllamaLike`) so a unit test can inject a deterministic

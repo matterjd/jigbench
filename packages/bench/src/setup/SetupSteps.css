@@ -1,0 +1,149 @@
+.jig-setup {
+  display: grid;
+  gap: 10px;
+}
+
+/* the .jig-inspect__block shape: hairline, inner radius, no shadow */
+.jig-setup__block {
+  border: 1px solid var(--line);
+  border-radius: var(--r-inner);
+  background: var(--bg1);
+  padding: 10px 12px;
+  display: grid;
+  gap: 8px;
+}
+
+.jig-setup__title {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--dim);
+  margin: 0;
+}
+
+.jig-setup__say {
+  font-size: 12.5px;
+  color: var(--dim);
+  line-height: 1.5;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.jig-setup__say b {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+/* the word carries it; the colour only underlines the word */
+.jig-setup__say--warn {
+  color: var(--warn);
+}
+
+.jig-setup__word {
+  color: var(--ink);
+  font-size: 12.5px;
+}
+
+.jig-setup__acts {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.jig-setup__hair {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 30px;
+  padding: 0 10px;
+  border-radius: var(--r-inner);
+  border: 1px solid var(--line);
+  background: var(--bg1);
+  color: var(--ink);
+  font-size: 12.5px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.jig-setup__hair:hover {
+  background: var(--bg2);
+}
+
+.jig-setup__hair:disabled {
+  color: var(--dim);
+  cursor: not-allowed;
+  background: var(--bg1);
+}
+
+.jig-setup__hair--small {
+  height: 26px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.jig-setup__input {
+  flex: 1;
+  min-width: 160px;
+  height: 30px;
+  padding: 0 10px;
+  background: var(--bg2);
+  border: 1px solid var(--line);
+  border-radius: var(--r-inner);
+  color: var(--ink);
+  font: 12px/1 var(--mono);
+}
+
+.jig-setup__input::placeholder {
+  color: var(--dim);
+}
+
+.jig-setup__input:focus-visible {
+  outline: 2px solid var(--storm);
+  outline-offset: 1px;
+}
+
+/* the app's own stdout/stderr — the last lines only */
+.jig-setup__tail {
+  margin: 0;
+  max-height: 180px;
+  overflow: auto;
+  font: 11px/1.5 var(--mono);
+  color: var(--dim);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  background: var(--bg0);
+  border: 1px solid var(--line-soft);
+  border-radius: var(--r-inner);
+  padding: 8px 10px;
+}
+
+/* what a file will say — dashed, like the prompt's context block */
+.jig-setup__pre {
+  margin: 0;
+  max-height: 240px;
+  overflow: auto;
+  font: 12px/1.5 var(--mono);
+  color: var(--ink);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  background: var(--bg2);
+  border: 1px dashed var(--line);
+  border-radius: var(--r-inner);
+  padding: 8px 10px;
+}
+
+.jig-setup__will {
+  display: grid;
+  gap: 6px;
+  justify-items: start;
+}
+
+.jig-setup__desktop {
+  border-top: 1px solid var(--line-soft);
+  padding-top: 8px;
+  display: grid;
+  gap: 6px;
+  justify-items: start;
+}

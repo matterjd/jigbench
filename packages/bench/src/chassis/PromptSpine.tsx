@@ -1,4 +1,4 @@
-import type { Prompt, PromptState } from '../prompts/types.js';
+import type { Prompt, PromptState } from '@jigbench/core';
 import './PromptSpine.css';
 
 export interface PromptSpineProps {

@@ -1,0 +1,253 @@
+/* The quiet Clamp screen: one scrolling page, one centred column, one ember act. */
+.jig-clamp {
+  height: 100%;
+  overflow: auto;
+  background: var(--bg0);
+  color: var(--ink);
+}
+
+.jig-clamp__column {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 40px 24px 64px;
+  display: grid;
+  gap: 20px;
+}
+
+.jig-clamp__top {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  font-size: 12.5px;
+  color: var(--dim);
+}
+
+.jig-clamp__wordmark {
+  font-weight: 700;
+  color: var(--ink);
+  letter-spacing: 0.02em;
+}
+
+.jig-clamp__wordmark .jig-pairing__plain {
+  font-weight: 400;
+  color: var(--dim);
+}
+
+/* the one display size on the screen */
+.jig-clamp__heading {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 650;
+  color: var(--ink);
+}
+
+.jig-clamp__heading .jig-pairing__plain {
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--dim);
+}
+
+.jig-clamp__section {
+  display: grid;
+  gap: 8px;
+}
+
+.jig-clamp__title {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--dim);
+  margin: 0;
+}
+
+.jig-clamp__say {
+  font-size: 12.5px;
+  color: var(--dim);
+  line-height: 1.5;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.jig-clamp__recent {
+  display: grid;
+  gap: 2px;
+}
+
+.jig-clamp__recent-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  grid-template-areas:
+    'name age'
+    'path age';
+  gap: 0 12px;
+  width: 100%;
+  text-align: left;
+  padding: 6px 8px;
+  border-radius: var(--r-inner);
+  border: 1px solid transparent;
+  color: var(--ink);
+}
+
+.jig-clamp__recent-row:hover {
+  background: var(--bg2);
+  border-color: var(--line);
+}
+
+.jig-clamp__recent-name {
+  grid-area: name;
+  font-size: 13px;
+}
+
+.jig-clamp__recent-path {
+  grid-area: path;
+  font: 11px/1.4 var(--mono);
+  color: var(--dim);
+  overflow-wrap: anywhere;
+}
+
+/* an age is provenance — --faint is allowed here and nowhere load-bearing */
+.jig-clamp__recent-age {
+  grid-area: age;
+  align-self: center;
+  font: 11px/1.4 var(--mono);
+  color: var(--faint);
+  white-space: nowrap;
+}
+
+.jig-clamp__pick {
+  display: grid;
+  gap: 8px;
+}
+
+.jig-clamp__path {
+  width: 100%;
+  height: 32px;
+  padding: 0 10px;
+  background: var(--bg2);
+  border: 1px solid var(--line);
+  border-radius: var(--r-inner);
+  color: var(--ink);
+  font: 12px/1 var(--mono);
+}
+
+.jig-clamp__path::placeholder {
+  color: var(--dim);
+}
+
+.jig-clamp__path:focus-visible {
+  outline: 2px solid var(--storm);
+  outline-offset: 1px;
+}
+
+.jig-clamp__acts {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+/* the demand act, at rest: hairline + dim; lit ember only while it is the next thing to do */
+.jig-clamp__clamp,
+.jig-clamp__bench {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 34px;
+  padding: 0 14px;
+  border-radius: var(--r-inner);
+  border: 1px solid var(--line);
+  color: var(--dim);
+  background: var(--bg1);
+  font-size: 12.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  white-space: nowrap;
+}
+
+.jig-clamp__clamp:disabled,
+.jig-clamp__bench:disabled {
+  cursor: not-allowed;
+}
+
+.jig-clamp__clamp--ember,
+.jig-clamp__bench--ember {
+  border-color: var(--ember);
+  color: var(--ember);
+  background: var(--ember-soft);
+}
+
+.jig-clamp__block {
+  border: 1px solid var(--line);
+  border-radius: var(--r-inner);
+  background: var(--bg1);
+  padding: 10px 12px;
+  display: grid;
+  gap: 8px;
+}
+
+.jig-clamp__repo {
+  margin: 0;
+  font: 12px/1.4 var(--mono);
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+
+.jig-clamp__kv {
+  display: grid;
+  grid-template-columns: 96px 1fr;
+  gap: 4px 10px;
+  font-size: 12.5px;
+  margin: 0;
+}
+
+.jig-clamp__kv dt {
+  color: var(--dim);
+}
+
+.jig-clamp__kv dd {
+  margin: 0;
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+
+.jig-clamp__go {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.jig-clamp__hair {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 30px;
+  padding: 0 10px;
+  border-radius: var(--r-inner);
+  border: 1px solid var(--line);
+  background: var(--bg1);
+  color: var(--ink);
+  font-size: 12.5px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.jig-clamp__hair:hover {
+  background: var(--bg2);
+}
+
+.jig-clamp__hair:disabled {
+  color: var(--dim);
+  cursor: not-allowed;
+  background: var(--bg1);
+}
+
+/* A repo clamped by another tab (or at boot) while this screen is still on its pick phase —
+   the path is load-bearing here (it says what you would be walking into), so --dim, not
+   --faint. */
+.jig-clamp__repo-inline {
+  font: 11px/1.4 var(--mono);
+  color: var(--dim);
+}

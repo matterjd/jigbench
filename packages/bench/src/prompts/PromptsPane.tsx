@@ -1,4 +1,4 @@
-import type { BuildStreamEvent, Prompt, PromptState } from './types.js';
+import { buildStreamLine, type BuildStreamEvent, type Prompt, type PromptState } from '@jigbench/core';
 import type { PromptsStatus } from './usePrompts.js';
 import './PromptsPane.css';
 
@@ -26,25 +26,6 @@ function pipClass(state: PromptState): string {
   if (state === 'building') return 'jig-prompts-pane__pip jig-prompts-pane__pip--building';
   if (state === 'built') return 'jig-prompts-pane__pip jig-prompts-pane__pip--built';
   return 'jig-prompts-pane__pip';
-}
-
-function streamLine(event: BuildStreamEvent): string {
-  switch (event.kind) {
-    case 'init':
-      return `starting claude -p · session ${event.sessionId}`;
-    case 'text':
-      return event.text;
-    case 'tool':
-      return `${event.name} · ${event.target}`;
-    case 'tool_result':
-      return event.ok ? 'tool ok' : 'tool failed';
-    case 'result':
-      return event.summary ?? (event.ok ? 'done' : 'failed');
-    case 'raw':
-      return event.text;
-    default:
-      return '';
-  }
 }
 
 function contextText(prompt: Prompt): string {
@@ -156,7 +137,7 @@ export function PromptsPane({
           {(hand.state === 'building' || hand.state === 'built') && buildStream.length > 0 && (
             <div className="jig-prompts-pane__stream">
               {buildStream.map((event, i) => (
-                <div key={i}>{streamLine(event)}</div>
+                <div key={i}>{buildStreamLine(event)}</div>
               ))}
             </div>
           )}

@@ -15,11 +15,11 @@ import { logger } from '../logger.js';
  * flag.
  */
 
-export type TargetState =
-  | { status: 'none' }
-  | { status: 'starting' }
-  | { status: 'up'; url: string; pid?: number }
-  | { status: 'down'; exitCode: number | null };
+// S17b: `TargetState` is defined in `@jigbench/core` (bench-state.ts) — the bench renders it on
+// the Clamp screen and may import core only — and re-exported here so every existing server
+// import of `./target/runner.js` keeps working unchanged.
+export type { TargetState } from '@jigbench/core';
+import type { TargetState } from '@jigbench/core';
 
 export interface TargetRunnerOptions {
   onLog: (line: string) => void;

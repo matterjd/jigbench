@@ -14,12 +14,10 @@ import { logger } from '../logger.js';
 
 const MAX_RECENT = 10;
 
-export interface RecentBenchEntry {
-  repoRoot: string;
-  clampedAt: string;
-  lastUsedTargetUrl?: string;
-  docsFolder?: string;
-}
+// S17b: the entry shape lives in `@jigbench/core` (bench-state.ts) — it rides on `/api/state`
+// as `recent` and the Clamp screen renders it — re-exported here for every existing import.
+export type { RecentBenchEntry } from '@jigbench/core';
+import type { RecentBenchEntry } from '@jigbench/core';
 
 export function defaultRecentBenchesFile(): string {
   return join(homedir(), '.jig', 'recent.json');
@@ -47,6 +45,26 @@ export async function recordRecentBench(
 ): Promise<RecentBenchEntry[]> {
   const existing = await readRecentBenches(file);
   const next = [entry, ...existing.filter((e) => e.repoRoot !== entry.repoRoot)].slice(0, MAX_RECENT);
+  await atomicWriteFile(file, JSON.stringify(next, null, 2) + '\n');
+  return next;
+}
+
+/** S17b: the fields a bench learns AFTER its clamp — the target URL the human started or
+ * pointed at, the docs folder they clamped — patched onto that repo's entry in place. */
+export type RecentBenchPatch = Partial<Pick<RecentBenchEntry, 'lastUsedTargetUrl' | 'docsFolder'>>;
+
+/** Patches ONE entry (matched by `repoRoot`) in place: never reorders the list, never bumps
+ * `clampedAt` — only a clamp does that (`recordRecentBench`). A no-op — nothing written, not
+ * even an empty file — when the repo is not in the list at all. Returns the resulting list
+ * (unchanged in the no-op case) so a caller can broadcast it without a second read. */
+export async function updateRecentBench(
+  repoRoot: string,
+  patch: RecentBenchPatch,
+  file: string = defaultRecentBenchesFile(),
+): Promise<RecentBenchEntry[]> {
+  const existing = await readRecentBenches(file);
+  if (!existing.some((e) => e.repoRoot === repoRoot)) return existing;
+  const next = existing.map((e) => (e.repoRoot === repoRoot ? { ...e, ...patch } : e));
   await atomicWriteFile(file, JSON.stringify(next, null, 2) + '\n');
   return next;
 }

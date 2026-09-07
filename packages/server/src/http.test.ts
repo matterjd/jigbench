@@ -583,3 +583,50 @@ describe('S9 sketch — wired end-to-end through createJigServer', () => {
     expect((await getRes.json()).name).toBe('Overdue invoices');
   });
 });
+
+// --- S17b: the --repo-at-boot path carries the setup surfaces too ---------------------------
+// The status line's setup checklist (and the Clamp screen's "Start the app" / "or a URL")
+// must work whichever way the server was booted — `bench/host.ts` already mounts these for
+// the no-repo boot; this proves the older `createJigServer({repoRoot})` path answers the
+// same routes and the same `bench`/`target` fields on `/api/state`.
+describe('S17b — setup surfaces on the --repo-at-boot path', () => {
+  it('GET /api/state carries bench.repoRoot and target.status none', async () => {
+    const { url, store } = await freshServer();
+    const body = await (await fetch(`${url}/api/state`)).json();
+    expect(body.bench).toEqual({ repoRoot: store.repoRoot });
+    expect(body.target).toEqual({ status: 'none' });
+  });
+
+  it('GET /api/setup answers with the .mcp.json path under the repo and claude none', async () => {
+    const { url, store } = await freshServer();
+    const res = await fetch(`${url}/api/setup`);
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.mcp.path).toBe(join(store.repoRoot, '.mcp.json'));
+    expect(body.claude).toBe('none');
+  });
+
+  it('GET /api/fs/roots answers', async () => {
+    const { url } = await freshServer();
+    expect((await fetch(`${url}/api/fs/roots`)).status).toBe(200);
+  });
+
+  it('POST /api/target/start 400s on the empty temp repo — nothing detectable to run', async () => {
+    const { url } = await freshServer();
+    const res = await fetch(`${url}/api/target/start`, { method: 'POST' });
+    expect(res.status).toBe(400);
+  });
+
+  it('POST /api/target/url flips state.target to up', async () => {
+    const { url } = await freshServer();
+    const res = await fetch(`${url}/api/target/url`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ url: 'http://localhost:9' }),
+    });
+    expect(res.status).toBe(200);
+    const body = await (await fetch(`${url}/api/state`)).json();
+    expect(body.target.status).toBe('up');
+    expect(body.target.url).toBe('http://localhost:9');
+  });
+});

@@ -1,6 +1,5 @@
 import type { ReactNode } from 'react';
-import type { ShopInfo, Wiring } from '@jigbench/core';
-import type { Prompt } from '../prompts/types.js';
+import type { Prompt, ShopInfo, Wiring } from '@jigbench/core';
 import { SimStrip } from '../components/SimStrip.js';
 import { PromptSpine } from './PromptSpine.js';
 import { McpStatus } from './McpStatus.js';

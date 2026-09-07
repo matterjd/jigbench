@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import type { BuildStreamEvent, PromptState } from './types.js';
+import { buildStreamLine, type BuildStreamEvent, type PromptState } from '@jigbench/core';
 import { placeCardPosition, type CardPlacementSide, type PlateLocalRect } from './placeCardPosition.js';
 import { useReadyHold } from './useReadyHold.js';
 import './PromptCard.css';
@@ -34,25 +34,6 @@ export interface PromptCardProps {
   onReadyComplete: () => void;
   onBuild: () => void;
   onClose: () => void;
-}
-
-function streamLine(event: BuildStreamEvent): string {
-  switch (event.kind) {
-    case 'init':
-      return `starting claude -p · session ${event.sessionId}`;
-    case 'text':
-      return event.text;
-    case 'tool':
-      return `${event.name} · ${event.target}`;
-    case 'tool_result':
-      return event.ok ? 'tool ok' : 'tool failed';
-    case 'result':
-      return event.summary ?? (event.ok ? 'done' : 'failed');
-    case 'raw':
-      return event.text;
-    default:
-      return '';
-  }
 }
 
 /**
@@ -247,7 +228,7 @@ export function PromptCard({
           </div>
           <ol>
             {buildStream.map((event, i) => (
-              <li key={i}>{streamLine(event)}</li>
+              <li key={i}>{buildStreamLine(event)}</li>
             ))}
           </ol>
         </div>

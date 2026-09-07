@@ -72,3 +72,25 @@
 .jig-status-line__spacer {
   flex: 1;
 }
+
+/* AMENDMENT-1 A6 — the setup trigger at the right end of the line: the same grounds as the
+   Claude button (--bg2 under the pointer, --bg3 while the checklist is up). Rendered only when
+   the caller wires it; the line is otherwise exactly as before. */
+.jig-status-line__setup {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  height: 100%;
+  padding: 0 14px;
+  color: var(--ink);
+  white-space: nowrap;
+  flex: none;
+}
+
+.jig-status-line__setup:hover {
+  background: var(--bg2);
+}
+
+.jig-status-line__setup[aria-expanded='true'] {
+  background: var(--bg3);
+}

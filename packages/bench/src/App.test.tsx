@@ -45,9 +45,37 @@ function stubFetch(extra?: (url: string) => Response | undefined): void {
       const extraResponse = extra?.(url);
       if (extraResponse) return Promise.resolve(extraResponse);
       if (url.includes('/api/prompts')) return Promise.resolve({ ok: false, status: 404, json: () => Promise.resolve({ error: 'not found' }) } as Response);
+      // S17b: the Clamp screen's folder browser and the setup drawer's checklist.
+      if (url.includes('/api/fs/roots')) return Promise.resolve({ ok: true, json: () => Promise.resolve({ roots: [{ name: '~', path: '/home/you' }] }) } as Response);
+      if (url.includes('/api/fs/list')) return Promise.resolve({ ok: true, json: () => Promise.resolve({ path: '/home/you', parent: '/home', entries: [] }) } as Response);
+      if (url.includes('/api/setup'))
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({ survey: false, docs: false, target: { status: 'none' }, mcp: { written: false }, desktop: { written: false }, claude: 'none' }),
+        } as Response);
       return Promise.resolve({ ok: true, json: () => Promise.resolve({ wiring, shop: null, status: { claude: { state: 'idle' } } }) } as Response);
     }),
   );
+}
+
+/** The empty-host state the Bench host broadcasts before any clamp (S17a): `bench: null`. */
+const clampScreenState = {
+  bench: null,
+  survey: { jigFormat: 1, stack: [], components: [], routes: [], endpoints: [], schemas: [], docs: [], generatedAt: 'now', stub: true },
+  gauges: { jigFormat: 1, gauges: [], generatedAt: 'now' },
+  marks: [],
+  workOrders: [],
+  shop: null,
+  wiring,
+  target: { status: 'none' },
+  status: { claude: { state: 'idle' } },
+  recent: [{ repoRoot: '/home/you/ledger-angular', clampedAt: new Date().toISOString() }],
+};
+
+function sendState(state: unknown): void {
+  act(() => {
+    FakeWebSocket.instances[0]!.onmessage?.({ data: JSON.stringify({ type: 'state', state }) });
+  });
 }
 
 describe('App (S12: the quiet bench)', () => {
@@ -83,9 +111,9 @@ describe('App (S12: the quiet bench)', () => {
     expect(screen.getByRole('button', { name: /Claude/ })).toBeTruthy();
   });
 
-  it('the Prompts tab says the bench is ahead of its server when /api/prompts 404s (S11 not on main yet)', async () => {
+  it('the Prompts tab says so in words when /api/prompts 404s (no repo clamped on this server)', async () => {
     render(<App />);
-    await waitFor(() => expect(screen.getByText(/the bench is ahead of its server — prompts arrive with S11/i)).toBeTruthy());
+    await waitFor(() => expect(screen.getByText(/no prompts route on this server — clamp a repo first/i)).toBeTruthy());
   });
 
   it('the status line reads "not installed" when wiring.claude is none', () => {
@@ -183,5 +211,81 @@ describe('App (S12: the quiet bench)', () => {
     const ready = screen.getByRole('button', { name: /Ready — hold/i });
     expect(ready.className).toMatch(/ember/);
     expect(ready.hasAttribute('disabled')).toBe(false);
+  });
+});
+
+describe('App (S17b: the Clamp screen, the logbook drawer, the setup drawer)', () => {
+  beforeEach(() => {
+    FakeWebSocket.instances = [];
+    vi.stubGlobal('WebSocket', FakeWebSocket);
+    stubFetch();
+  });
+
+  afterEach(() => {
+    cleanup();
+    vi.unstubAllGlobals();
+    setTool('point');
+    setAdvanced(false);
+  });
+
+  it('opens on the Clamp screen — recent benches, the folder browser, no rail — when the host says bench: null', async () => {
+    render(<App />);
+    expect(screen.getByRole('button', { name: /^Point —/ })).toBeTruthy(); // the bench, before any state arrives
+
+    sendState(clampScreenState);
+
+    expect(await screen.findByRole('heading', { name: /Clamp/ })).toBeTruthy();
+    expect(screen.getByRole('button', { name: /clamp \/home\/you\/ledger-angular again/ })).toBeTruthy();
+    expect(screen.getByLabelText(/the repo folder — picked above or pasted/)).toBeTruthy();
+    expect(screen.queryByRole('button', { name: /^Point —/ })).toBeNull();
+    // the status line stays — it is the one line on every screen
+    expect(screen.getByRole('button', { name: /Claude/ })).toBeTruthy();
+  });
+
+  it('a repo clamped elsewhere while the screen is up offers "go to the bench", and the bench comes back', async () => {
+    render(<App />);
+    sendState(clampScreenState);
+    await screen.findByRole('heading', { name: /Clamp/ });
+
+    sendState({ ...clampScreenState, bench: { repoRoot: '/home/you/ledger-angular' } });
+    fireEvent.click(await screen.findByRole('button', { name: /^go to the bench$/ }));
+
+    expect(await screen.findByRole('button', { name: /^Point —/ })).toBeTruthy();
+    expect(screen.queryByRole('heading', { name: /Clamp/ })).toBeNull();
+  });
+
+  it('the status line opens the logbook drawer, and a build frame lands in it as a Claude row (#9)', async () => {
+    render(<App />);
+    act(() => {
+      FakeWebSocket.instances[0]!.onmessage?.({
+        data: JSON.stringify({ type: 'build', id: '0003', event: { kind: 'tool', name: 'editing', target: 'invoice-list.component.html' }, elapsedMs: 42_000 }),
+      });
+    });
+    fireEvent.click(screen.getByRole('button', { name: /Claude/ }));
+
+    const drawer = await screen.findByLabelText(/logbook — the record of everything that happened on the bench/);
+    expect(within(drawer).getByText('editing · invoice-list.component.html')).toBeTruthy();
+    expect(within(drawer).getByText('00:42')).toBeTruthy();
+  });
+
+  it('a target-log frame lands in the logbook as an app row', async () => {
+    render(<App />);
+    act(() => {
+      FakeWebSocket.instances[0]!.onmessage?.({ data: JSON.stringify({ type: 'target-log', line: '** Angular Live Development Server is listening on localhost:4200 **' }) });
+    });
+    fireEvent.click(screen.getByRole('button', { name: /Claude/ }));
+    const drawer = await screen.findByLabelText(/logbook — the record/);
+    expect(within(drawer).getByText(/Angular Live Development Server/)).toBeTruthy();
+    expect(within(drawer).getByRole('button', { name: 'app' })).toBeTruthy();
+  });
+
+  it('"setup" on the status line opens the checklist drawer (A6), and only one drawer is open at a time', async () => {
+    render(<App />);
+    fireEvent.click(screen.getByRole('button', { name: /Claude/ }));
+    await screen.findByLabelText(/logbook — the record/);
+
+    fireEvent.click(screen.getByRole('button', { name: /^setup/ }));
+    expect(await screen.findByLabelText(/setup — the checklist/)).toBeTruthy();
+    expect(screen.queryByLabelText(/logbook — the record/)).toBeNull();
   });
 });

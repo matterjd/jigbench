@@ -11,6 +11,10 @@ export interface ChassisProps {
   advancedDrawer?: ReactNode;
   column: ReactNode;
   statusLine: ReactNode;
+  /** S17b: a whole screen in place of rail · plate · column — the Clamp screen, shown while the
+   * host has nothing clamped (`state.bench === null`). The status line stays. When given, the
+   * three bench regions are not rendered at all (not hidden — there is no plate to keep warm). */
+  screen?: ReactNode;
 }
 
 /** The quiet bench's shell (concept D / AMENDMENT-1 §4): a rail, a centre column that stacks the
@@ -18,17 +22,21 @@ export interface ChassisProps {
  * full width at the very bottom. Replaces v0.1's 5-slot Chassis (rail/plate/properties/tray/
  * bottomBar) — the tray and bottom bar are gone from the default view; their contents moved into
  * the Advanced drawer or the status line (docs/team/v0.2/CHASSIS.md §1). */
-export function Chassis({ rail, plate, advancedDrawer, column, statusLine }: ChassisProps) {
+export function Chassis({ rail, plate, advancedDrawer, column, statusLine, screen }: ChassisProps) {
   return (
     <div className="jig-chassis">
-      <div className="jig-chassis__bench">
-        <div className="jig-chassis__rail">{rail}</div>
-        <div className="jig-chassis__centre">
-          <div className="jig-chassis__plate">{plate}</div>
-          <div className="jig-chassis__advanced-slot">{advancedDrawer}</div>
+      {screen ? (
+        <div className="jig-chassis__screen">{screen}</div>
+      ) : (
+        <div className="jig-chassis__bench">
+          <div className="jig-chassis__rail">{rail}</div>
+          <div className="jig-chassis__centre">
+            <div className="jig-chassis__plate">{plate}</div>
+            <div className="jig-chassis__advanced-slot">{advancedDrawer}</div>
+          </div>
+          <div className="jig-chassis__column">{column}</div>
         </div>
-        <div className="jig-chassis__column">{column}</div>
-      </div>
+      )}
       <div className="jig-chassis__status-line">{statusLine}</div>
     </div>
   );
