@@ -1,45 +1,31 @@
-import { useEffect, useState } from 'react';
-import type { WorkOrder } from '@jigbench/core';
+import type { ShopInfo, Wiring, WorkOrder } from '@jigbench/core';
 import './ShopLane.css';
 
 /**
  * CHASSIS.md: "a narrow wyrd strip beside the logbook — the connected agent (Claude Code
- * · connected / none), and which released orders it holds." S6 wires a real agent
- * connection; until then this reads `wiring.shop` from `/api/state` honestly — 'none'
- * every time, exactly like the SIM strip's own chip for the same field.
+ * · connected / none), and which released orders it holds."
+ *
+ * Retest defect 22 (2026-09-06 evening): "did not see it reflected in jig" — this used to
+ * fetch `/api/state` exactly ONCE on mount and never again, so a shop connection made after
+ * the bench page had already loaded (the normal order of operations) never showed up
+ * without a manual reload. `wiring`/`shop` are now props sourced from `App.tsx`'s
+ * `useJigState()` — the SAME live state, pushed on every WS broadcast, including the
+ * shop-freshness watcher's own wired/none flip.
  */
 export interface ShopLaneProps {
   workOrders: readonly WorkOrder[];
-  fetchImpl?: typeof fetch;
+  /** The bench's live wiring state — `null` before the first state message has ever
+   * arrived. Absent/null both read as "not connected", never a stale "connected". */
+  wiring: Wiring | null;
+  /** The connected agent's own name/connectedAt, or `null` — covers both "not connected"
+   * and "connected but the server didn't name a client" (falls back to a plain
+   * "connected" below). */
+  shop: ShopInfo | null;
 }
 
-export function ShopLane({ workOrders, fetchImpl = fetch }: ShopLaneProps) {
-  const [connected, setConnected] = useState(false);
-  // S6 exposed /api/state's top-level `shop: {client, connectedAt}` (http.ts's
-  // composedState) but nothing rendered WHO is connected — only wired/none. null covers both
-  // "not connected" and "connected but the server didn't name a client" (falls back to a
-  // plain "connected" below).
-  const [clientName, setClientName] = useState<string | null>(null);
-
-  useEffect(() => {
-    let cancelled = false;
-    fetchImpl('/api/state')
-      .then((res) => res.json())
-      .then((data: { wiring?: { shop?: string }; shop?: { client?: string } | null }) => {
-        if (cancelled) return;
-        setConnected(data.wiring?.shop === 'wired');
-        setClientName(typeof data.shop?.client === 'string' ? data.shop.client : null);
-      })
-      .catch(() => {
-        if (!cancelled) {
-          setConnected(false);
-          setClientName(null);
-        }
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [fetchImpl]);
+export function ShopLane({ workOrders, wiring, shop }: ShopLaneProps) {
+  const connected = wiring?.shop === 'wired';
+  const clientName = shop?.client ?? null;
 
   const released = workOrders.filter((w) => w.state === 'released');
   const held = workOrders.filter((w) => w.state === 'in-the-shop');

@@ -268,6 +268,12 @@ export class JigStore {
       marks: [...this.marks],
       workOrders: [...this.workOrders],
       wiring: this.getWiring(),
+      // Retest defect 22 (2026-09-06 evening): folded in here (rather than left to
+      // http.ts's own ad hoc composedState wrapper) so GET /api/state, every WS 'state'
+      // broadcast, AND anything else that calls getState() directly all agree — and the
+      // bench's useJigState-fed components can read who's connected off the live pushed
+      // state instead of a separate one-shot fetch.
+      shop: this.getShopInfo(),
     };
   }
 

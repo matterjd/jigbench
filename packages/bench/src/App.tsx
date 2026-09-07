@@ -201,13 +201,13 @@ export function App() {
         }
         bottomBar={
           <>
-            <SimStrip />
+            <SimStrip wiring={state?.wiring ?? null} connected={connected} />
             <p className={`jig-appbar__connection jig-appbar__connection--${connected ? 'ok' : 'warn'}`}>
               <span aria-hidden="true" className="jig-appbar__connection-dot" />
               bench socket: {connected ? 'open' : 'reconnecting'}
             </p>
             <Logbook entries={allLogEntries} />
-            <ShopLane workOrders={state?.workOrders ?? []} />
+            <ShopLane workOrders={state?.workOrders ?? []} wiring={state?.wiring ?? null} shop={state?.shop ?? null} />
           </>
         }
       />
