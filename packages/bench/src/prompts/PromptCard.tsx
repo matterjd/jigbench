@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import type { BuildStreamEvent, PromptState } from './types.js';
-import { placeCardPosition, type CardPlacementSide } from './placeCardPosition.js';
+import { placeCardPosition, type CardPlacementSide, type PlateLocalRect } from './placeCardPosition.js';
 import { useReadyHold } from './useReadyHold.js';
 import './PromptCard.css';
 
@@ -9,9 +9,17 @@ export interface PromptCardProps {
   title: string;
   file?: string;
   /** The selected element the card anchors to — its live rect (relative to `plateEl`) drives
-   * placement. Null closes/hides the card. */
+   * placement. Used for a Sketch-tool selection, which lives in the SAME document (no iframe).
+   * Ignored when `anchorRect` is given. */
   anchorEl: HTMLElement | null;
   plateEl: HTMLElement | null;
+  /** A precomputed plate-local rect + the plate's own size — the path a Point-tool pick uses,
+   * since the real plate is a CROSS-ORIGIN iframe: the picked element's rect arrives over
+   * postMessage (`PlatePick.rect`, already plate-local per the bridge's contract) and there is
+   * no live DOM element in this document to call `getBoundingClientRect` on. Takes priority
+   * over `anchorEl`/`plateEl` when present. */
+  anchorRect?: PlateLocalRect | null;
+  plateSize?: { w: number; h: number };
   /** 'none' — no Prompt exists yet for this target (the card is still a bare draft in memory). */
   state: PromptState | 'none';
   text: string;
@@ -61,6 +69,8 @@ export function PromptCard({
   file,
   anchorEl,
   plateEl,
+  anchorRect,
+  plateSize,
   state,
   text,
   acceptance,
@@ -85,12 +95,19 @@ export function PromptCard({
 
   useEffect(() => {
     function place(): void {
-      if (!anchorEl || !plateEl || !cardRef.current) return;
-      const anchorRect = anchorEl.getBoundingClientRect();
-      const plateRect = plateEl.getBoundingClientRect();
-      const local = { x: anchorRect.left - plateRect.left, y: anchorRect.top - plateRect.top, w: anchorRect.width, h: anchorRect.height };
-      const next = placeCardPosition(local, plateRect.width, plateRect.height, 340, cardRef.current.offsetHeight);
-      setPlacement(next);
+      if (!cardRef.current) return;
+      if (anchorRect && plateSize) {
+        // The Point-tool path: a plate-local rect that already arrived over postMessage
+        // (there is no live DOM element in THIS document for a cross-origin plate iframe).
+        setPlacement(placeCardPosition(anchorRect, plateSize.w, plateSize.h, 340, cardRef.current.offsetHeight));
+        return;
+      }
+      if (!anchorEl || !plateEl) return;
+      // The Sketch-tool path: same-document, so a live measurement is meaningful.
+      const anchorBox = anchorEl.getBoundingClientRect();
+      const plateBox = plateEl.getBoundingClientRect();
+      const local = { x: anchorBox.left - plateBox.left, y: anchorBox.top - plateBox.top, w: anchorBox.width, h: anchorBox.height };
+      setPlacement(placeCardPosition(local, plateBox.width, plateBox.height, 340, cardRef.current.offsetHeight));
     }
     place();
     if (typeof ResizeObserver !== 'undefined' && cardRef.current) {
@@ -104,7 +121,7 @@ export function PromptCard({
     }
     window.addEventListener('resize', place);
     return () => window.removeEventListener('resize', place);
-  }, [anchorEl, plateEl, text, acceptance.length, buildStream.length]);
+  }, [anchorEl, plateEl, anchorRect, plateSize, text, acceptance.length, buildStream.length]);
 
   const draftHasWords = text.trim().length > 0;
   const readyEnabled = state === 'draft' && draftHasWords && !polishing;

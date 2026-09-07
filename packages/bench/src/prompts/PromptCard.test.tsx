@@ -178,6 +178,15 @@ describe('PromptCard', () => {
     expect(card.dataset.where).toBe('beside');
   });
 
+  it('places itself from a precomputed anchorRect + plateSize when given — the real plate is a cross-origin iframe, so there is no live DOM element to measure for a Point-tool pick', () => {
+    const { container } = render(
+      <PromptCard {...baseProps({ anchorRect: { x: 100, y: 100, w: 100, h: 40 }, plateSize: { w: 1044, h: 872 } })} />,
+    );
+    const card = container.querySelector('.jig-prompt-card') as HTMLElement;
+    expect(card.style.left).toBe((100 + 100 + 12) + 'px');
+    expect(card.dataset.where).toBe('beside');
+  });
+
   it('sits over the corner and says so when the selection leaves no room anywhere', () => {
     const anchor = document.createElement('div');
     const plate = document.createElement('div');
