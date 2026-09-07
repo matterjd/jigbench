@@ -16,6 +16,6 @@ Founded 2026-09-05 from the Design seat's commission (`docs/design/COMMISSION.md
 
 **Rules of record:** integrate only in a detached worktree (`git worktree add --detach ../jigbench-int origin/main`), push `HEAD:main`, verify `git log -1 origin/main`, cite the CI run's sha; never edit `examples/` source, `QUALITY.md`, `docs/quality/`; no real `claude -p`, `npm link`, or `claude mcp add` in tests; publish and visibility are Matter's. While the desk is his: no local test control — CI decides, one merge at a time.
 
-**Matter owes the desk:** the Clamp-screen + loop retest (after S17b), `npm publish` 0.2.0 with his OTP and the `v0.2.0` tag/release, delete `wo/0003-days-overdue`, start the Ollama tray app (or `JIG_NO_MODEL=1`), and remove the leftover folder `../jigbench-s17a` (its git entry is gone; a file handle blocked the delete).
+**Matter owes the desk:** the Clamp-screen + loop retest (after S17b), `npm publish` 0.2.0 with his OTP and the `v0.2.0` tag/release, delete `wo/0003-days-overdue`, start the Ollama tray app (or `JIG_NO_MODEL=1`).
 
 **→ Next session (REMOTE — paste `docs/team/v0.2/REMOTE-KICKOFF.md`): build S17b, the Clamp screen on S12's chassis over S17a's `/api/fs`, `/api/clamp`, `/api/target` and `/api/setup` routes, folding #7 and #9; then S15 ships 0.2.0 (TEST-RUN for the loop, ROADMAP, CHANGELOG, version, `npx-control.sh` green) — each through a PR with both CI legs green and recorded on #1; tag, publish and visibility stay Matter's.**
