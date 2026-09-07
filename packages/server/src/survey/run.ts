@@ -1,7 +1,8 @@
 import { join } from 'node:path';
 import { mkdir } from 'node:fs/promises';
-import { surveyGauges } from '@jigbench/adapter-angular';
-import { jigPaths, JIG_FORMAT, type GaugeSet, type Survey } from '@jigbench/core';
+import { surveyGauges as surveyAngularGauges } from '@jigbench/adapter-angular';
+import { surveyGauges as surveyWebGauges } from '@jigbench/adapter-web';
+import { jigPaths, JIG_FORMAT, type Gauge, type GaugeSet, type Survey } from '@jigbench/core';
 import { atomicWriteFile } from '../atomic-write.js';
 import { SURVEY_ADAPTERS } from './registry.js';
 import { mergeSurveys, type AdapterSurveyResult } from './merge.js';
@@ -10,15 +11,40 @@ function emptyGaugeSet(): GaugeSet {
   return { jigFormat: JIG_FORMAT, gauges: [], generatedAt: new Date().toISOString() };
 }
 
-/** Only `adapter-angular` exposes a separate gauges reader today (S2). `server` may import
- * an adapter package directly for capability beyond the base `SurveyAdapter` seam — the
- * angular app root is read back off the survey it already produced (`adapters[0].appRoot`)
- * rather than re-resolved, so this never walks the filesystem twice. */
+/** Only `adapter-angular` and `adapter-web` expose a separate gauges reader today (S2, S16).
+ * `server` may import an adapter package directly for capability beyond the base
+ * `SurveyAdapter` seam — each app root is read back off the survey it already produced
+ * (`adapters[].appRoot`) rather than re-resolved, so this never walks the filesystem twice. */
+function appRootFor(perAdapter: AdapterSurveyResult[], name: string): string | undefined {
+  return perAdapter.find((r) => r.name === name)?.survey.adapters?.find((a) => a.adapter === name)?.appRoot;
+}
+
+/** Adds `extra`'s gauges to `primary`'s, skipping any name `primary` already declared — the
+ * merge rule AMENDMENT-1 §6/A5 asks for: "merge only the web adapter's gauges not already
+ * present". `primary` (Angular's own `src/`-only scan) always wins a name collision; `extra`
+ * (the web adapter's broader scan — `src/`, `app/`, `public/`, `styles/`, `packages/`, `apps/`)
+ * only ever fills gaps Angular's narrower scan never looked at. */
+function mergeGaugeSets(primary: GaugeSet, extra: GaugeSet): GaugeSet {
+  const known = new Set(primary.gauges.map((g) => g.name));
+  const additional: Gauge[] = extra.gauges.filter((g) => !known.has(g.name));
+  return {
+    jigFormat: JIG_FORMAT,
+    gauges: [...primary.gauges, ...additional],
+    generatedAt: new Date().toISOString(),
+  };
+}
+
+/** Angular's own gauge scan when it ran, unioned with the web adapter's (S16) when IT ran too
+ * — either alone when only one detected, an honest empty set when neither did. */
 async function collectGauges(perAdapter: AdapterSurveyResult[]): Promise<GaugeSet> {
-  const angularResult = perAdapter.find((r) => r.name === 'angular');
-  const appRoot = angularResult?.survey.adapters?.find((a) => a.adapter === 'angular')?.appRoot;
-  if (!appRoot) return emptyGaugeSet();
-  return surveyGauges(appRoot);
+  const angularAppRoot = appRootFor(perAdapter, 'angular');
+  const webAppRoot = appRootFor(perAdapter, 'web');
+
+  if (!angularAppRoot && !webAppRoot) return emptyGaugeSet();
+  if (!angularAppRoot) return surveyWebGauges(webAppRoot!);
+  if (!webAppRoot) return surveyAngularGauges(angularAppRoot);
+
+  return mergeGaugeSets(await surveyAngularGauges(angularAppRoot), await surveyWebGauges(webAppRoot));
 }
 
 export interface SurveyRunResult {

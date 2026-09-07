@@ -43,6 +43,13 @@ function internalOf(dom: JSDOM): LoupeInternal {
   return (dom.window as unknown as { __jigLoupeInternal: LoupeInternal }).__jigLoupeInternal;
 }
 
+// Shared across the React fiber-walking and Vue describe blocks below (S16 "priority order"
+// cross-checks reuse this same named function component).
+function ReactFn(): void {
+  /* a plain function component */
+}
+ReactFn.displayName = 'InvoiceRow';
+
 describe('loupe.js', () => {
   it('logs exactly one debug-level "ready" line and nothing else on load', () => {
     const calls: unknown[][] = [];
@@ -110,6 +117,120 @@ describe('loupe.js', () => {
     const described = internalOf(dom).describeElement(dom.window.document.getElementById('inner')!);
     expect(described.component).toBe('InvoiceListComponent');
     expect(described.file).toBe('survey/file.ts');
+  });
+
+  // S16 (AMENDMENT-1 §6/A5, generic runtime component naming): React 19 dropped Fiber's
+  // _debugSource, but the DOM node -> fiber bridge itself (a `__reactFiber$<key>` own
+  // property React assigns on every host DOM node it manages) is unchanged, and each fiber
+  // still carries `.type` (the component function/class, or a plain string for a host tag
+  // like 'div') and `.return` (the parent fiber) — so walking `.return` until a
+  // non-host `.type` with a name still works without ever touching _debugSource. These tests
+  // hand-build a minimal fiber chain (jsdom has no real React runtime) to prove the resolver
+  // reads exactly that shape.
+  describe('describeElement — React fiber walking (S16)', () => {
+    it('resolves the nearest named function-component ancestor by walking fiber.return, skipping host tags', () => {
+      const dom = loadLoupe('<div id="host"><span id="inner">hi</span></div>');
+      const inner = dom.window.document.getElementById('inner')!;
+      const rootFiber = { type: ReactFn, return: null };
+      const hostFiber = { type: 'div', return: rootFiber };
+      const leafFiber = { type: 'span', return: hostFiber };
+      (inner as unknown as Record<string, unknown>)['__reactFiber$abc123'] = leafFiber;
+
+      const described = internalOf(dom).describeElement(inner);
+      expect(described.component).toBe('InvoiceRow');
+      expect((described as { framework?: string }).framework).toBe('react');
+    });
+
+    it('uses fiber.type.name when no displayName is set', () => {
+      function PlainNamed() {
+        /* no displayName */
+      }
+      const dom = loadLoupe('<div id="inner">hi</div>');
+      const inner = dom.window.document.getElementById('inner')!;
+      (inner as unknown as Record<string, unknown>)['__reactFiber$xyz'] = {
+        type: PlainNamed,
+        return: null,
+      };
+
+      const described = internalOf(dom).describeElement(inner);
+      expect(described.component).toBe('PlainNamed');
+      expect((described as { framework?: string }).framework).toBe('react');
+    });
+
+    it('Angular dev-mode globals still win over a React fiber when both are somehow present (priority order)', () => {
+      const dom = loadLoupe('<div id="inner">hi</div>');
+      const inner = dom.window.document.getElementById('inner')!;
+      (inner as unknown as Record<string, unknown>)['__reactFiber$abc'] = { type: ReactFn, return: null };
+      (dom.window as unknown as { ng: unknown }).ng = {
+        getComponent: () => ({ constructor: { name: 'WinningAngular' } }),
+      };
+
+      const described = internalOf(dom).describeElement(inner);
+      expect(described.component).toBe('WinningAngular');
+      expect((described as { framework?: string }).framework).toBe('angular');
+    });
+
+    it('falls back to the survey name (framework null) when no fiber key and no named ancestor exist', () => {
+      const dom = loadLoupe('<app-invoice-list id="host"><span id="inner">hi</span></app-invoice-list>');
+      internalOf(dom).setSurveySelectors([
+        { selector: 'app-invoice-list', name: 'SurveyOnly', file: 'survey/file.ts' },
+      ]);
+      const described = internalOf(dom).describeElement(dom.window.document.getElementById('inner')!);
+      expect(described.component).toBe('SurveyOnly');
+      expect((described as { framework?: string }).framework).toBeNull();
+    });
+  });
+
+  // S16: Vue 3 attaches `__vueParentComponent` directly to a DOM node in development.
+  describe('describeElement — Vue (S16)', () => {
+    it('resolves the component name from __vueParentComponent.type.name', () => {
+      const dom = loadLoupe('<div id="inner">hi</div>');
+      const inner = dom.window.document.getElementById('inner')!;
+      (inner as unknown as Record<string, unknown>).__vueParentComponent = {
+        type: { name: 'InvoiceCard' },
+      };
+
+      const described = internalOf(dom).describeElement(inner);
+      expect(described.component).toBe('InvoiceCard');
+      expect((described as { framework?: string }).framework).toBe('vue');
+    });
+
+    it('falls back to __name when .name is absent (an unnamed <script setup> SFC)', () => {
+      const dom = loadLoupe('<div id="inner">hi</div>');
+      const inner = dom.window.document.getElementById('inner')!;
+      (inner as unknown as Record<string, unknown>).__vueParentComponent = {
+        type: { __name: 'InvoiceCard' },
+      };
+
+      const described = internalOf(dom).describeElement(inner);
+      expect(described.component).toBe('InvoiceCard');
+      expect((described as { framework?: string }).framework).toBe('vue');
+    });
+
+    it('React fiber wins over Vue when both are somehow present (priority order)', () => {
+      const dom = loadLoupe('<div id="inner">hi</div>');
+      const inner = dom.window.document.getElementById('inner')!;
+      (inner as unknown as Record<string, unknown>)['__reactFiber$abc'] = { type: ReactFn, return: null };
+      (inner as unknown as Record<string, unknown>).__vueParentComponent = { type: { name: 'LosingVue' } };
+
+      const described = internalOf(dom).describeElement(inner);
+      expect(described.component).toBe('InvoiceRow');
+      expect((described as { framework?: string }).framework).toBe('react');
+    });
+  });
+
+  it('jig:pick carries the resolved framework alongside component/file', () => {
+    const dom = loadLoupe('<div id="target">hi</div>');
+    const target = dom.window.document.getElementById('target')!;
+    (target as unknown as Record<string, unknown>).__vueParentComponent = { type: { name: 'Widget' } };
+    internalOf(dom).setMode('loupe');
+
+    const posted: unknown[] = [];
+    dom.window.postMessage = ((message: unknown) => posted.push(message)) as typeof dom.window.postMessage;
+    target.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true, cancelable: true }));
+
+    expect(posted).toHaveLength(1);
+    expect(posted[0]).toMatchObject({ type: 'jig:pick', component: 'Widget', framework: 'vue' });
   });
 
   it('defaults to hand mode and switches on jig:mode messages', () => {

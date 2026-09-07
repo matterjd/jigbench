@@ -115,8 +115,12 @@ See `MAP.md` for the full repo map and what each folder is the source of truth f
 
 ## Targets on day one
 
-Angular (frontend) and .NET 10 (APIs and backend). Other stacks are adapters behind the same
-`SurveyAdapter` interface; see `CONTRIBUTING.md` for how to add one.
+Jig works with any app that has a dev server — the loop never depends on a survey adapter, and
+adapters only enrich it. Angular and .NET 10 have dedicated adapters (real components, routes,
+and API endpoints); a generic `web` adapter is the fallback for everything else — any repo with a
+`package.json` or a stylesheet gets CSS/SCSS/Less design tokens, a dev-server guess, and honest
+framework hints, with components and routes marked unknown rather than invented. Other stacks are
+adapters behind the same `SurveyAdapter` interface; see `CONTRIBUTING.md` for how to add one.
 
 ## Learn it end to end
 

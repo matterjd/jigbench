@@ -1,6 +1,6 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { createJigServer, createPlateProxy, initJigTree } from '@jigbench/server';
+import { createJigServer, createPlateProxy, initJigTree, runSurvey } from '@jigbench/server';
 import { resolveRepoRoot } from '../repo-root.js';
 
 export interface ServeCommandOptions {
@@ -31,12 +31,12 @@ interface AngularJsonShape {
   projects?: Record<string, { architect?: { serve?: { options?: { port?: number } } } }>;
 }
 
-/** `--target` always wins. Otherwise, if the clamped repo has an `angular.json`, guess its
- * dev-server URL from the default project's configured serve port, falling back to
- * Angular's own default (4200) when no port is set. Cheap and often right — never a
- * substitute for `--target` when it's wrong, and silently absent (no target) for anything
- * that isn't an Angular repo; a future adapter can extend this per stack. */
-function detectTarget(repoRoot: string): string | undefined {
+/** The pre-S16 heuristic, kept as the fallback tier: if the clamped repo has an
+ * `angular.json`, guess its dev-server URL from the default project's configured serve port,
+ * falling back to Angular's own default (4200) when no port is set. Cheap and often right —
+ * never a substitute for `--target` when it's wrong, and silently absent (no target) for
+ * anything that isn't an Angular repo. */
+function detectTargetFromAngularJson(repoRoot: string): string | undefined {
   const angularJsonPath = join(repoRoot, 'angular.json');
   if (!existsSync(angularJsonPath)) return undefined;
   try {
@@ -49,6 +49,21 @@ function detectTarget(repoRoot: string): string | undefined {
   }
 }
 
+/** `--target` always wins (checked by the caller before this ever runs). S16 (AMENDMENT-1
+ * §6/A5) adds a first tier ahead of the pre-existing Angular-only heuristic: run the survey
+ * (the generic web adapter, when it detects the repo, reads a devServer guess off
+ * `package.json`'s scripts) and use whatever devServer guess a per-adapter meta entry carries,
+ * before falling back to the direct `angular.json` read, then giving up (no target). Running
+ * the survey here is the same shape already used by `mcp.ts` (also calls `runSurvey` right
+ * after `initJigTree`) — it writes `.jig/survey/*` as a side effect, which is fine: the bench
+ * would run the same survey again on its own the moment it starts anyway. */
+async function detectTarget(repoRoot: string): Promise<string | undefined> {
+  const { survey } = await runSurvey(repoRoot);
+  const surveyGuess = survey.adapters?.find((meta) => meta.devServer)?.devServer;
+  if (surveyGuess) return surveyGuess;
+  return detectTargetFromAngularJson(repoRoot);
+}
+
 /** `jigbench` with no subcommand. Detects the repo root, ensures `.jig/` exists (the same
  * skeleton `init` writes), starts the S3 plate proxy in front of the target's own dev server
  * (when one is known), and starts the bench server. */
@@ -58,7 +73,7 @@ export async function runServeCommand(options: ServeCommandOptions): Promise<Ser
 
   const port = options.port ?? DEFAULT_PORT;
   const benchOrigin = `http://localhost:${port}`;
-  const target = options.target ?? detectTarget(repoRoot);
+  const target = options.target ?? (await detectTarget(repoRoot));
 
   const plate = createPlateProxy({
     target,

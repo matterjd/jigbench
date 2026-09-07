@@ -118,4 +118,107 @@ describe('mergeSurveys', () => {
     const refs = merged.schemas.map((s) => s.schemaRef).sort();
     expect(refs).toEqual(['OnlyInA', 'angular.Invoice', 'dotnet.Invoice'].sort());
   });
+
+  // S16 (AMENDMENT-1 §6/A5): the generic web adapter always contributes stack:['web'] and
+  // empty components/routes on its OWN survey, but must yield that contribution once a real
+  // stack adapter has ALSO matched — it never crowds out a real stack name, and never
+  // duplicates the (always-empty) components/routes it never surveys for. Its own per-adapter
+  // meta entry (devServer/frameworks hints) still lands in the merged `adapters` array either
+  // way — that is how the human summary can name it ("web: <root> (css/scss scan)") and how
+  // `serve.ts` can read a devServer guess off the merged survey.
+  describe('the web adapter yields its stack/components/routes to a real stack adapter', () => {
+    it('web stands alone with stack: ["web"] when no stack adapter matched', () => {
+      const web = surveyWith({
+        stack: ['web'],
+        adapters: [{ adapter: 'web', appRoot: 'root', source: 'css/scss scan', stub: false, unknown: true }],
+      });
+
+      const merged = mergeSurveys([{ name: 'web', survey: web }]);
+
+      expect(merged.stack).toEqual(['web']);
+      expect(merged.components).toEqual([]);
+      expect(merged.adapters).toEqual([
+        { adapter: 'web', appRoot: 'root', source: 'css/scss scan', stub: false, unknown: true },
+      ]);
+    });
+
+    it('web\'s stack/components/routes are dropped from the merge once a stack adapter matched too', () => {
+      const angular = surveyWith({
+        stack: ['angular'],
+        components: [
+          {
+            name: 'Foo',
+            selector: 'app-foo',
+            file: 'a.ts',
+            standalone: true,
+            inline: true,
+            inputs: [],
+            outputs: [],
+            styleUrls: [],
+          },
+        ],
+        routes: [{ path: 'foo', component: 'Foo', file: 'a.ts' }],
+        adapters: [{ adapter: 'angular', stub: false, source: 'ts-morph' }],
+      });
+      const web = surveyWith({
+        stack: ['web'],
+        components: [],
+        routes: [],
+        adapters: [{ adapter: 'web', appRoot: 'root', source: 'css/scss scan', stub: false, unknown: true, devServer: 'http://localhost:5173' }],
+      });
+
+      const merged = mergeSurveys([
+        { name: 'angular', survey: angular },
+        { name: 'web', survey: web },
+      ]);
+
+      expect(merged.stack).toEqual(['angular']);
+      expect(merged.components).toHaveLength(1);
+      expect(merged.routes).toHaveLength(1);
+    });
+
+    it('web\'s own per-adapter meta entry (with its devServer hint) still lands in the merged adapters array even when it yields', () => {
+      const angular = surveyWith({
+        stack: ['angular'],
+        adapters: [{ adapter: 'angular', stub: false, source: 'ts-morph' }],
+      });
+      const web = surveyWith({
+        stack: ['web'],
+        adapters: [{ adapter: 'web', appRoot: 'root', source: 'css/scss scan', stub: false, unknown: true, devServer: 'http://localhost:5173' }],
+      });
+
+      const merged = mergeSurveys([
+        { name: 'angular', survey: angular },
+        { name: 'web', survey: web },
+      ]);
+
+      expect(merged.adapters).toContainEqual({
+        adapter: 'web',
+        appRoot: 'root',
+        source: 'css/scss scan',
+        stub: false,
+        unknown: true,
+        devServer: 'http://localhost:5173',
+      });
+    });
+
+    it('order does not matter — web listed before the stack adapter still yields', () => {
+      const web = surveyWith({
+        stack: ['web'],
+        adapters: [{ adapter: 'web', stub: false, unknown: true }],
+      });
+      const dotnet = surveyWith({
+        stack: ['dotnet'],
+        endpoints: [{ method: 'GET', path: '/api/foo' }],
+        adapters: [{ adapter: 'dotnet', stub: false, source: 'openapi-file' }],
+      });
+
+      const merged = mergeSurveys([
+        { name: 'web', survey: web },
+        { name: 'dotnet', survey: dotnet },
+      ]);
+
+      expect(merged.stack).toEqual(['dotnet']);
+    });
+  });
 });

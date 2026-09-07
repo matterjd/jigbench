@@ -85,4 +85,71 @@ describe('runServeCommand', () => {
     expect(result.message).toContain('http://localhost:9999');
     expect(result.message).not.toContain('4300');
   });
+
+  // S16 (AMENDMENT-1 §6/A5): the generic web adapter's devServer guess (read off the survey)
+  // is now the FIRST auto-detection tier — angular.json's own port stays the fallback for a
+  // repo the web adapter doesn't also guess a port for.
+  describe('S16: --target inference reads the survey\'s devServer guess first', () => {
+    it('auto-detects a Vite dev-server target from package.json when no angular.json exists at all', async () => {
+      const repoRoot = await mkdtemp(join(tmpdir(), 'jig-serve-web-'));
+      await writeFile(
+        join(repoRoot, 'package.json'),
+        JSON.stringify({ scripts: { dev: 'vite' } }),
+      );
+      result = await runServeCommand({ repo: repoRoot, port: 0, open: false, platePort: 0 });
+      expect(result.message).toContain('http://localhost:5173');
+    });
+
+    it('reads an explicit --port flag literally (worldloom chart-harness shape)', async () => {
+      const repoRoot = await mkdtemp(join(tmpdir(), 'jig-serve-web-port-'));
+      await writeFile(
+        join(repoRoot, 'package.json'),
+        JSON.stringify({ scripts: { serve: 'node serve.mjs --root . --port 8174' } }),
+      );
+      result = await runServeCommand({ repo: repoRoot, port: 0, open: false, platePort: 0 });
+      expect(result.message).toContain('http://localhost:8174');
+    });
+
+    it('the survey\'s devServer guess wins over angular.json\'s own configured port when both are present', async () => {
+      const repoRoot = await mkdtemp(join(tmpdir(), 'jig-serve-both-'));
+      await writeFile(join(repoRoot, 'package.json'), JSON.stringify({ scripts: { dev: 'vite' } }));
+      await writeFile(
+        join(repoRoot, 'angular.json'),
+        JSON.stringify({ projects: { demo: { architect: { serve: { options: { port: 4300 } } } } } }),
+      );
+      result = await runServeCommand({ repo: repoRoot, port: 0, open: false, platePort: 0 });
+      expect(result.message).toContain('http://localhost:5173');
+      expect(result.message).not.toContain('4300');
+    });
+
+    it('falls back to angular.json\'s port when the survey carries no devServer guess at all', async () => {
+      // Same fixture as the pre-existing "auto-detects an Angular target" test above — no
+      // package.json, so the web adapter never even detects this repo, let alone guesses a
+      // devServer — proving the fallback tier is unaffected by S16's new first tier.
+      const repoRoot = await mkdtemp(join(tmpdir(), 'jig-serve-fallback-'));
+      await writeFile(
+        join(repoRoot, 'angular.json'),
+        JSON.stringify({
+          defaultProject: 'demo',
+          projects: { demo: { architect: { serve: { options: { port: 4300 } } } } },
+        }),
+      );
+      result = await runServeCommand({ repo: repoRoot, port: 0, open: false, platePort: 0 });
+      expect(result.message).toContain('http://localhost:4300');
+    });
+
+    it('an explicit --target still wins over the survey\'s devServer guess', async () => {
+      const repoRoot = await mkdtemp(join(tmpdir(), 'jig-serve-web-explicit-'));
+      await writeFile(join(repoRoot, 'package.json'), JSON.stringify({ scripts: { dev: 'vite' } }));
+      result = await runServeCommand({
+        repo: repoRoot,
+        port: 0,
+        open: false,
+        target: 'http://localhost:9999',
+        platePort: 0,
+      });
+      expect(result.message).toContain('http://localhost:9999');
+      expect(result.message).not.toContain('5173');
+    });
+  });
 });
