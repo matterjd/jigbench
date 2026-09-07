@@ -67,13 +67,28 @@ async function hasQualifyingStyleFile(dir: string): Promise<boolean> {
 /** Is `dir` itself a web app root: a `package.json` file, OR a qualifying stylesheet
  * somewhere under one of its `src/`, `app/`, `public/`, `styles/` subdirectories. This is
  * deliberately loose — the web adapter is the fallback that matches almost any web codebase
- * (AMENDMENT-1 §6/A5) — a repo with neither signal at all is the only thing it says no to. */
+ * (AMENDMENT-1 §6/A5) — a repo with neither signal at all is the only thing it says no to.
+ * Used ONLY for the repo root itself — see `isSiblingWebRoot` for why the recursive
+ * style-file scan doesn't extend to sibling/nested candidates too. */
 async function isWebRoot(dir: string): Promise<boolean> {
   if (await isFile(join(dir, 'package.json'))) return true;
   for (const sub of STYLE_SUBDIRS) {
     if (await hasQualifyingStyleFile(join(dir, sub))) return true;
   }
   return false;
+}
+
+/** Is `dir` a SIBLING or nested-workspace web app root (one level down, or under `apps/*` /
+ * `packages/*`): a `package.json` file only — never the recursive stylesheet scan `isWebRoot`
+ * also allows for the repo root itself. Without this narrower rule, a completely ordinary
+ * repo root/src/app/*.scss layout (any real Angular or React app) would report `src/` itself
+ * as a SECOND "web root" one level down, purely because `src/app/` happens to contain
+ * stylesheets several levels further in — a false positive on almost every real app, not a
+ * genuine sibling project. A `package.json`-only rule for this tier mirrors how
+ * `adapter-angular`'s `findAngularRoot` also matches sibling/nested candidates on a single
+ * marker file (`angular.json`), never a content scan. */
+async function isSiblingWebRoot(dir: string): Promise<boolean> {
+  return isFile(join(dir, 'package.json'));
 }
 
 /**
@@ -97,14 +112,14 @@ export async function findWebRoot(repoRoot: string): Promise<string | undefined>
 
   for (const child of await immediateDirs(repoRoot)) {
     const dir = join(repoRoot, child);
-    if (await isWebRoot(dir)) candidates.push(toForwardSlashes(dir));
+    if (await isSiblingWebRoot(dir)) candidates.push(toForwardSlashes(dir));
   }
 
   for (const group of ['packages', 'apps']) {
     const groupDir = join(repoRoot, group);
     for (const child of await immediateDirs(groupDir)) {
       const dir = join(groupDir, child);
-      if (await isWebRoot(dir)) candidates.push(toForwardSlashes(dir));
+      if (await isSiblingWebRoot(dir)) candidates.push(toForwardSlashes(dir));
     }
   }
 

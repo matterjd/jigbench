@@ -31,20 +31,36 @@ function mergeSchemas(results: AdapterSurveyResult[]): NamedSchema[] {
  * detected the repo, or every adapter that ran is itself a stub (e.g. dotnet's regex-lite
  * tier with no Angular app alongside it) — the moment ANY adapter contributes real data,
  * the merged survey is real too, even if a sibling adapter is still a stub.
+ *
+ * S16 (AMENDMENT-1 §6/A5): the generic `web` adapter is the fallback that matches almost any
+ * web codebase, so its own `stack`/`components`/`routes`/`schemas` contribution YIELDS the
+ * moment any OTHER (real stack) adapter has also matched — it never crowds `stack` with 'web'
+ * alongside a real stack name, and never pads `components`/`routes` with the empty arrays it
+ * always produces anyway. `web`'s per-adapter meta entry (its `appRoot`/`source`, and any
+ * `devServer`/`frameworks` hints) is NEVER dropped, though — it still lands in the merged
+ * `adapters` array unconditionally, which is how `serve.ts`'s `--target` inference and the
+ * survey command's human summary ("web: <root> (css/scss scan)") read it regardless of
+ * whether a stack adapter also matched. Order of `results` doesn't matter: `web` yields
+ * whenever ANY entry named something other than `'web'` is present, not just when it comes
+ * first or last.
  */
 export function mergeSurveys(results: AdapterSurveyResult[]): Survey {
   if (results.length === 0) return stubSurvey();
 
-  const stack = [...new Set(results.flatMap((r) => r.survey.stack))];
+  const hasStackAdapter = results.some((r) => r.name !== 'web');
+  const contributesStack = (r: AdapterSurveyResult) => !(hasStackAdapter && r.name === 'web');
+  const stackContributors = results.filter(contributesStack);
+
+  const stack = [...new Set(stackContributors.flatMap((r) => r.survey.stack))];
   const allStub = results.every((r) => r.survey.stub === true);
 
   return {
     jigFormat: JIG_FORMAT,
     stack,
-    components: results.flatMap((r) => r.survey.components),
-    routes: results.flatMap((r) => r.survey.routes),
-    endpoints: results.flatMap((r) => r.survey.endpoints),
-    schemas: mergeSchemas(results),
+    components: stackContributors.flatMap((r) => r.survey.components),
+    routes: stackContributors.flatMap((r) => r.survey.routes),
+    endpoints: stackContributors.flatMap((r) => r.survey.endpoints),
+    schemas: mergeSchemas(stackContributors),
     docs: [],
     generatedAt: new Date().toISOString(),
     stub: allStub,

@@ -96,6 +96,30 @@ describe('findWebRoot', () => {
     await rm(repoRoot, { recursive: true, force: true });
   });
 
+  // Regression: a root with package.json AND a conventional src/app/*.scss layout (any real
+  // Angular or React app) must NOT ALSO report src/ itself as a second "web root" one level
+  // down, purely because src/app/ happens to contain stylesheets further in — that's the
+  // repo's own internal structure, not a sibling project.
+  it('does not report src/ itself as a second candidate when the root already matches via package.json', async () => {
+    const repoRoot = await mkdtemp(join(tmpdir(), 'jig-web-self-nest-'));
+    await writeFile(join(repoRoot, 'package.json'), '{}');
+    await mkdir(join(repoRoot, 'src', 'app', 'shell'), { recursive: true });
+    await writeFile(join(repoRoot, 'src', 'app', 'shell', 'shell.scss'), '.x { color: red; }');
+
+    const calls: unknown[][] = [];
+    const original = console.error;
+    console.error = (...args: unknown[]) => calls.push(args);
+    try {
+      const found = await findWebRoot(repoRoot);
+      expect(found).toBe(forwardSlashes(repoRoot));
+      expect(calls).toHaveLength(0); // no spurious "multiple web roots" warning
+    } finally {
+      console.error = original;
+    }
+
+    await rm(repoRoot, { recursive: true, force: true });
+  });
+
   it('logs every match to stderr when more than one candidate matches, and still returns the first', async () => {
     const repoRoot = await mkdtemp(join(tmpdir(), 'jig-web-multi-'));
     await writeFile(join(repoRoot, 'package.json'), '{}'); // root itself matches

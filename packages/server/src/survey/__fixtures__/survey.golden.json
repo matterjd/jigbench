@@ -364,6 +364,17 @@
       "appRoot": "APP_ROOT",
       "source": "ts-morph",
       "stub": false
+    },
+    {
+      "adapter": "web",
+      "appRoot": "APP_ROOT",
+      "source": "css/scss scan",
+      "stub": false,
+      "unknown": true,
+      "devServer": "http://localhost:4200",
+      "frameworks": [
+        "angular"
+      ]
     }
   ]
 }
