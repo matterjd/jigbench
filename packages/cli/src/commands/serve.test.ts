@@ -69,6 +69,17 @@ describe('runServeCommand', () => {
     expect(result.message).toContain('http://localhost:4200');
   });
 
+  it('S17a: with no --repo and no .git/.jig in cwd, serves with no bench clamped at all', async () => {
+    const cwd = await mkdtemp(join(tmpdir(), 'jig-serve-nobench-'));
+    result = await runServeCommand({ port: 0, open: false, cwd });
+
+    expect(result.message).toContain('Jig is on the bench');
+    expect(result.message).not.toContain('Clamped:');
+
+    const state = await (await fetch(`${result.url}/api/state`)).json();
+    expect(state.bench).toBeNull();
+  });
+
   it('an explicit --target always wins over angular.json auto-detection', async () => {
     const repoRoot = await mkdtemp(join(tmpdir(), 'jig-serve-'));
     await writeFile(

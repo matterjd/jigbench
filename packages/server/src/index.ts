@@ -75,3 +75,29 @@ export { BuildRunner } from './build/runner.js';
 export type { BuildRunnerOptions } from './build/runner.js';
 export type { BuildOutcome, BuildRunnerLike, BuildStreamEvent, ClaudeStatus, StartBuildInput } from './build/types.js';
 // === end S11 block ===
+
+// === S17a — setup happens in the app: the server side (AMENDMENT-1 §7, A6) ===
+// `bench/host.ts`'s `createBenchHost` is reached through `createJigServer` (repoRoot
+// omitted) for the CLI; exported directly here too for a caller (S17b, or a test) that wants
+// the host-specific option/handle shapes without going through that indirection.
+export { createBenchHost } from './bench/host.js';
+export type { BenchHostHandle, CreateBenchHostOptions } from './bench/host.js';
+export { createBench } from './bench/bench.js';
+export type { Bench, CreateBenchOptions } from './bench/bench.js';
+export { validateClampPath } from './bench/validate-clamp-path.js';
+export type { ClampPathValidation } from './bench/validate-clamp-path.js';
+export { defaultRecentBenchesFile, readRecentBenches, recordRecentBench } from './bench/recent.js';
+export type { RecentBenchEntry } from './bench/recent.js';
+export { attachFsRoute } from './fs/route.js';
+export type { FsListEntry, FsRootEntry } from './fs/route.js';
+export { detectDevScript } from './target/detect.js';
+export type { DetectedTarget } from './target/detect.js';
+export { TargetRunner } from './target/runner.js';
+export type { StartTargetInput, TargetRunnerLike, TargetRunnerOptions, TargetState } from './target/runner.js';
+export { attachTargetRoute } from './target/route.js';
+export { attachSetupRoute } from './setup/route.js';
+export type { SetupRouteContext } from './setup/route.js';
+export { mergeMcpJson, formatMcpJsonDiff } from './setup/mcp-json.js';
+export { claudeDesktopConfigPath, mergeClaudeDesktopConfig, formatClaudeDesktopConfigDiff } from './setup/desktop-config.js';
+export { isSameOriginOrAbsent } from './same-origin.js';
+// === end S17a block ===

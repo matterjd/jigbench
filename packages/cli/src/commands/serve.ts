@@ -3,6 +3,15 @@ import { join } from 'node:path';
 import { createJigServer, createPlateProxy, initJigTree } from '@jigbench/server';
 import { resolveRepoRoot } from '../repo-root.js';
 
+/** S17a (AMENDMENT-1 §7, A6): "`jigbench` with no `--repo` and no `.jig`/`.git` in cwd ->
+ * serves with no bench (the Clamp screen)". `resolveRepoRoot` (unchanged, `repo-root.ts` is
+ * out of this slice's file scope) always returns SOME path — it falls back to cwd itself when
+ * neither marker is found, walking up — so "nothing to clamp" is judged here, directly, by
+ * the same two markers it walks for, rather than by ever getting a falsy root back. */
+function hasClampableRepoAt(cwd: string): boolean {
+  return existsSync(join(cwd, '.git')) || existsSync(join(cwd, '.jig'));
+}
+
 export interface ServeCommandOptions {
   repo?: string;
   port?: number;
@@ -15,6 +24,9 @@ export interface ServeCommandOptions {
   target?: string;
   /** The plate proxy's own listening port (S3). Defaults to 4601. */
   platePort?: number;
+  /** Test-only override for the "is there a repo here at all" check — defaults to
+   * `process.cwd()`. Never set by the real CLI entrypoint. */
+  cwd?: string;
 }
 
 export interface ServeCommandResult {
@@ -49,14 +61,29 @@ function detectTarget(repoRoot: string): string | undefined {
   }
 }
 
-/** `jigbench` with no subcommand. Detects the repo root, ensures `.jig/` exists (the same
- * skeleton `init` writes), starts the S3 plate proxy in front of the target's own dev server
- * (when one is known), and starts the bench server. */
+/** `jigbench` with no subcommand. `--repo` always clamps at boot (unchanged). With no
+ * `--repo`, a cwd that has neither `.git` nor `.jig` clamps nothing at all — `createJigServer`
+ * (repoRoot omitted) then serves the S17a host, its Clamp screen's server side, with a
+ * `POST /api/clamp` away from a real bench. Otherwise (today's exact behaviour): detects the
+ * repo root, ensures `.jig/` exists (the same skeleton `init` writes), starts the S3 plate
+ * proxy in front of the target's own dev server (when one is known), and starts the bench
+ * server already clamped. */
 export async function runServeCommand(options: ServeCommandOptions): Promise<ServeCommandResult> {
+  const port = options.port ?? DEFAULT_PORT;
+
+  if (!options.repo && !hasClampableRepoAt(options.cwd ?? process.cwd())) {
+    const handle = await createJigServer({
+      port,
+      host: options.host,
+      openBrowser: options.open ?? true,
+    });
+    const message = [`Jig is on the bench: ${handle.url}`, 'No repo clamped yet — open the bench to pick one.'].join('\n');
+    return { message, url: handle.url, close: () => handle.close() };
+  }
+
   const repoRoot = resolveRepoRoot(options.repo);
   await initJigTree(repoRoot);
 
-  const port = options.port ?? DEFAULT_PORT;
   const benchOrigin = `http://localhost:${port}`;
   const target = options.target ?? detectTarget(repoRoot);
 
