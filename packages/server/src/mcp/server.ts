@@ -39,7 +39,7 @@ export interface CreateJigMcpServerOptions {
 }
 
 const SERVER_NAME = 'jig';
-const SERVER_VERSION = '0.1.0';
+const SERVER_VERSION = '0.2.0';
 const DEFAULT_CLIENT_LABEL = 'an MCP client';
 
 /** `JIG_HEARTBEAT_MS` — test-only override for the shop heartbeat's refresh interval

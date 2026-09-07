@@ -1,6 +1,6 @@
 {
   "name": "jigbench",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": false,
   "description": "Jig — a local-first benchtop that clamps an existing app repo, surveys it, and turns a marked-up change into an agent-ready work order, over MCP on stdio.",
   "type": "module",

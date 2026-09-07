@@ -1,126 +1,154 @@
 # Using Jig
 
-A walk through the whole loop — clamp, survey, the plate and the loupe, a mark, a work order,
-release, the shop, the trial fit — plus fixtures, toolpaths, and sketch. Every quoted word or
-label below is what the bench actually says (`packages/bench/src/**`), not a paraphrase.
-
-This assumes `npx jigbench` quick-started already (`README.md`). Run everything from
-`examples/ledger-angular`'s repo if you want to follow along against a real app, or your own.
+A walk through the whole loop — clamp, survey, the plate, Point, the prompt card, Polish, Ready,
+Build, Built — plus Sketch, the logbook and everything behind the Advanced switch. Every quoted
+word or label below is what the bench actually says (`packages/bench/src/**`), not a paraphrase.
+`docs/TEST-RUN.md` is the same loop as a step-by-step run with PASS lines.
 
 ## Clamp
 
-Clamping is just running Jig inside (or pointed at) a repo:
+One terminal command, ever:
 
 ```bash
-cd your-app-repo
 npx jigbench
 ```
 
-The terminal prints `Jig is on the bench: http://localhost:4600` and `Clamped: <repo path>`. If
-the repo has docs worth drafting from (a handbook, a spec folder), clamp those too:
+From a folder that is not a repo, the bench opens on the **Clamp** screen (its pairing: *"attach a
+repo; the survey reads it"*). **recent benches** lists every repo you clamped before — one click
+re-clamps it. Under **pick the repo folder** the folder browser walks your drives (or `/` and
+`~`); a folder that is a repo carries a `git`, `package.json`, `angular.json` or `.csproj` badge,
+and `docs` when it has a docs folder. Pick one, or paste a path into the field under the browser,
+and press **Clamp** — the one ember act on the screen. While it runs the screen says *"clamping ·
+the survey reads the repo — a few seconds"*; a path Jig cannot clamp is answered in words
+(*"not clamped · no such path: …"*), never a blank.
 
-```bash
-npx jigbench clamp --docs ./docs
-```
-
-This reads markdown, text, and PDF files under that folder, heading-chunks them, and writes
-`.jig/survey/docs.json` — the drafter retrieves from it later.
+From inside a repo (a folder with a `.git`), `npx jigbench` clamps that repo at once and skips the
+screen. The terminal prints `Jig is on the bench: http://localhost:4600` and `Clamped: <repo
+path>`.
 
 ## Survey
 
-The survey runs automatically the first time Jig starts (and again on demand with
-`npx jigbench survey`). It writes `.jig/survey/survey.json`, one `.jig/survey/<adapter>.json`
-per adapter that detected the repo, and `.jig/gauges.json`. The bench's **Survey** tab (one
-of the three tabs in the properties column, alongside **Loupe** and **Gauges**) shows what it
-found under a **stack** heading — and a **clamped docs** heading if you clamped one.
+The survey runs on clamp and the Clamp screen shows **what the survey found**: the stack, how
+many components, routes and endpoints, how many gauges, whether docs were clamped, and what
+**the app** is — `npm run start · port 4200` when a dev script was detected. The files land under
+`.jig/survey/` and `.jig/gauges.json`; the survey runs again on demand with `npx jigbench survey`.
 
 Jig works with any app that has a dev server — the loop never depends on a survey adapter, and
 adapters only enrich it (Angular and .NET 10 have dedicated ones: real components, routes, and API
 endpoints). Every other repo still gets a real survey from the generic **web** adapter: any
-`package.json` or stylesheet is enough to match, and it reads CSS custom properties, SCSS `$vars`,
-and Less `@vars` into gauges, guesses a dev-server URL from `package.json`'s scripts (so
-`--target` can often be inferred without asking), and lists any frameworks it recognizes from the
-manifest's dependencies — honest hints, never invented. Where no stack adapter matches at all, the
-survey's stack is `web` and components/routes are marked unknown, not guessed at; where a stack
-adapter also matches, the web adapter's gauges and dev-server guess still fold in alongside the
-stack adapter's own real components and routes. An app nothing recognizes at all still gets an
-honest stub, never a crash.
+`package.json` or stylesheet is enough to match, and it reads CSS custom properties, SCSS `$vars`
+and Less `@vars` into gauges, guesses a dev-server URL from `package.json`'s scripts, and lists
+any frameworks it recognizes from the manifest — honest hints, never invented. Where no stack
+adapter matches, the stack reads `web` and components and routes are marked *unknown*, not
+guessed at. An app nothing recognizes at all gets an honest stub, never a crash.
 
-## The plate and the loupe
+## The app, docs, Claude Code — setup on the screen
 
-Start Jig against a running dev server with `--target`:
+Three blocks follow the survey on the Clamp screen, and the same three live in the **setup**
+checklist one click from the right end of the status line on every bench:
 
-```bash
-npx jigbench --target http://localhost:4200
-```
+- **the app** — **Start the app** runs the detected dev script inside the repo (the words say
+  which: *"Start the app runs npm run start · port 4200"*); its own log streams under the button
+  and the line walks *"starting · waiting for the port to answer"* → *"up · http://localhost:4200
+  · pid …"*. Already have it running? Paste its URL and press **use this URL**.
+- **docs** — a folder Jig reads so the prompt can quote matching chunks. `./docs` is clamped for
+  you when it exists; **clamp docs** takes any other folder (markdown, text, PDF) and answers
+  with *"N files · M chunks"*.
+- **Claude Code** — *"Build runs Claude Code itself in the repo; MCP stays for other agents."*
+  **Register with Claude Code** shows **what .mcp.json will say** first; **write .mcp.json**
+  writes it. Claude Code reads the file on its own the next time it opens the repo and gets `jig`
+  as a local MCP server. **Claude Desktop — also add the entry** does the same for
+  `claude_desktop_config.json`. If `claude` is not on PATH the block says so — Build needs it.
 
-The **Plate** panel is where the clamped app renders — proxied through Jig so the app itself
-changes nothing. Pick the **Loupe** tool from the rail (its pair: *"point at anything and see
-what it is"*) and click anything on the plate. The **Loupe** panel in the properties column shows
-what you hit — component, file, route — resolved from the survey, not source maps.
+Then **go to the bench**.
 
-## Mark
+## The bench
 
-Switch to the **Mark** tool (*"a highlighted spot with a request attached"*), click a spot on the
-plate, and a form opens asking **"what should change here?"**. Type the change and press **mark**.
-This creates a work order and — if a drafter is reachable (a local Ollama model, then a connected
-agent, then a human) — fires off a first draft immediately.
+Three regions and one line. The **rail** on the left holds three tools — **Point** (*"click a
+component to open the prompt card"*, `P`), **Sketch** (`S`), **Hand** (*"the app takes your
+clicks"*, `H`; `Esc` returns to it) — and the **Advanced** switch at its foot. The **plate** fills
+the centre with the app, clean: no rulers, no guides, until Advanced says so. The right column has
+three tabs: **Prompts**, **Inspect**, **Design system**. The **status line** at the bottom is
+Claude's one sentence — `Claude · idle`, `· building · 00:42 · editing invoice-list.html`, `· built
+· 3 files · 1m 12s`, or `· not installed` — and a click opens the **logbook**; **setup** at its
+right end opens the checklist.
 
-## Work order
+## Point and the prompt card
 
-Every work order shows up in the tray's **spine** (*"every work order by state"*) as it moves
-through the ladder: marked → drafted → released → done, or scrapped along the way. Open one to
-see its two faces:
+With Point, hover names a component on the plate (a storm hairline and its tag); click selects
+it and opens the **prompt card** beside the selection — never over it (beside → below → above,
+and only then the plate's corner, which the card says in words). The card carries the component's
+name and file, one field — **what should change here?** — an optional **acceptance** list
+(**+ add a line**), and the card's acts. **Inspect** shows the same selection in full: component,
+file, tag, text, the gauges it uses (a chip lights every use on the plate), its routes, endpoints
+and matching docs.
 
-- the **human face** — the requirement, the acceptance, and a fixture — editable at any state
-  before release;
-- the **shop face** — the implementation brief in the app's own stack idiom, filled in only once
-  you release.
+A draft is not saved until it has words; once it has them, it is a prompt file —
+`.jig/prompts/NNNN-<slug>.md`, the slug from your own first words — and **Ready** turns ember.
 
-## Release
+## Polish
 
-Releasing approves a work order and fills its shop face. The control is a deliberate press-and-
-hold (**"release — hold for about 800 milliseconds"**) rather than a single click — a released
-work order is a real commitment (the shop face gets written, the trial fit starts watching), not
-an accidental tap.
+**Polish** appears only when a local model is reachable (Ollama; see the README) and does
+nothing until pressed: it tightens the words and adds acceptance lines, locally, nothing leaves
+the machine. Your own words are never lost.
 
-## The shop
+## Ready
 
-**the shop** panel shows whichever agents are connected (Claude Code, Claude Desktop) over MCP.
-Before anything is released it says **"nothing released — the shop has nothing to pick up"**.
-Once a work order is released, a connected agent lists it as an MCP resource, claims it, and
-implements it — Jig never writes application source itself.
+**Ready** is the one held gesture — *"hold to make the draft the prompt Claude will get"*, about
+800 ms, a ring that fills. Let go early and the card says *"let go early — still a draft · 303 ms
+of 800"*. Hold through and the prompt is **ready**: the Prompts row takes a gold ring, and
+**Build** becomes the card's ember act (never both at once).
 
-## Trial fit
+## Build
 
-Until a work order comes back, the trial fit panel reads **"not yet — no work order has been
-released"**. Once the shop reports a work order done, it shows two frames — **"before · snapshot
-at release"** and **"after · live"** — side by side, plus **"changes the shop reported"** (the
-files it touched) and any recorded toolpaths, replayable on both frames at once.
+**Build** (*"run Claude Code in the repo with this prompt"*) runs `claude -p` in the clamped repo
+with the prompt file on stdin — the requirement on top, then the context Jig appends. The stream
+shows on the card and in Prompts as a monospace ribbon (*reading … · editing … · running tests*),
+the status line counts the elapsed time and names the latest step, and every step lands in the
+logbook as a Claude row. The words are locked while it runs. It ends `Claude · built · N files ·
+m:ss`.
 
-## Fixtures
+## Built
 
-The **Fixture** tool (*"a reproducible set of test data"*) opens the fixtures panel. **new
-fixture** generates one from the survey's data shapes (OpenAPI/DTOs → JSON Schema → seeded
-faker); load it and the plate proxy serves it for `/api/*` and fills forms by dispatching the
-input events the app itself listens for. Removing one sends it to the **scrap bin** — counted,
-regenerable, never silently gone.
+The prompt in hand in **Prompts** carries the **built** line: **before — the plate as it was**
+flips the plate to the release snapshot and back, and **refine — go again** opens a new draft on
+the same target with the words pre-filled — the loop's second lap. Claude's changes are in the
+repo's working tree; Jig wrote none of them (`git status` shows exactly what changed).
 
-## Toolpaths
+## Prompts
 
-The **Toolpath** tool (*"a recorded click sequence, replayable"*) records what you click on the
-plate. Give it a name and **save**; replay it later at whatever **replay speed** you pick, and it
-drives the plate the same way on the trial fit's before/after frames.
+The **Prompts** tab lists every prompt grouped **draft · ready · building · built**, with a
+collapsed *scrapped* count (**put back** restores one — nothing is deleted). Click a row and it
+is the prompt in hand: the requirement, the acceptance, **context Jig appends** (component ·
+file · gauges · routes · endpoints · docs — shown in the open before Build), the stream, and the
+built line. **scrap** sends a draft or ready prompt to the scrap bin.
 
 ## Sketch
 
-The **Sketch** tool (*"a screen that does not exist yet"*) draws a low-fidelity screen on the
-plate using the app's own gauges — for a feature that has no code yet. **new** starts one;
-finished sketches are files under `.jig/sketches/`, clickable through their own hotspots, same as
-a real screen.
+**Sketch** turns the plate into a sheet at the app's size, drawn only with the app's own gauges:
+box · text · button · input · list. Drag to draw on the 4px grid; drag an element and it snaps to
+the grid, then to other elements' edges and centres (and the sheet's centre) within 6px, with a
+storm alignment line on each held axis and the exact coordinates said in words. Delete scraps to
+the bin; **put back** returns it. The sheet is a prompt target: **build this screen →** opens the
+card with that title.
+
+## The logbook
+
+Click `Claude · …` on the status line and the logbook opens as a drawer over it: everything that
+happened on the bench this session — your clamp and survey, the app's own log lines, every step
+of every build — filterable by who (human · Claude · bench · app), newest first, ages against the
+clock. *"nothing leaves the machine."* `Esc` or **close** puts it away.
+
+## Advanced
+
+Everything v0.1 had that is not the loop, one switch away at the rail's foot: the wiring strip,
+**the spine** (every prompt on its four-rung ladder), **rulers & guides**, **the mirror — before |
+after**, the scrap bin count, **fixtures** (reproducible test data from the survey's schemas —
+`new fixture`, **load**, **fill the form**), **toolpath** (**record** Hand clicks on the plate,
+name it, **replay**), and **MCP — the secondary door** (which agent is connected). Switch it off
+and the plate is whole again.
 
 ## Finding your way around
 
-The command palette — **the Halls** — searches everything at once: tools, components, routes,
-gauges, work orders, and clamped docs. Everything that happens on the bench is also recorded in
-the **logbook**.
+The command palette — `Ctrl`/`⌘`+`K`, type, `Enter` — reaches tools, tabs, every prompt, every
+gauge and every surveyed component in two moves; `Esc` closes it.

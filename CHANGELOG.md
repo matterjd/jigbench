@@ -4,6 +4,64 @@ All notable changes to this project are documented in this file. The format foll
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this project does not yet follow
 semantic versioning strictly (pre-1.0).
 
+## [0.2.0] - 2026-09-07
+
+The simplification — `docs/design/AMENDMENT-1-the-simplification.md` (rulings A1–A6, Matter,
+2026-09-06/07), after the first live test of 0.1.0: *"very cluttered but I love all the tooling
+… I mainly want to select sections, write out a requirement from a PM, it saves that as a
+serviceable prompt, we kick that prompt off."* One loop, one button, one command.
+
+- **S11 · Prompt + Build runner** (A1, A2, A4) — the artifact is a **Prompt**
+  (`.jig/prompts/NNNN-<slug>.md`, states draft → ready → building → built, plus scrapped; the
+  file is the prompt Claude receives, verbatim). **Build** runs `claude -p` itself in the clamped
+  repo (`POST /api/prompts/:id/build`), streams its work over the bench WebSocket, records the
+  transcript and the files touched, marks the prompt *built*; cancel; **Polish** on demand (Ollama,
+  nothing fires by itself; no model → no button). Existing work orders migrate to prompts on first
+  start. MCP tools renamed `jig_prompts` / `jig_prompt` / `jig_mark_built` with the old names kept
+  as aliases; `jigbench build` and `jigbench prompts` on the CLI.
+- **S12 · the quiet bench** (A3; concept D · The Quiet Bench, ruled CHASSIS as is) — the loop only,
+  by default: rail **Point · Sketch · Hand**; the app clean on the plate; the **prompt card**
+  anchored beside the selection (never over it) with *what should change here?*, acceptance,
+  Polish, **Ready** (the one held gesture, ~800 ms), **Build**; right column **Prompts · Inspect ·
+  Design system**; one status line (*Claude · idle / building · 00:42 · editing … / built · 3
+  files · 1m 12s*) that opens the logbook. Rulers and guides, the SIM strip, fixtures, toolpath,
+  the mirror, MCP status, the spine and the scrap bin live behind one **Advanced** switch — kept,
+  not deleted.
+- **S13 · sketch that snaps** — real snapping on the sheet: the 4px grid, then other elements'
+  edges and centres within 6px, with an alignment line per held axis and the coordinates said in
+  words; *build this screen* makes a sketch a prompt target.
+- **S14 · retest fixes** — six chassis defects and retest items 22/23/5/18 from the first live
+  test (the properties pane scrolls; the tray bounded; Hand disengages the loupe; the repo root
+  prefers the clamped `.jig/`; `init` writes an explicit `--repo`; a self-contained
+  `implement-work-order` prompt; model + elapsed persisted; fixtures fill Angular's reactive forms).
+- **S16 · any app with a dev server** (A5) — `@jigbench/adapter-web`: any repo with a
+  `package.json` or a stylesheet gets CSS/SCSS/Less gauges, a dev-server guess, honest framework
+  hints, and components/routes marked *unknown* rather than invented; the loupe names components
+  at runtime Angular → React → Vue; nested workspaces (`apps/*`, `packages/*`) are found; `--target`
+  is inferred from the survey.
+- **S17 · setup happens in the app** (A6) — one terminal command, ever: `npx jigbench`. With no
+  repo clamped the bench opens on the **Clamp** screen: recent benches (one click re-clamps), a
+  folder browser or a pasted path, the survey shown as it runs (stack, components, routes,
+  endpoints, gauges, the dev-server guess), **Start the app** (the detected dev script, its log
+  streamed) or a pasted URL, **Docs**, **Register with Claude Code** (`.mcp.json` — what it will
+  say first, then written; the Claude Desktop entry likewise), then the bench. A setup checklist
+  is one click from the status line on every bench. Server side: one re-clampable Bench per repo
+  root (`POST /api/clamp` / `/api/unclamp`), `GET /api/fs/*`, `POST /api/target/{start,stop,url}`
+  with `target-log` over the WebSocket, `GET /api/setup`, `POST /api/setup/{mcp,desktop}`,
+  `POST /api/docs/clamp`; recent benches under `~/.jig/recent.json`. The loop's routes ride on the
+  clamped bench, so the Clamp screen leads straight into Point → Build.
+- **Debt folded** — #7 the bench imports the Prompt model from `@jigbench/core` (the S12 mirror is
+  gone; `BuildStreamEvent`, `ClaudeStatus`, `TargetState`, `RecentBenchEntry` and the host's
+  `BenchState` live in core); #9 the logbook drawer is fed by the build stream and the target's
+  own log (filters human · Claude · bench · app; Esc closes).
+- **Docs** — `docs/TEST-RUN.md` rewritten for the loop (one `npx jigbench`, the Clamp screen,
+  Point → requirement → Polish → hold Ready → Build → Built → *before*, the Advanced tour, your
+  own repo); `docs/ROADMAP.md` (AMENDMENT §6: the stacks after 0.2.0); README and `docs/USING.md`
+  in the amended tongue.
+
+Publishing to npm (`jigbench@0.2.0`, Matter's one-time password), the `v0.2.0` tag and the GitHub
+release are Matter's own explicit calls, made by hand after this version — not part of this entry.
+
 ## [0.1.0] - 2026-09-06
 
 The Tuesday cut — `docs/EXECUTION-PLAN.md`'s full slice table, S1 through S10. One line per

@@ -9,6 +9,7 @@ import { runMcpInstallCommand } from './commands/mcp-install.js';
 import { runBuildCommand } from './commands/build.js'; // S11
 import { runPromptsCommand } from './commands/prompts.js'; // S11
 import { printHuman, printSummary } from './human-output.js';
+import { cliVersion } from './version.js';
 import { logger } from '@jigbench/server';
 
 // `--repo` is declared exactly once, on the root command, and every subcommand reads it
@@ -20,7 +21,7 @@ const program = new Command();
 program
   .name('jigbench')
   .description('Jig — a local-first benchtop that clamps an app repo and surveys it')
-  .version('0.1.0')
+  .version(cliVersion())
   .option('--repo <path>', 'the repo to clamp (default: cwd, walking up to a .git)');
 
 program

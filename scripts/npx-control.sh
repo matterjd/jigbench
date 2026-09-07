@@ -17,7 +17,7 @@
 # survey the SOURCE) -- only jigbench's own commands ever touch this fixture.
 #
 # Usage: bash scripts/npx-control.sh <path-to-tarball>
-#   bash scripts/npx-control.sh "$(pwd)/jigbench-0.1.0.tgz"
+#   bash scripts/npx-control.sh "$(pwd)/jigbench-0.2.0.tgz"
 
 set -euo pipefail
 

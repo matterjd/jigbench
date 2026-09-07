@@ -100,7 +100,10 @@ describe('OrdersService.createMark + draftOrder — the auto-draft flow', () => 
   it('persists model + elapsedMs on the work order itself, not just the ephemeral log', async () => {
     const store = await freshStore();
     const face = { what: 'flag overdue rows', why: 'nobody notices overdue invoices', where: 'InvoiceListComponent', acceptance: ['an overdue row is red'] };
-    const service = new OrdersService({ store, ollama: ollamaAvailable(face, 5) });
+    // 25 ms, asserted as >= 20: `Date.now()` rounds at both ends of the measured span, so a
+    // 5 ms delay read as 4 on CI run 34160451936 (windows) — the tolerance is the clock's, the
+    // assertion's point (a real wait was measured, not guessed) is unchanged.
+    const service = new OrdersService({ store, ollama: ollamaAvailable(face, 25) });
 
     const { workOrder } = await service.createMark({ pick: { path: 'body > app-invoice-list', component: 'InvoiceListComponent' }, prompt: 'flag overdue rows' });
 
@@ -111,7 +114,7 @@ describe('OrdersService.createMark + draftOrder — the auto-draft flow', () => 
     const drafted = store.getWorkOrder(workOrder.id)!;
     expect(drafted.model).toBe('qwen2.5-coder:7b');
     expect(typeof drafted.elapsedMs).toBe('number');
-    expect(drafted.elapsedMs!).toBeGreaterThanOrEqual(5);
+    expect(drafted.elapsedMs!).toBeGreaterThanOrEqual(20);
 
     // Simulating exactly what defect 5 reported: a scrap + a fresh mark means the order is
     // re-read straight off disk (parseWorkOrder), never through the in-memory instance that

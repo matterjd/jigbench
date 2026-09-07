@@ -33,7 +33,7 @@
 # about a normal green run changes.
 #
 # `JIG_MCP_CMD` (S10): when set, this is the exact command to run instead of `node
-# packages/cli/dist/bin.js` — e.g. `JIG_MCP_CMD="npx --yes ./jigbench-0.1.0.tgz"` to run this
+# packages/cli/dist/bin.js` — e.g. `JIG_MCP_CMD="npx --yes ./jigbench-0.2.0.tgz"` to run this
 # SAME purity/shape control against a packed release tarball in a clean directory (the S10
 # npx control), rather than the workspace's own tsc build. Word-split, so quote it as one
 # shell-parseable string; `mcp --repo "$TARGET_REPO"` is always appended after it.
@@ -49,8 +49,8 @@
 #
 # Usage:
 #   bash scripts/stdout-guard.sh                                    (run after `npm run build`)
-#   JIG_MCP_CMD="npx --yes ./jigbench-0.1.0.tgz" bash scripts/stdout-guard.sh   (npx control)
-#   JIG_GUARD_TIMEOUT=120 JIG_MCP_CMD="npx --yes ./jigbench-0.1.0.tgz" bash scripts/stdout-guard.sh
+#   JIG_MCP_CMD="npx --yes ./jigbench-0.2.0.tgz" bash scripts/stdout-guard.sh   (npx control)
+#   JIG_GUARD_TIMEOUT=120 JIG_MCP_CMD="npx --yes ./jigbench-0.2.0.tgz" bash scripts/stdout-guard.sh
 
 set -uo pipefail
 

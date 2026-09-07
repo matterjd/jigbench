@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { mkdtemp, mkdir, readdir, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -150,7 +150,7 @@ describe('POST /api/clamp', () => {
     expect(state.wiring.docs).toBe('wired');
   });
 
-  it('re-clamping to a different repo closes the first bench (its plate stops answering)', async () => {
+  it('re-clamping to a different repo closes the first bench', async () => {
     const h = await boot();
     const repoA = await freshRepo();
     const repoB = await freshRepo();
@@ -160,8 +160,12 @@ describe('POST /api/clamp', () => {
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ repoRoot: repoA }),
     });
-    const firstPlateUrl = h.getBench()!.plate.url;
-    expect(h.getBench()!.repoRoot).toBe(repoA);
+    const first = h.getBench()!;
+    expect(first.repoRoot).toBe(repoA);
+    // Proven through the bench's own close(), not by fetching the old plate URL: with
+    // OS-assigned ports (`port: 0`) the SECOND bench's plate can be handed the very port the
+    // first one just freed and answer 200 there — CI run 34160451936 (ubuntu) did exactly that.
+    const closed = vi.spyOn(first, 'close');
 
     await fetch(`${h.url}/api/clamp`, {
       method: 'POST',
@@ -169,8 +173,8 @@ describe('POST /api/clamp', () => {
       body: JSON.stringify({ repoRoot: repoB }),
     });
     expect(h.getBench()!.repoRoot).toBe(repoB);
-
-    await expect(fetch(firstPlateUrl, { signal: AbortSignal.timeout(1000) })).rejects.toBeDefined();
+    expect(h.getBench()).not.toBe(first);
+    expect(closed).toHaveBeenCalledTimes(1);
   });
 });
 
@@ -184,7 +188,8 @@ describe('POST /api/unclamp', () => {
       body: JSON.stringify({ repoRoot }),
     });
     expect(h.getBench()).not.toBeNull();
-    const plateUrl = h.getBench()!.plate.url;
+    const bench = h.getBench()!;
+    const closed = vi.spyOn(bench, 'close'); // see the re-clamp test above for why not a fetch
 
     const res = await fetch(`${h.url}/api/unclamp`, { method: 'POST' });
     expect(res.status).toBe(200);
@@ -192,7 +197,7 @@ describe('POST /api/unclamp', () => {
 
     const state = await (await fetch(`${h.url}/api/state`)).json();
     expect(state.bench).toBeNull();
-    await expect(fetch(plateUrl, { signal: AbortSignal.timeout(1000) })).rejects.toBeDefined();
+    expect(closed).toHaveBeenCalledTimes(1);
   });
 });
 
