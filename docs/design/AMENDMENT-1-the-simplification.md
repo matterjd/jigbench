@@ -82,3 +82,25 @@ Unchanged: bench · clamp · survey · plate · sketch · logbook · scrap bin.
 
 Order: S14 (running) → S11 ‖ concept D verdict → S12 ‖ S13 → S15. Tuesday's first clamp runs on
 whatever is on `main` that morning, with the loop's server side (S11) the priority.
+
+## 6. Beyond Angular + .NET (ruled 2026-09-07)
+
+**Matter:** *"It would be nice for us to be able to use jig with other types of applications /
+frameworks / codebases."* **A5 — RULED: Jig works with any app that has a dev server; the loop
+never depends on a survey adapter, and adapters only enrich** (component names and files, gauges,
+routes, endpoints, docs). Where no adapter matches, the survey says so honestly and the loop still
+runs: the plate proxies the dev server, Point selects by DOM path and tag, the prompt carries what
+Jig knows, Build runs Claude Code in the repo.
+
+| Layer | How it generalises | Slice |
+|---|---|---|
+| **Runtime component naming** (the loupe) | Angular `ng.getComponent`; React via the element's `__reactFiber$…` key walking `return` to the nearest named `type` (`displayName`/`name`); Vue via `__vueParentComponent`; Svelte/other → tag + DOM path, honestly | S16 |
+| **Generic `web` adapter** | any repo with stylesheets: CSS custom properties + SCSS/Less variables → gauges; `package.json` scripts → dev-server guess; components/routes marked *unknown* rather than invented | S16 |
+| **Nested workspaces** | `angular.json` (and later `vite.config`, `next.config`) found two levels down (`apps/*/`), `--target` inferred from it | S16 |
+| **React / Next / Vite** adapter | components via react-docgen-typescript, routes via React Router / Next app dir, tokens via the web adapter + Tailwind (v3 `resolveConfig`; v4 `@theme` CSS) | v0.3 |
+| **Vue / Svelte** | vue-component-meta; Svelte via the compiler's metadata | v0.3 |
+| **Expo / React Native** | Expo web on the plate; components via the same React resolver | v0.3 |
+| **Server-rendered** (Blazor/Razor, Rails, Django, PHP) | templates/partials by file scan, routes from the framework's table, gauges via the web adapter; the plate proxies the running site | v0.3 |
+| **APIs beyond .NET** | OpenAPI/Swagger documents first (framework-neutral); regex-lite fallbacks per language only where a spec is absent | v0.3 |
+
+The tongue and the floor do not change. `docs/ROADMAP.md` (S15) carries this table forward.
