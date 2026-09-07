@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { SketchSheet } from './SketchSheet.js';
 import { resetSketchWorkspaceForTests, setPaletteTool } from './sketchWorkspace.js';
@@ -220,6 +220,22 @@ describe('SketchSheet — real snapping: grid, then alignment to other elements\
 
     // Releasing the drag clears the alignment lines again.
     expect(screen.queryByTestId('sketch-align-v')).toBeNull();
+  });
+});
+
+describe('SketchSheet — "build this screen" is a prompt target (S12/S13)', () => {
+  it('renders a "build this screen" button that calls onBuildScreen when an open sketch is on the sheet', async () => {
+    const created = { jigFormat: 1, id: '0001', name: 'S', createdAt: 'a', updatedAt: 'a', size: { w: 640, h: 480 }, elements: [], links: [] };
+    const { fetchImpl } = routedFetch({ 'GET /api/sketches': { sketches: [] }, 'POST /api/sketches': created });
+    const onBuildScreen = vi.fn();
+    render(<SketchSheet fetchImpl={fetchImpl} onBuildScreen={onBuildScreen} />);
+    await screen.findByText(/no sketches yet/i);
+    fireEvent.change(screen.getByPlaceholderText(/name this sketch/i), { target: { value: 'S' } });
+    fireEvent.click(screen.getByRole('button', { name: /^new$/i }));
+    await screen.findByLabelText('sketch sheet');
+
+    fireEvent.click(screen.getByRole('button', { name: /build this screen/i }));
+    expect(onBuildScreen).toHaveBeenCalled();
   });
 });
 

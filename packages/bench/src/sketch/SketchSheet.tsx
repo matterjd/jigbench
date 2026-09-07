@@ -29,6 +29,10 @@ export interface SketchSheetProps {
    * smallest-`space`-gauge rule the plate's rulers/guides already use). */
   gauges?: readonly Gauge[];
   fetchImpl?: typeof fetch;
+  /** "The sheet is a prompt target: build this screen → opens the card with that title" (S12/
+   * S13 brief). Absent = the button isn't rendered (App.tsx always provides one in the real
+   * bench; tests that don't care about the loop can omit it). */
+  onBuildScreen?: () => void;
 }
 
 function isTypingTarget(target: EventTarget | null): boolean {
@@ -58,7 +62,7 @@ interface DragState {
  * renders the drawing surface itself — click-to-add (the concept's own interaction, snapped
  * to the grid), drag-to-move, a resize handle, and `Delete` to scrap the selection.
  */
-export function SketchSheet({ gauges, fetchImpl = fetch }: SketchSheetProps) {
+export function SketchSheet({ gauges, fetchImpl = fetch, onBuildScreen }: SketchSheetProps) {
   const state = useSketchWorkspace();
   const sheetRef = useRef<HTMLDivElement>(null);
   const dragRef = useRef<DragState | null>(null);
@@ -254,6 +258,13 @@ export function SketchSheet({ gauges, fetchImpl = fetch }: SketchSheetProps) {
             </button>
             <button type="button" className="jig-sketch-sheet-panel__printed" onClick={() => printed()}>
               printed
+            </button>
+          </span>
+        )}
+        {onBuildScreen && (
+          <span className="jig-sketch-sheet-panel__actions">
+            <button type="button" className="jig-sketch-sheet-panel__build-screen" onClick={onBuildScreen}>
+              build this screen →
             </button>
           </span>
         )}
