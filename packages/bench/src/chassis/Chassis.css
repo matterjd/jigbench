@@ -48,6 +48,14 @@
   z-index: 1;
 }
 
+/* S17b: the Clamp screen's row — one scrolling region in place of rail · plate · column. */
+.jig-chassis__screen {
+  min-height: 0;
+  min-width: 0;
+  overflow: auto;
+  background: var(--bg0);
+}
+
 .jig-chassis__status-line {
   min-height: 0;
 }

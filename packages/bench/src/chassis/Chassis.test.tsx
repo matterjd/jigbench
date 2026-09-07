@@ -32,6 +32,25 @@ describe('Chassis (S12: rail | plate(+advanced drawer) | column, one status line
     expect(container.querySelector('.jig-chassis__advanced-slot')?.textContent).toBe('');
   });
 
+  it('renders ONLY the screen (and the status line) when a screen is given — the Clamp screen replaces rail, plate and column (S17b)', () => {
+    const { container } = render(
+      <Chassis
+        rail={<div>rail content</div>}
+        plate={<div>plate content</div>}
+        column={<div>column content</div>}
+        statusLine={<div>status line content</div>}
+        screen={<div>clamp screen content</div>}
+      />,
+    );
+    expect(screen.getByText('clamp screen content')).toBeTruthy();
+    expect(screen.getByText('status line content')).toBeTruthy();
+    expect(screen.queryByText('rail content')).toBeNull();
+    expect(screen.queryByText('plate content')).toBeNull();
+    expect(screen.queryByText('column content')).toBeNull();
+    expect(container.querySelector('.jig-chassis__bench')).toBeNull();
+    expect(container.querySelector('.jig-chassis__screen')).toBeTruthy();
+  });
+
   it('renders the Advanced drawer content when given', () => {
     render(
       <Chassis
@@ -75,6 +94,12 @@ describe('Chassis — layout contract', () => {
   it('the centre stacks the plate (a floored 1fr) over the advanced-drawer slot (auto — 0 height when empty)', () => {
     const centre = ruleFor('.jig-chassis__centre');
     expect(centre).toMatch(/grid-template-rows:\s*minmax\(400px,\s*1fr\)\s+auto/);
+  });
+
+  it('the screen slot fills the bench row and scrolls inside itself, never the page', () => {
+    const screenRule = ruleFor('.jig-chassis__screen');
+    expect(screenRule).toMatch(/min-height:\s*0/);
+    expect(screenRule).toMatch(/overflow:\s*auto/);
   });
 
   it('every region is min-height/min-width: 0 so none can push another off-screen', () => {
