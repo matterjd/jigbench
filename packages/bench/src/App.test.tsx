@@ -176,5 +176,12 @@ describe('App (S12: the quiet bench)', () => {
     fireEvent.change(screen.getByPlaceholderText(/what should change here/i), { target: { value: 'show days overdue' } });
 
     expect(screen.getByPlaceholderText(/what should change here/i)).toHaveProperty('value', 'show days overdue');
+
+    // The real bug a live-browser check caught: with no /api/prompts on this server, the typed
+    // text never becomes a real Prompt, but it must still count as a draft for the CARD's own
+    // ember rule — Ready has to light up once there are words, whether or not anything persisted.
+    const ready = screen.getByRole('button', { name: /Ready — hold/i });
+    expect(ready.className).toMatch(/ember/);
+    expect(ready.hasAttribute('disabled')).toBe(false);
   });
 });

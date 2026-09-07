@@ -46,14 +46,21 @@ describe('PlateBench', () => {
     expect(document.querySelector('iframe')?.getAttribute('src')).toBe('http://localhost:4601/');
   });
 
-  it('renders the top and left rulers reading the plate\'s CSS pixels', async () => {
+  it('renders NO rulers by default (S12/AMENDMENT-1 §4: "no rulers or guides by default")', async () => {
     const { container } = render(<PlateBench fetchImpl={fakeFetch({ target: null, port: 0, status: 'none', changes: [] })} />);
+    await waitFor(() => expect(screen.getByText(/no target is set/i)).toBeTruthy());
+    expect(container.querySelector('.jig-plate-rulers')).toBeNull();
+    expect(container.querySelector('.jig-plate-guides')).toBeNull();
+  });
+
+  it('renders the top and left rulers reading the plate\'s CSS pixels when showRulers is on (the Advanced drawer\'s switch)', async () => {
+    const { container } = render(<PlateBench showRulers fetchImpl={fakeFetch({ target: null, port: 0, status: 'none', changes: [] })} />);
     await waitFor(() => expect(container.querySelector('.jig-plate-rulers__top canvas')).toBeTruthy());
     expect(container.querySelector('.jig-plate-rulers__left canvas')).toBeTruthy();
   });
 
-  it('shows no guides when nothing has been picked', async () => {
-    const { container } = render(<PlateBench fetchImpl={fakeFetch({ target: null, port: 0, status: 'none', changes: [] })} />);
+  it('shows no guides when nothing has been picked, even with showRulers on', async () => {
+    const { container } = render(<PlateBench showRulers fetchImpl={fakeFetch({ target: null, port: 0, status: 'none', changes: [] })} />);
     await waitFor(() => expect(container.querySelector('.jig-plate-rulers')).toBeTruthy());
     expect(container.querySelector('.jig-plate-guides__line')).toBeNull();
   });

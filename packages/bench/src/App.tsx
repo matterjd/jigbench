@@ -9,8 +9,6 @@ import { useAdvanced } from './chassis/advancedState.js';
 import { GaugesPanel } from './gauges/GaugesPanel.js';
 import { selectorsForGauge } from './gauges/resolveGaugeUsage.js';
 import { PlateBench, type PlateBenchHandle } from './plate/PlateBench.js';
-import { PlateRulers } from './plate/PlateRulers.js';
-import { PlateGuides } from './plate/PlateGuides.js';
 import type { PlateEvent, PlatePick } from './plate/usePlateBridge.js';
 import { CommandPalette, type PaletteDocsResult } from './palette/CommandPalette.js';
 import { FixturePanel } from './fixtures/index.js';
@@ -134,9 +132,14 @@ export function App() {
     ? prompts.prompts.find((p) => p.state !== 'scrapped' && targetsMatch(p.target, cardTarget.promptTarget)) ?? null
     : null;
 
-  const cardState = matchedPrompt?.state ?? 'none';
   const cardText = matchedPrompt?.requirement ?? localText;
   const cardAcceptance = matchedPrompt?.acceptance ?? localAcceptance;
+  // "a draft is not saved until it has words" (concept D) — but once it HAS words, it is a
+  // draft for the card's own purposes whether or not a real Prompt exists yet server-side.
+  // Without this fallback, a server with no /api/prompts (S11 not on main) leaves cardState
+  // stuck at 'none' forever, and Ready never lights up even though the words are right there —
+  // a real bug a live-browser check against the actual (S11-less) main server caught.
+  const cardState = matchedPrompt?.state ?? (cardText.trim() ? 'draft' : 'none');
 
   async function handleCardTextChange(text: string): Promise<void> {
     if (matchedPrompt) {
@@ -192,19 +195,16 @@ export function App() {
             {tool === 'sketch' ? (
               <SketchSheet gauges={gauges} onBuildScreen={openSketchCard} />
             ) : (
-              <>
-                {rulersOn && <PlateRulers cursor={null} />}
-                <PlateBench
-                  ref={plateRef}
-                  survey={survey}
-                  gauges={gauges}
-                  onPick={setLastPick}
-                  onEvent={setLastEvent}
-                  iframeRef={plateIframeRef}
-                  onPlateOriginChange={setPlateOrigin}
-                />
-                {rulersOn && <PlateGuides rect={lastPick?.rect ?? null} grid={{ px: 4, fallbackUsed: true }} />}
-              </>
+              <PlateBench
+                ref={plateRef}
+                survey={survey}
+                gauges={gauges}
+                onPick={setLastPick}
+                onEvent={setLastEvent}
+                iframeRef={plateIframeRef}
+                onPlateOriginChange={setPlateOrigin}
+                showRulers={rulersOn}
+              />
             )}
             {cardTarget && (
               <PromptCard

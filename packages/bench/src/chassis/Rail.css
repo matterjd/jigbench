@@ -99,7 +99,7 @@
   padding-bottom: 4px;
   cursor: pointer;
   color: var(--dim);
-  font-size: 10.5px;
+  font-size: 11px; /* floor item 3: nothing under 11px unless paired with a non-text signal */
   font-weight: 600;
   letter-spacing: 0.02em;
   position: relative;

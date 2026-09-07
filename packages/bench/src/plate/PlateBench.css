@@ -35,14 +35,20 @@
   min-height: 400px; /* CHASSIS.md's usable floor — 560x400 — matches the chassis row's own minmax(400px, 1fr) */
 }
 
-/* Offset by the rulers' own 20px corner/band (PlateRulers.css) so the iframe area lines up
-   exactly with where the rulers say the app's origin is. */
+/* No rulers by default (S12/AMENDMENT-1 §4) — the app fills the plate exactly. */
 .jig-plate-bench__viewport {
   position: absolute;
-  top: 20px;
-  left: 20px;
+  top: 0;
+  left: 0;
   right: 0;
   bottom: 0;
+}
+
+/* Offset by the rulers' own 20px corner/band (PlateRulers.css) so the iframe area lines up
+   exactly with where the rulers say the app's origin is — only while showRulers is on. */
+.jig-plate-bench__viewport--with-rulers {
+  top: 20px;
+  left: 20px;
 }
 
 .jig-plate-bench__viewport .jig-plate-frame,
