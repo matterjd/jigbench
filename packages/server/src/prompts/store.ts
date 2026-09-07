@@ -19,6 +19,10 @@ import { atomicWriteFile } from '../atomic-write.js';
 import { pathExists } from '../fs-util.js';
 import { logger } from '../logger.js';
 
+function isEnoent(err: unknown): boolean {
+  return typeof err === 'object' && err !== null && (err as { code?: unknown }).code === 'ENOENT';
+}
+
 /**
  * S11 (AMENDMENT-1 A4, commission F5 "files are the state"): the on-disk index of
  * `.jig/prompts/<id>-<slug>.md`. Same shape as `store.ts`'s work-order handling — an
@@ -126,14 +130,26 @@ export class PromptStore {
   }
 
   private async loadAll(): Promise<Prompt[]> {
+    // A folder that is gone by the time it is read — removed between the existence check and
+    // the `readdir`, or a file removed between the listing and its read — is the same honest
+    // "no prompts yet" as one that never existed. CI run 34161043365 (windows-latest) hit the
+    // first gap: `mcp/prompt-tools.ts` starts its default store eagerly, and a test's teardown
+    // removed the temp repo while that store was still initialising.
     if (!(await pathExists(this.paths.prompts))) return [];
-    const entries = await readdir(this.paths.prompts);
+    let entries: string[];
+    try {
+      entries = await readdir(this.paths.prompts);
+    } catch (err) {
+      if (isEnoent(err)) return [];
+      throw err;
+    }
     const prompts: Prompt[] = [];
     for (const entry of entries) {
       if (!entry.endsWith('.md')) continue;
       try {
         prompts.push(parsePrompt(await readFile(join(this.paths.prompts, entry), 'utf8')));
       } catch (err) {
+        if (isEnoent(err)) continue; // removed between the listing and the read — not a prompt any more
         logger.warn(`prompt ${entry} failed to parse; skipping it`, String(err));
       }
     }

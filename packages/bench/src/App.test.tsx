@@ -78,6 +78,26 @@ function sendState(state: unknown): void {
   });
 }
 
+/** Points at something on the plate and waits for the prompt card. The plate bridge attaches
+ * its `message` listener in an effect AFTER the iframe first renders, so ONE dispatch right after
+ * "the iframe exists" can land before the listener does and is simply lost — CI run 34161356867
+ * (windows-latest) did exactly that. The pick is re-dispatched on every retry until the card is
+ * open; a repeated identical pick re-opens the same card, so the retries are idempotent. */
+async function pickOnPlate(pick: Record<string, unknown>): Promise<HTMLElement> {
+  await waitFor(() => {
+    if (!document.querySelector('iframe')) throw new Error('no iframe yet');
+  });
+  return waitFor(
+    () => {
+      act(() => {
+        window.dispatchEvent(new MessageEvent('message', { data: { type: 'jig:pick', ...pick }, origin: 'http://localhost:4601' }));
+      });
+      return screen.getByRole('dialog', { name: /prompt card/i });
+    },
+    { timeout: 4000 },
+  );
+}
+
 describe('App (S12: the quiet bench)', () => {
   beforeEach(() => {
     FakeWebSocket.instances = [];
@@ -156,28 +176,14 @@ describe('App (S12: the quiet bench)', () => {
         : undefined,
     );
     render(<App />);
-    await waitFor(() => {
-      if (!document.querySelector('iframe')) throw new Error('no iframe yet');
+    const dialog = await pickOnPlate({
+      path: 'app-invoice-list',
+      tag: 'app-invoice-list',
+      text: 'Invoices',
+      component: 'InvoiceListComponent',
+      file: 'src/app/invoices/invoice-list/invoice-list.component.ts',
+      rect: { x: 100, y: 100, width: 200, height: 60 },
     });
-
-    act(() => {
-      window.dispatchEvent(
-        new MessageEvent('message', {
-          data: {
-            type: 'jig:pick',
-            path: 'app-invoice-list',
-            tag: 'app-invoice-list',
-            text: 'Invoices',
-            component: 'InvoiceListComponent',
-            file: 'src/app/invoices/invoice-list/invoice-list.component.ts',
-            rect: { x: 100, y: 100, width: 200, height: 60 },
-          },
-          origin: 'http://localhost:4601',
-        }),
-      );
-    });
-
-    const dialog = await screen.findByRole('dialog', { name: /prompt card/i });
     expect(within(dialog).getByText('InvoiceListComponent')).toBeTruthy();
   });
 
@@ -188,18 +194,7 @@ describe('App (S12: the quiet bench)', () => {
         : undefined,
     );
     render(<App />);
-    await waitFor(() => {
-      if (!document.querySelector('iframe')) throw new Error('no iframe yet');
-    });
-    act(() => {
-      window.dispatchEvent(
-        new MessageEvent('message', {
-          data: { type: 'jig:pick', path: 'x', tag: 'div', text: '', component: 'InvoiceListComponent', file: 'x.ts', rect: { x: 0, y: 0, width: 10, height: 10 } },
-          origin: 'http://localhost:4601',
-        }),
-      );
-    });
-    await screen.findByRole('dialog', { name: /prompt card/i });
+    await pickOnPlate({ path: 'x', tag: 'div', text: '', component: 'InvoiceListComponent', file: 'x.ts', rect: { x: 0, y: 0, width: 10, height: 10 } });
 
     fireEvent.change(screen.getByPlaceholderText(/what should change here/i), { target: { value: 'show days overdue' } });
 
