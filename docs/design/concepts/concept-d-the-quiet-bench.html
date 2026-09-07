@@ -1,0 +1,1418 @@
+<!doctype html>
+<html lang="en" data-tool="point" data-plate="app" data-adv="off">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="dark">
+<title>Concept D · The Quiet Bench — Jig (sim)</title>
+<style>
+/* ==========================================================================
+   Concept D · The Quiet Bench — Jig, the amendment round
+   (AMENDMENT-1-the-simplification.md A1–A4, §3, §4; COMMISSION.md F-rows where
+   the amendment does not name them)
+
+   A SIM. Nothing here is wired: no server, no proxy, no model, no MCP. The app
+   on the plate is "Ledger · SIM", a pretend third-party Angular app drawn in its
+   OWN tokens (the .ledger block) so Point has something honest to name. Every
+   fake is labeled SIM; the status line's clock is the only clock on the page.
+
+   THE BET: the loop is the whole surface, and every other instrument is one
+   toggle away. Rail (Point · Sketch · Hand · Advanced), the plate, one right
+   column (Prompts · Inspect · Design system), one status line. Designed for
+   1440×900; holds at 1280×720.
+
+   The :root block below is design-book/tokens/starter.css, VERBATIM (floor B,
+   items 8–9). Everything after the END marker is this concept's own, and every
+   colour after it is a var() over that block — Jig's chrome invents nothing.
+   ========================================================================== */
+
+/* ==========================================================================
+   Matter Design Book · starter tokens — v0.1 (2026-08-03)
+
+   FOR NEW SURFACES ONLY. This file seeds a brand-new app; it is NOT a mirror
+   of any existing app's tokens and no existing app should import it. Each
+   app's own token file (cc styles.scss, sage theme.ts, wyrdglass _tokens.scss,
+   gravitas palette.ts) remains that app's truth — the book's drift rule
+   (design-book/00-the-claim.md) governs disagreements.
+
+   Provenance: ground/ink/status from command-center styles.scss:5-27
+   ("Obsidian & Ember", ideas/command-center/BRIEF.md D12); gold law from
+   axis-grim ADR 0001; storm from wyrdglass electros accent, promoted by the
+   book; motion scale from wyrdglass _tokens.scss.
+   ========================================================================== */
+
+:root {
+  /* Ground — the depth ladder's material (design-book/03) */
+  --bg0: #0a0c0f;            /* z0 the floor */
+  --bg1: #10141a;            /* z1 rest — panels, hairline, no shadow */
+  --bg2: #171d26;            /* z2 raised — in-flight, inner blocks */
+  --bg3: #1f2733;            /* z3 held — active/selected ground */
+  --line: #232b37;           /* primary hairline */
+  --line-soft: #1a212b;      /* internal divider */
+  --scrim: rgba(4, 6, 9, 0.6);  /* z4 the veil */
+
+  /* Ink */
+  --ink: #e8e6e1;            /* primary text */
+  --dim: #9aa3ad;            /* secondary text */
+  --faint: #5c6672;          /* provenance only — never load-bearing (a11y floor) */
+
+  /* Status voices — semantics are law (design-book/01): never decorative */
+  --ember: #f2762e;          /* a HUMAN is the next actor — the only demand color */
+  --ember-soft: rgba(242, 118, 46, 0.14);
+  --ember-dark: #a34d1e;     /* gradient stop / pressed */
+  --wyrd: #9d8cff;           /* agent-side identity & memory */
+  --wyrd-soft: rgba(157, 140, 255, 0.12);
+  --ok: #7fb069;             /* verified good */
+  --ok-soft: rgba(127, 176, 105, 0.12);
+  --warn: #d9a441;           /* in flight / aging */
+  --warn-soft: rgba(217, 164, 65, 0.14);
+  --alert: #e0483e;          /* a flow is STOPPED */
+  --alert-soft: rgba(224, 72, 62, 0.12);
+  --on-accent: #0a0c0f;      /* dark text on filled accent chips */
+
+  /* Lore accents — the Triune channels (design-book/01) */
+  --gold: #e0b55b;           /* sacred: hairline/ring/stroke ONLY — never a fill */
+  --storm: #5fc9e0;          /* live/right-now signals — must not compete with ember */
+  --storm-soft: rgba(95, 201, 224, 0.12);
+
+  /* Type */
+  --sans: 'Segoe UI Variable', 'Segoe UI', Inter, system-ui, sans-serif;
+  --mono: 'Cascadia Code', 'JetBrains Mono', Consolas, ui-monospace, monospace;
+  /* Ramp: body 14/1.45 · display 20-22/650 (one per screen) · panel title
+     11/600 uppercase +0.14em · secondary 12.5 · provenance 10.5 mono ·
+     chips 9-10.5/700 uppercase (sub-11px must pair with a non-text signal) */
+
+  /* Shape — 4px grid */
+  --r: 10px;                 /* panels */
+  --r-inner: 6px;            /* inner blocks, inputs */
+  --r-micro: 4px;            /* micro chips */
+  --r-pill: 999px;           /* pills */
+
+  /* Earned shadows — lift only, never at rest (design-book/03) */
+  --shadow-held: 0 6px 24px rgba(0, 0, 0, 0.45);    /* z3 held */
+  --shadow-overlay: 0 18px 48px rgba(0, 0, 0, 0.55); /* z5 overlay */
+
+  /* Motion mass (design-book/03): feather / slab / stone / oath */
+  --t-feather: 120ms;
+  --t-slab: 280ms;
+  --t-stone: 400ms;
+  --t-oath: 800ms;           /* hold-gated fill — time IS the affordance */
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --ease-settle: cubic-bezier(0.05, 0.7, 0.1, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1); /* feather-class acks only */
+}
+
+/* Reduced motion is mandatory: depth stays, travel goes. */
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --t-feather: 0ms;
+    --t-slab: 0ms;
+    --t-stone: 0ms;
+    /* --t-oath stays: the hold IS the safety, not an animation */
+  }
+}
+
+/* ==========================================================================
+   END of the inherited token block (design-book/tokens/starter.css, verbatim).
+   Everything below is Concept D's own. Derived values are named where derived.
+   ========================================================================== */
+
+*, *::before, *::after { box-sizing: border-box; }
+html, body { height: 100%; }
+body {
+  margin: 0; background: var(--bg0); color: var(--ink); font: 14px/1.45 var(--sans);
+  overflow: hidden; /* a cockpit: one screen, no page scroll */
+  display: grid; grid-template-rows: 1fr 28px; /* the bench · the status line */
+}
+button { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; }
+input, textarea { font: inherit; color: inherit; }
+button:focus-visible, input:focus-visible, textarea:focus-visible, [tabindex]:focus-visible, summary:focus-visible { outline: 2px solid var(--storm); outline-offset: 2px; }
+.mono { font-family: var(--mono); }
+.dim { color: var(--dim); }
+.faint { color: var(--faint); } /* provenance only — never load-bearing (item 2) */
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+[hidden] { display: none !important; }
+
+/* Type ramp (01-foundations): nothing on this page renders under 11px. */
+.title { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.14em; color: var(--dim); }
+.chip {
+  display: inline-flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; line-height: 1;
+  padding: 5px 8px; border-radius: var(--r-micro); border: 1px solid var(--line); color: var(--dim); background: var(--bg1); white-space: nowrap;
+}
+.chip .dot { width: 6px; height: 6px; border-radius: var(--r-pill); background: currentColor; flex: none; }
+.chip.storm { color: var(--storm); border-color: var(--storm); background: var(--storm-soft); }
+.chip.wyrd { color: var(--wyrd); border-color: var(--wyrd); background: var(--wyrd-soft); }
+.chip.ok { color: var(--ok); border-color: var(--ok); background: var(--ok-soft); }
+.chip.warn { color: var(--warn); border-color: var(--warn); background: var(--warn-soft); }
+.chip.sim { color: var(--dim); border-style: dashed; }
+.prov { font: 11px/1.4 var(--mono); color: var(--faint); }
+.say { font-size: 12.5px; color: var(--dim); }
+.say b { color: var(--ink); font-weight: 600; }
+.link { color: var(--ink); font-size: 12.5px; text-decoration: underline; text-decoration-color: var(--line); text-underline-offset: 3px; }
+.link:hover { text-decoration-color: var(--ink); }
+.hair { /* a hairline button: the resting grammar for every non-demand act */
+  display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 10px; border-radius: var(--r-inner);
+  border: 1px solid var(--line); background: var(--bg1); color: var(--ink); font-size: 12.5px; font-weight: 600; white-space: nowrap;
+  transition: background var(--t-feather) var(--ease-standard);
+}
+.hair:hover { background: var(--bg2); }
+.hair[aria-pressed="true"] { background: var(--bg3); }
+.hair:disabled { color: var(--dim); cursor: not-allowed; }
+.hair svg { width: 12px; height: 12px; stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.printed { /* Law III.7 — the one affordance back to printed value; present only when a surface is off its default */
+  display: inline-flex; align-items: center; gap: 6px; height: 24px; padding: 0 8px; border-radius: var(--r-micro);
+  border: 1px solid var(--line); color: var(--ink); font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; background: var(--bg1);
+}
+.printed:hover { background: var(--bg2); }
+.printed svg { width: 12px; height: 12px; stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round; }
+/* a small switch — Advanced, before/after, rulers, mirror: the word is always beside it (item 6) */
+.sw { position: relative; display: inline-block; width: 28px; height: 16px; border-radius: var(--r-pill); border: 1px solid var(--line); background: var(--bg2); flex: none; transition: border-color var(--t-feather) var(--ease-standard); }
+.sw::after { content: ""; position: absolute; top: 2px; left: 2px; width: 10px; height: 10px; border-radius: 50%; background: var(--dim); transition: transform var(--t-feather) var(--ease-standard), background var(--t-feather) var(--ease-standard); }
+.switch { position: relative; display: inline-flex; align-items: center; gap: 8px; cursor: pointer; color: var(--ink); font-size: 12.5px; } /* relative: the hidden input must be contained, or it escapes the pane's clipping */
+.switch input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+.switch input:checked + .sw { border-color: var(--ink); }
+.switch input:checked + .sw::after { transform: translateX(12px); background: var(--ink); }
+.switch input:focus-visible + .sw { outline: 2px solid var(--storm); outline-offset: 2px; }
+
+/* ---- The bench: rail · centre · one right column ---- */
+.bench { display: grid; grid-template-columns: 56px 1fr 340px; min-height: 0; min-width: 0; }
+
+.rail { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 10px 0 12px; background: var(--bg1); border-right: 1px solid var(--line); }
+.wordmark { width: 40px; height: 36px; display: grid; place-items: center; margin-bottom: 6px; color: var(--ink); }
+.wordmark svg { width: 20px; height: 20px; }
+.tool {
+  position: relative; width: 40px; height: 40px; display: grid; place-items: center; border-radius: var(--r-inner); color: var(--dim); border: 1px solid transparent;
+  transition: background var(--t-feather) var(--ease-standard), color var(--t-feather) var(--ease-standard);
+}
+.tool svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+.tool:hover { background: var(--bg2); color: var(--ink); }
+.tool[aria-pressed="true"] { background: var(--bg3); color: var(--ink); border-color: var(--line); }
+.tool[aria-pressed="true"]::before { content: ""; position: absolute; left: -9px; top: 8px; bottom: 8px; width: 3px; border-radius: 2px; background: var(--storm); } /* the live tool: spine + position, never colour alone */
+.rail .gap { flex: 1; }
+.adv-switch { display: grid; justify-items: center; gap: 6px; cursor: pointer; color: var(--dim); font-size: 11px; font-weight: 600; letter-spacing: 0.02em; position: relative; }
+.adv-switch input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+.adv-switch input:checked + .sw { border-color: var(--ink); }
+.adv-switch input:checked + .sw::after { transform: translateX(12px); background: var(--ink); }
+.adv-switch input:focus-visible + .sw { outline: 2px solid var(--storm); outline-offset: 2px; }
+.adv-switch input:checked ~ .w { color: var(--ink); }
+
+/* A tool's plain word — shown on hover / first encounter (F14). z2 raised, no shadow. */
+.tip { position: fixed; z-index: 20; pointer-events: none; max-width: 300px; padding: 8px 10px; border-radius: var(--r-inner); background: var(--bg2); border: 1px solid var(--line); color: var(--ink); font-size: 12.5px; line-height: 1.4; opacity: 0; transition: opacity var(--t-feather) var(--ease-standard); }
+.tip.on { opacity: 1; }
+.tip b { font-weight: 650; }
+.tip .pair { color: var(--dim); }
+
+/* ---- Centre: the plate, and the Advanced drawer under it (a panel at rest — hairline, no shadow) ---- */
+.centre { display: grid; grid-template-rows: 1fr auto; min-width: 0; min-height: 0; }
+.plate-wrap { position: relative; min-width: 0; min-height: 0; overflow: hidden; background: var(--bg0); display: grid; grid-template-rows: 0 1fr; grid-template-columns: 0 1fr; }
+.plate-wrap.rulers { grid-template-rows: 20px 1fr; grid-template-columns: 20px 1fr; }
+.ruler { position: relative; background: var(--bg1); overflow: hidden; display: none; }
+.plate-wrap.rulers .ruler { display: block; }
+.ruler.top { grid-row: 1; grid-column: 2; border-bottom: 1px solid var(--line); }
+.ruler.left { grid-row: 2; grid-column: 1; border-right: 1px solid var(--line); }
+.ruler canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
+.corner { grid-row: 1; grid-column: 1; background: var(--bg1); border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); display: none; place-items: center; font: 11px/1 var(--mono); color: var(--faint); }
+.plate-wrap.rulers .corner { display: grid; }
+.plate { grid-row: 2; grid-column: 2; position: relative; overflow: auto; min-width: 0; min-height: 0; }
+html[data-tool="hand"] .plate { cursor: grab; }
+html[data-tool="point"] .plate { cursor: crosshair; }
+.plate-inner { min-width: 100%; min-height: 100%; padding: 36px 24px 36px; display: flex; gap: 24px; align-items: stretch; }
+.frame { position: relative; flex: 1; min-width: 760px; min-height: 560px; border: 1px solid var(--line); border-radius: var(--r-micro); background: var(--bg1); }
+.frame-tab { position: absolute; left: -1px; top: -24px; height: 24px; display: inline-flex; align-items: center; gap: 8px; padding: 0 8px; font: 11px/1 var(--mono); color: var(--dim); background: var(--bg1); border: 1px solid var(--line); border-bottom: 0; border-radius: var(--r-micro) var(--r-micro) 0 0; white-space: nowrap; }
+.frame-tab .on-warn { color: var(--warn); }
+.frame-tab .on-wyrd { color: var(--wyrd); }
+/* the mirror (Advanced): before | after, two plates at half scale */
+.plate-inner.mirror { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+.plate-inner.mirror .frame { min-width: 0; min-height: 0; width: 200%; height: 200%; transform: scale(0.5); transform-origin: 0 0; }
+.plate-inner.mirror .frame-tab { transform: scale(2); transform-origin: 0 100%; } /* Jig's own label counter-scales: printed size inside a half-scale plate */
+.frame.snap .fit { display: none !important; } /* the release snapshot: nothing any build added */
+html[data-plate="app"] #frame-sketch { display: none; }
+html[data-plate="sketch"] #frame-app, html[data-plate="sketch"] #frame-before { display: none; }
+
+/* the plate's own voice (bottom-left) and its printed (bottom-right): both inside the plate's box, never a bar */
+.plate-say { position: absolute; left: 12px; bottom: 8px; z-index: 6; font-size: 12.5px; color: var(--dim); pointer-events: none; }
+.plate-say b { color: var(--ink); font-weight: 600; }
+.plate-printed { position: absolute; right: 12px; bottom: 8px; z-index: 6; }
+.plate-wrap.rulers .plate-say { left: 32px; }
+
+/* overlay: Point's hover hairline, the selection hairline + tag, lit gauge uses, the toolpath ghost — all over the plate, none catch the pointer */
+.overlay { position: absolute; inset: 0; pointer-events: none; z-index: 5; overflow: hidden; }
+.plate-wrap.rulers .overlay { top: 20px; left: 20px; }
+.hov, .sel { position: absolute; border: 1px solid var(--storm); border-radius: 2px; display: none; }
+.hov { opacity: 0.55; }
+.hov.on, .sel.on { display: block; }
+.tag { position: absolute; left: -1px; top: -22px; height: 20px; display: inline-flex; align-items: center; gap: 8px; padding: 0 6px; font: 11px/1 var(--mono); color: var(--storm); background: var(--bg1); border: 1px solid var(--storm); border-bottom: 0; border-radius: 2px 2px 0 0; white-space: nowrap; }
+.low .tag { top: auto; bottom: -22px; border-radius: 0 0 2px 2px; border-bottom: 1px solid var(--storm); border-top: 0; }
+.lit { position: absolute; border: 1px dashed var(--storm); }
+.lit .n { position: absolute; right: -1px; top: -16px; font: 11px/1 var(--mono); color: var(--storm); background: var(--bg0); padding: 1px 3px; }
+.ghost { position: absolute; width: 18px; height: 18px; display: none; }
+.ghost.on { display: block; }
+.ghost svg { width: 18px; height: 18px; fill: var(--ink); stroke: var(--bg0); stroke-width: 1; }
+@media (prefers-reduced-motion: no-preference) { .ghost { transition: left var(--t-stone) var(--ease-settle), top var(--t-stone) var(--ease-settle); } }
+.guide { position: absolute; background: var(--storm); opacity: 0.45; } /* Advanced only: the selection's edges run to the rulers */
+.guide.v { width: 1px; top: 0; bottom: 0; }
+.guide.h { height: 1px; left: 0; right: 0; }
+.plate-inner.mirror #frame-before { order: -1; }
+
+/* ---- The prompt card — anchored to the selection; z3 HELD: lifted over the plate, the one earned shadow in the default view ---- */
+.card {
+  position: absolute; z-index: 8; width: 340px; max-height: calc(100% - 24px); overflow: auto;
+  background: var(--bg1); border: 1px solid var(--line); border-radius: var(--r); box-shadow: var(--shadow-held);
+  padding: 12px 14px 12px; display: flex; flex-direction: column; gap: 10px;
+}
+.card .head { display: flex; align-items: center; gap: 8px; }
+.card .head .c { font: 700 12.5px/1.3 var(--mono); color: var(--ink); flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.card .head .close { width: 24px; height: 24px; display: grid; place-items: center; border-radius: var(--r-micro); color: var(--dim); }
+.card .head .close:hover { background: var(--bg2); color: var(--ink); }
+.card .head .close svg { width: 12px; height: 12px; stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round; }
+.card textarea { width: 100%; min-height: 76px; background: var(--bg2); border: 1px solid var(--line); border-radius: var(--r-inner); padding: 8px 10px; font-size: 13px; line-height: 1.45; resize: vertical; }
+.card textarea::placeholder { color: var(--dim); }
+.card .acc ul { list-style: none; margin: 4px 0 0; padding: 0; display: grid; gap: 4px; }
+.card .acc li { display: grid; grid-template-columns: 12px 1fr auto; gap: 6px; align-items: center; font-size: 12.5px; }
+.card .acc li .bul { width: 6px; height: 6px; border-radius: 50%; border: 1px solid var(--dim); }
+.card .acc li input { background: var(--bg2); border: 1px solid var(--line); border-radius: var(--r-micro); padding: 4px 8px; font-size: 12.5px; width: 100%; min-width: 0; }
+.card .acc li .rm { color: var(--dim); font: 11px/1 var(--mono); padding: 4px; }
+.card .acc li .rm:hover { color: var(--ink); }
+.card .acc .add { color: var(--dim); font-size: 12.5px; margin-top: 4px; }
+.card .acc .add:hover { color: var(--ink); }
+.card .acts { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.card .stream { margin-top: 2px; }
+/* Ready — the one held gesture (Law I.2): press ~800ms (--t-oath); a filling ring; release early = honestly cancelled. Ember while a draft has words. */
+.oath, .build {
+  position: relative; display: inline-flex; align-items: center; gap: 10px; height: 34px; padding: 0 14px 0 10px; border-radius: var(--r-inner);
+  border: 1px solid var(--line); color: var(--dim); background: var(--bg1); font-size: 12.5px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase;
+  user-select: none; touch-action: none;
+}
+.oath .pair, .build .pair { font-weight: 400; text-transform: none; letter-spacing: 0; font-size: 12px; opacity: 0.9; }
+.oath .ring { width: 18px; height: 18px; }
+.oath .ring circle { fill: none; stroke-width: 2.5; stroke: currentColor; }
+.oath .ring .track { opacity: 0.3; }
+.oath .ring .fill { stroke-dasharray: 44; stroke-dashoffset: 44; transform: rotate(-90deg); transform-origin: 50% 50%; }
+.oath.ember, .build.ember { border-color: var(--ember); color: var(--ember); background: var(--ember-soft); cursor: pointer; }
+.oath.holding { background: var(--ember); color: var(--on-accent); box-shadow: var(--shadow-held); transform: translateY(-1px); } /* z3 held: the deepening IS the feel */
+.oath.holding .ring .fill { stroke-dashoffset: 0; transition: stroke-dashoffset var(--t-oath) linear; }
+.oath:disabled, .build:disabled { cursor: not-allowed; }
+.build svg { width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.card .foot { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+
+/* ---- The right column: Prompts · Inspect · Design system ---- */
+.col { display: grid; grid-template-rows: 40px 1fr; min-height: 0; min-width: 0; overflow: hidden; background: var(--bg1); border-left: 1px solid var(--line); }
+.tabs { display: flex; align-items: stretch; border-bottom: 1px solid var(--line); padding: 0 6px; gap: 2px; min-width: 0; }
+.tabs button { position: relative; padding: 0 10px; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.1em; color: var(--dim); display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+.tabs button:hover { color: var(--ink); }
+.tabs button[aria-selected="true"] { color: var(--ink); }
+.tabs button[aria-selected="true"]::after { content: ""; position: absolute; left: 10px; right: 10px; bottom: -1px; height: 2px; background: var(--storm); }
+.tabs .count { font: 11px/1 var(--mono); color: var(--dim); border: 1px solid var(--line); border-radius: var(--r-pill); padding: 2px 6px; }
+.pane { display: none; min-height: 0; overflow: auto; padding: 12px; }
+.pane[aria-hidden="false"] { display: block; }
+.pane .row { display: flex; align-items: center; gap: 8px; }
+.block { border: 1px solid var(--line); border-radius: var(--r-inner); background: var(--bg1); padding: 10px 12px; margin-bottom: 10px; }
+.block .title { margin-bottom: 6px; display: block; }
+.kv { display: grid; grid-template-columns: 76px 1fr; gap: 4px 10px; font-size: 12.5px; margin: 0; }
+.kv dt { color: var(--dim); }
+.kv dd { margin: 0; color: var(--ink); overflow-wrap: anywhere; }
+.kv dd.mono { font-size: 12px; }
+.empty { color: var(--dim); font-size: 12.5px; padding: 8px 0; line-height: 1.5; }
+.empty b { color: var(--ink); font-weight: 600; }
+.crumbs { display: flex; flex-wrap: wrap; gap: 4px 6px; font: 12px/1.3 var(--mono); color: var(--dim); }
+.crumbs b { color: var(--ink); font-weight: 700; }
+.crumbs .sep { color: var(--faint); }
+.gauge-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.gchip { display: inline-flex; align-items: center; gap: 6px; height: 24px; padding: 0 8px 0 6px; border-radius: var(--r-micro); border: 1px solid var(--line); background: var(--bg2); color: var(--ink); font: 11px/1 var(--mono); transition: border-color var(--t-feather) var(--ease-standard); }
+.gchip .swatch { width: 10px; height: 10px; border-radius: 2px; border: 1px solid var(--line); flex: none; }
+.gchip:hover, .gchip.lit { border-color: var(--storm); }
+
+/* Prompts — the list grouped by state, then the prompt in hand */
+.grp { margin-bottom: 6px; }
+.grp-head { display: flex; align-items: center; gap: 8px; margin: 8px 0 4px; }
+.grp-head .n { font: 11px/1 var(--mono); color: var(--dim); }
+.prow { display: grid; grid-template-columns: 10px 1fr auto; gap: 8px; align-items: center; width: 100%; text-align: left; padding: 6px 8px; border-radius: var(--r-inner); border: 1px solid transparent; color: var(--ink); }
+.prow:hover { background: var(--bg2); }
+.prow[aria-pressed="true"] { background: var(--bg3); border-color: var(--line); }
+.prow .pip { width: 8px; height: 8px; border-radius: var(--r-pill); border: 1.5px solid var(--dim); background: transparent; }
+.prow.ready .pip { border-color: var(--ink); background: var(--ink); outline: 1.5px solid var(--gold); outline-offset: 2px; } /* the oath was held: a gold RING, never a fill */
+.prow.building .pip { border-color: var(--wyrd); background: var(--wyrd); }
+.prow.built .pip { border-color: var(--ok); background: var(--ok); }
+.prow.scrapped .pip { border-color: var(--line); }
+.prow.scrapped .slug { color: var(--dim); text-decoration: line-through; }
+.prow .slug { font-size: 12.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.prow .id { font: 11px/1 var(--mono); color: var(--dim); }
+@media (prefers-reduced-motion: no-preference) {
+  /* the ONE thing allowed to move, and only while Claude is building: the status line's pip. The Prompts row's pip is wyrd and still. */
+  .status .pip.live { animation: live-pulse 1.6s var(--ease-standard) infinite; }
+}
+@keyframes live-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
+details.scrap { margin: 6px 0 0; }
+details.scrap summary { cursor: pointer; font: 11px/1.4 var(--mono); color: var(--dim); padding: 4px 8px; list-style: none; }
+details.scrap summary::-webkit-details-marker { display: none; }
+details.scrap summary:hover { color: var(--ink); }
+.hand { border-top: 1px solid var(--line); margin-top: 8px; padding-top: 10px; }
+.hand .h-head { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; flex-wrap: wrap; }
+.hand .req { font-size: 13px; line-height: 1.5; color: var(--ink); margin: 0 0 8px; white-space: pre-wrap; }
+.hand ul.acc-list { margin: 0 0 8px; padding-left: 16px; font-size: 12.5px; color: var(--ink); }
+.hand ul.acc-list li { margin: 0 0 2px; }
+.ctx { margin: 0 0 8px; border: 1px dashed var(--line); border-radius: var(--r-inner); padding: 8px 10px; }
+.ctx pre { margin: 0; font: 12px/1.5 var(--mono); color: var(--dim); white-space: pre-wrap; overflow-wrap: anywhere; }
+.ctx pre b { color: var(--ink); font-weight: 600; }
+/* Claude's stream — wyrd is the agent's hand; a monospace ribbon of steps, the newest in ink */
+.stream { border-left: 3px solid var(--wyrd); padding: 6px 10px; margin: 0 0 8px; background: var(--wyrd-soft); border-radius: 0 var(--r-inner) var(--r-inner) 0; }
+.stream .s-head { display: flex; align-items: center; gap: 8px; font: 700 11px/1 var(--mono); color: var(--wyrd); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 6px; }
+.stream .s-head .el { font-weight: 400; text-transform: none; letter-spacing: 0; }
+.stream ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+.stream li { font: 12px/1.4 var(--mono); color: var(--wyrd); display: grid; grid-template-columns: 12px 1fr; gap: 6px; }
+.stream li::before { content: "▸"; color: var(--wyrd); opacity: 0.6; }
+.stream li.now { color: var(--ink); }
+.stream li.sim { color: var(--dim); }
+.built-line { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 0 0 8px; }
+
+/* Design system — the gauges, categorised; two-way lit with the plate */
+.gauges .cat-head { display: flex; align-items: center; gap: 8px; margin: 10px 0 4px; }
+.gauges .cat-head .n { font: 11px/1 var(--mono); color: var(--dim); }
+.gauge { display: grid; grid-template-columns: 28px 1fr auto; align-items: center; gap: 10px; width: 100%; text-align: left; padding: 6px 8px; border-radius: var(--r-inner); border: 1px solid transparent; color: var(--ink); transition: background var(--t-feather) var(--ease-standard); }
+.gauge:hover { background: var(--bg2); }
+.gauge.lit { background: var(--bg3); border-color: var(--storm); }
+.gauge .swatch { width: 28px; height: 20px; border-radius: var(--r-micro); border: 1px solid var(--line); display: grid; place-items: center; font: 11px/1 var(--mono); color: var(--dim); }
+.gauge .name { font: 12px/1.3 var(--mono); }
+.gauge .val { font: 11px/1.3 var(--mono); color: var(--dim); }
+.gauge .uses { font: 11px/1 var(--mono); color: var(--dim); }
+.gauge.lit .uses { color: var(--storm); }
+
+/* ---- The status line: one line, Claude's one word, the SIM clock ---- */
+.status { display: flex; align-items: center; gap: 16px; padding: 0 12px 0 0; background: var(--bg1); border-top: 1px solid var(--line); font-size: 12.5px; color: var(--dim); min-width: 0; }
+.status .claude { display: inline-flex; align-items: center; gap: 10px; height: 100%; padding: 0 14px 0 20px; color: var(--ink); white-space: nowrap; min-width: 0; overflow: hidden; }
+.status .claude:hover { background: var(--bg2); }
+.status .claude[aria-expanded="true"] { background: var(--bg3); }
+.status .pip { width: 8px; height: 8px; border-radius: 50%; border: 1.5px solid var(--wyrd); flex: none; }
+.status .pip.live, .status .pip.done { background: var(--wyrd); }
+.status .claude .w { font-weight: 600; }
+.status .claude .mono { color: var(--dim); }
+.status .spacer { flex: 1; }
+.status .simclock { font: 11px/1 var(--mono); color: var(--dim); letter-spacing: 0.04em; white-space: nowrap; }
+.status .simclock b { color: var(--ink); }
+
+/* ---- The logbook: a drawer over the status line — z5, the one earned deep shadow when open ---- */
+.logbook { position: fixed; left: 56px; right: 340px; bottom: 28px; height: 300px; z-index: 30; background: var(--bg1); border: 1px solid var(--line); border-bottom: 0; border-radius: var(--r) var(--r) 0 0; box-shadow: var(--shadow-overlay); display: grid; grid-template-rows: 40px 1fr; min-width: 0; }
+.logbook .lb-head { display: flex; align-items: center; gap: 8px; padding: 0 12px; border-bottom: 1px solid var(--line); flex-wrap: nowrap; overflow: hidden; }
+.logbook .lb-head .title { margin-right: 4px; }
+.logbook .lb-head button.f { font: 11px/1 var(--mono); color: var(--dim); border: 1px solid var(--line); border-radius: var(--r-pill); padding: 4px 8px; }
+.logbook .lb-head button.f[aria-pressed="true"] { color: var(--ink); background: var(--bg3); }
+.logbook .lb-head .prov { margin-left: auto; white-space: nowrap; }
+.logbook .lb-body { overflow: auto; padding: 8px 12px; }
+.log { display: grid; gap: 2px; }
+.log-row { display: grid; grid-template-columns: 52px 1fr auto; gap: 10px; padding: 5px 8px; border-radius: var(--r-micro); border-left: 3px solid var(--line); align-items: baseline; }
+.log-row .age { font: 11px/1.4 var(--mono); color: var(--faint); text-align: right; }
+.log-row .what { font-size: 12.5px; color: var(--ink); }
+.log-row .who { font: 11px/1.4 var(--mono); color: var(--dim); white-space: nowrap; }
+.log-row .prov { display: block; }
+.log-row.human { border-left-color: var(--ink); }
+.log-row.claude { border-left-color: var(--wyrd); }
+.log-row.model { border-left-color: var(--dim); }
+.log-row.bench { border-left-color: var(--line); }
+
+/* ---- The palette: Ctrl/⌘+K — one move to invoke, one to name (Law II.2). z4 veil + z5 overlay. ---- */
+.veil { position: fixed; inset: 0; background: var(--scrim); z-index: 40; display: none; }
+.veil.on { display: block; }
+.palette { position: fixed; z-index: 50; left: 50%; top: 120px; width: 560px; max-width: calc(100vw - 32px); transform: translateX(-50%); background: var(--bg1); border: 1px solid var(--line); border-radius: var(--r); box-shadow: var(--shadow-overlay); display: none; }
+.palette.on { display: block; }
+.palette input { width: 100%; height: 44px; padding: 0 14px; background: var(--bg2); border: 0; border-bottom: 1px solid var(--line); border-radius: var(--r) var(--r) 0 0; font-size: 14px; color: var(--ink); }
+.palette input::placeholder { color: var(--dim); }
+.palette ul { list-style: none; margin: 0; padding: 6px; max-height: 320px; overflow: auto; }
+.palette li { display: grid; grid-template-columns: 1fr auto; gap: 12px; align-items: center; padding: 8px 10px; border-radius: var(--r-inner); font-size: 13px; color: var(--ink); cursor: pointer; }
+.palette li .k { font: 11px/1 var(--mono); color: var(--dim); }
+.palette li .pair { color: var(--dim); font-size: 12px; margin-left: 8px; }
+.palette li[aria-selected="true"] { background: var(--bg3); }
+.palette .foot { display: flex; gap: 12px; padding: 6px 12px 8px; border-top: 1px solid var(--line); font-size: 11px; color: var(--dim); }
+.palette .foot kbd { font: 11px/1 var(--mono); color: var(--ink); }
+
+/* ---- Advanced — the drawer under the plate: everything v0.1 had that is not the loop. Hairline; it is a panel at rest. ---- */
+.adv { border-top: 1px solid var(--line); background: var(--bg1); height: 264px; display: grid; grid-template-rows: 26px 1fr; min-width: 0; min-height: 0; }
+.sim-strip { display: flex; align-items: center; gap: 16px; padding: 0 12px; border-bottom: 1px dashed var(--line); font: 11px/1 var(--mono); color: var(--dim); letter-spacing: 0.04em; white-space: nowrap; overflow: hidden; }
+.sim-strip b { color: var(--ink); font-weight: 700; }
+.sim-strip .spacer { flex: 1; }
+.adv-body { display: grid; grid-template-columns: 1.5fr 1fr 1fr 1fr; min-height: 0; min-width: 0; }
+.adv-sec { padding: 10px 12px; border-right: 1px solid var(--line); overflow: auto; min-width: 0; display: grid; align-content: start; gap: 8px; }
+.adv-sec:last-child { border-right: 0; }
+.adv-sec .title { display: block; }
+.adv-sec .switch { font-size: 12.5px; }
+/* the spine: every prompt on the state ladder, as cards in a row */
+.spine { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px; }
+.sp-card { flex: none; width: 168px; border: 1px solid var(--line); border-radius: var(--r-inner); padding: 8px 10px; display: grid; gap: 6px; background: var(--bg1); }
+.sp-card .id { font: 11px/1 var(--mono); color: var(--dim); }
+.sp-card .slug { font-size: 12.5px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ladder { display: grid; grid-template-columns: repeat(4, 1fr); position: relative; }
+.ladder::before { content: ""; position: absolute; left: 12%; right: 12%; top: 4px; height: 1px; background: var(--line); }
+.rung { display: grid; justify-items: center; gap: 3px; position: relative; }
+.rung .pip { width: 9px; height: 9px; border-radius: 50%; border: 1.5px solid var(--line); background: var(--bg1); }
+.rung .lbl { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: var(--dim); }
+.rung.done .pip { border-color: var(--dim); background: var(--dim); }
+.rung.now .pip { border-color: var(--ink); background: var(--ink); }
+.rung.now .lbl { color: var(--ink); }
+.rung.oath .pip { outline: 1.5px solid var(--gold); outline-offset: 2px; }
+.rung.building.now .pip { border-color: var(--wyrd); background: var(--wyrd); }
+.rung.building.now .lbl { color: var(--wyrd); }
+.rung.built.now .pip { border-color: var(--ok); background: var(--ok); }
+.rung.built.now .lbl { color: var(--ok); }
+.fx { display: grid; grid-template-columns: 1fr auto; gap: 2px 10px; align-items: center; text-align: left; width: 100%; padding: 6px 10px; border: 1px solid var(--line); border-radius: var(--r-inner); background: var(--bg1); color: var(--ink); }
+.fx:hover { background: var(--bg2); }
+.fx[aria-pressed="true"] { background: var(--bg3); border-color: var(--warn); }
+.fx .name { font: 12.5px/1.3 var(--mono); }
+.fx .key { font: 11px/1.3 var(--mono); color: var(--dim); }
+.fx .shape { font: 11px/1.3 var(--mono); color: var(--dim); grid-column: 1 / -1; }
+.tp-steps { display: grid; gap: 2px; }
+.tp-step { display: grid; grid-template-columns: 20px 1fr; gap: 8px; padding: 4px 8px; border-radius: var(--r-micro); font: 12px/1.3 var(--mono); color: var(--dim); }
+.tp-step .i { color: var(--faint); }
+.tp-step.now { background: var(--bg3); color: var(--ink); }
+.rec[aria-pressed="true"] { border-color: var(--alert); color: var(--alert); }
+.mcp-row { display: flex; align-items: center; gap: 8px; font-size: 12.5px; flex-wrap: wrap; }
+
+/* ==========================================================================
+   Sketch — a screen that does not exist yet, drawn ONLY with the app's gauges.
+   The sheet is the app's ground (--lg-bg), the primitives its surface, line,
+   primary, radii and type. Snapping is real: the 4px grid, then other elements'
+   edges and centres, with a storm alignment line while it holds.
+   ========================================================================== */
+.sketch-bar { position: absolute; right: -1px; top: -24px; height: 24px; display: inline-flex; align-items: center; gap: 4px; padding: 0 6px; background: var(--bg1); border: 1px solid var(--line); border-bottom: 0; border-radius: var(--r-micro) var(--r-micro) 0 0; }
+.sketch-bar button.prim { font: 11px/1 var(--mono); color: var(--dim); border: 1px solid var(--line); border-radius: var(--r-micro); padding: 4px 7px; height: 20px; }
+.sketch-bar button.prim:hover { color: var(--ink); background: var(--bg2); }
+.sketch-bar button.prim[aria-pressed="true"] { color: var(--ink); background: var(--bg3); }
+.sketch-bar .sep { width: 1px; height: 14px; background: var(--line); margin: 0 4px; }
+.sketch-bar .build-screen { font: 700 11px/1 var(--mono); color: var(--ink); border: 1px solid var(--line); border-radius: var(--r-micro); padding: 4px 7px; height: 20px; }
+.sketch-bar .build-screen:hover { background: var(--bg2); }
+.sketch-bar .printed { height: 20px; }
+.sheet { position: absolute; inset: 0; overflow: hidden; border-radius: var(--r-micro); background-color: var(--lg-bg); color: var(--lg-ink); font: var(--lg-text-md)/1.4 var(--lg-font); cursor: crosshair; user-select: none; touch-action: none;
+  background-image: linear-gradient(color-mix(in srgb, var(--lg-line) 45%, transparent) 1px, transparent 1px), linear-gradient(90deg, color-mix(in srgb, var(--lg-line) 45%, transparent) 1px, transparent 1px); background-size: 16px 16px; /* space.4, the app's own rhythm — the snap is 4px */ }
+html[data-tool="point"] .sheet { cursor: crosshair; }
+html[data-tool="hand"] .sheet { cursor: default; }
+.sk { position: absolute; cursor: move; overflow: hidden; white-space: nowrap; }
+.sk.box { background: var(--lg-surface); border: 1px solid var(--lg-line); border-radius: var(--lg-radius-md); }
+.sk.text { font-size: var(--lg-text-lg); font-weight: 600; color: var(--lg-ink); line-height: 1.2; display: flex; align-items: center; }
+.sk.button { background: var(--lg-primary); color: var(--lg-primary-ink); border-radius: var(--lg-radius-sm); display: grid; place-items: center; font: 600 var(--lg-text-sm)/1 var(--lg-font); }
+.sk.input { background: var(--lg-surface); border: 1px solid var(--lg-line); border-radius: var(--lg-radius-sm); color: var(--lg-dim); font-size: var(--lg-text-sm); display: flex; align-items: center; padding: 0 var(--lg-space-2); }
+.sk.list { background: var(--lg-surface); border: 1px solid var(--lg-line); border-radius: var(--lg-radius-md); background-image: repeating-linear-gradient(to bottom, transparent 0 39px, var(--lg-line) 39px 40px); }
+.sk.list::before { content: attr(data-label); position: absolute; left: var(--lg-space-3); top: 0; height: 40px; display: flex; align-items: center; font-size: var(--lg-text-sm); color: var(--lg-dim); font-weight: 600; }
+.sk.on { outline: 1px solid var(--storm); outline-offset: 2px; }
+.sk-draw { position: absolute; border: 1px dashed var(--storm); pointer-events: none; }
+.aline { position: absolute; background: var(--storm); pointer-events: none; }
+.aline.v { width: 1px; top: 0; bottom: 0; }
+.aline.h { height: 1px; left: 0; right: 0; }
+.sheet-say { position: absolute; left: 12px; bottom: 8px; font: 11px/1.4 var(--mono); color: var(--lg-dim); pointer-events: none; }
+
+/* ==========================================================================
+   Ledger · SIM — the clamped app. THIS IS THE SUBJECT, NOT JIG CHROME. Drawn in
+   its own token file as the survey read it (src/styles/_tokens.scss · SIM): a
+   light Material-ish invoicing app on a 4px grid. Jig's chrome never uses --lg-*.
+   The frame is the plate's size, as a real dev server through the proxy would be.
+   ========================================================================== */
+.lg-root, .sheet {
+  --lg-bg: #f7f8fa; --lg-surface: #ffffff; --lg-line: #d9dee5;
+  --lg-ink: #1c2128; --lg-dim: #5b6470;
+  --lg-primary: #1a56db; --lg-primary-ink: #ffffff;
+  --lg-ok: #1b7f4a; --lg-warn: #9a6400; --lg-danger: #b42318;
+  --lg-space-1: 4px; --lg-space-2: 8px; --lg-space-3: 12px; --lg-space-4: 16px; --lg-space-6: 24px;
+  --lg-radius-sm: 4px; --lg-radius-md: 8px; --lg-radius-pill: 999px;
+  --lg-shadow-card: 0 1px 2px rgba(16, 24, 40, 0.08);
+  --lg-font: 'Segoe UI', Roboto, system-ui, sans-serif;
+  --lg-text-sm: 12px; --lg-text-md: 14px; --lg-text-lg: 18px;
+  --lg-motion-fast: 150ms;
+}
+.ledger {
+  position: absolute; inset: 0; display: grid; grid-template-rows: 48px 1fr; grid-template-columns: 168px 1fr;
+  background: var(--lg-bg); color: var(--lg-ink); font: var(--lg-text-md)/1.4 var(--lg-font);
+  border-radius: var(--r-micro); overflow: hidden; text-align: left; cursor: default; user-select: none;
+}
+.ledger * { box-sizing: border-box; }
+.lg-top { grid-column: 1 / -1; display: flex; align-items: center; gap: var(--lg-space-4); padding: 0 var(--lg-space-4); background: var(--lg-surface); border-bottom: 1px solid var(--lg-line); }
+.lg-brand { font-weight: 700; font-size: 16px; display: flex; align-items: center; gap: var(--lg-space-2); }
+.lg-brand i { width: 20px; height: 20px; border-radius: var(--lg-radius-sm); background: var(--lg-primary); display: inline-block; }
+.lg-search { flex: 1; max-width: 320px; height: 32px; border: 1px solid var(--lg-line); border-radius: var(--lg-radius-sm); padding: 0 var(--lg-space-3); color: var(--lg-dim); font-size: var(--lg-text-sm); display: flex; align-items: center; background: var(--lg-bg); }
+.lg-spacer { flex: 1; }
+.lg-avatar { width: 28px; height: 28px; border-radius: var(--lg-radius-pill); background: var(--lg-line); color: var(--lg-ink); font-size: var(--lg-text-sm); font-weight: 700; display: grid; place-items: center; }
+.lg-nav { background: var(--lg-surface); border-right: 1px solid var(--lg-line); padding: var(--lg-space-3) var(--lg-space-2); display: flex; flex-direction: column; gap: var(--lg-space-1); }
+.lg-nav a { display: block; padding: var(--lg-space-2) var(--lg-space-3); border-radius: var(--lg-radius-sm); color: var(--lg-dim); text-decoration: none; font-size: var(--lg-text-md); }
+.lg-nav a.on { background: var(--lg-bg); color: var(--lg-primary); font-weight: 600; }
+.lg-main { display: grid; grid-template-columns: 1fr 288px; gap: var(--lg-space-4); padding: var(--lg-space-4); min-height: 0; overflow: hidden; }
+.lg-page-head { display: flex; align-items: center; gap: var(--lg-space-3); margin-bottom: var(--lg-space-3); }
+.lg-page-head h1 { font-size: var(--lg-text-lg); margin: 0; font-weight: 600; }
+.lg-btn { height: 32px; padding: 0 var(--lg-space-3); border-radius: var(--lg-radius-sm); border: 1px solid var(--lg-line); background: var(--lg-surface); color: var(--lg-ink); font: 600 var(--lg-text-sm)/1 var(--lg-font); display: inline-flex; align-items: center; gap: var(--lg-space-2); cursor: pointer; }
+.lg-btn.primary { background: var(--lg-primary); color: var(--lg-primary-ink); border-color: var(--lg-primary); }
+.lg-card { background: var(--lg-surface); border: 1px solid var(--lg-line); border-radius: var(--lg-radius-md); overflow: hidden; }
+.lg-table { width: 100%; border-collapse: collapse; font-size: var(--lg-text-sm); }
+.lg-table th { text-align: left; font-weight: 600; color: var(--lg-dim); padding: var(--lg-space-2); border-bottom: 1px solid var(--lg-line); background: var(--lg-bg); white-space: nowrap; }
+.lg-table td { padding: var(--lg-space-2); border-bottom: 1px solid var(--lg-line); white-space: nowrap; }
+.lg-table td:nth-child(2) { white-space: normal; }
+.lg-table tr.on td { background: color-mix(in srgb, var(--lg-primary) 8%, var(--lg-surface)); }
+.lg-table td.num, .lg-table th.num { text-align: right; font-variant-numeric: tabular-nums; }
+.lg-pill { display: inline-block; padding: 2px var(--lg-space-2); border-radius: var(--lg-radius-pill); font-size: var(--lg-text-sm); font-weight: 600; border: 1px solid currentColor; }
+.lg-pill.paid { color: var(--lg-ok); }
+.lg-pill.due { color: var(--lg-warn); }
+.lg-pill.overdue { color: var(--lg-danger); }
+.lg-side { display: grid; grid-template-rows: auto 1fr; gap: var(--lg-space-4); min-height: 0; }
+.lg-detail { padding: var(--lg-space-4); box-shadow: var(--lg-shadow-card); } /* the subject's own shadow — a gauge the survey found, listed under Design system */
+.lg-detail h2 { font-size: var(--lg-text-md); margin: 0 0 var(--lg-space-2); font-weight: 600; display: flex; align-items: center; gap: var(--lg-space-2); }
+.lg-detail dl { display: grid; grid-template-columns: auto 1fr; gap: var(--lg-space-1) var(--lg-space-3); margin: 0; font-size: var(--lg-text-sm); }
+.lg-detail dt { color: var(--lg-dim); }
+.lg-detail dd { margin: 0; }
+.lg-detail .lg-actions { display: flex; gap: var(--lg-space-2); margin-top: var(--lg-space-3); }
+.lg-form { padding: var(--lg-space-4); display: flex; flex-direction: column; gap: var(--lg-space-3); min-height: 0; overflow: hidden; }
+.lg-form h2 { font-size: var(--lg-text-md); margin: 0; font-weight: 600; }
+.lg-field { display: grid; gap: var(--lg-space-1); font-size: var(--lg-text-sm); }
+.lg-field label { color: var(--lg-dim); display: flex; gap: var(--lg-space-2); align-items: center; }
+.lg-field .sim-tag { font: 700 11px/1 var(--mono); color: var(--lg-warn); border: 1px dashed currentColor; border-radius: 3px; padding: 1px 3px; letter-spacing: 0.04em; }
+.lg-field input, .lg-field textarea { height: 32px; border: 1px solid var(--lg-line); border-radius: var(--lg-radius-sm); padding: 0 var(--lg-space-2); font: var(--lg-text-sm) var(--lg-font); color: var(--lg-ink); background: var(--lg-surface); width: 100%; }
+.lg-field textarea { height: 56px; padding: var(--lg-space-2); resize: none; }
+.lg-help { font-size: var(--lg-text-sm); color: var(--lg-dim); }
+.lg-form .lg-row { display: flex; gap: var(--lg-space-2); }
+html[data-tool="point"] .ledger, html[data-tool="point"] .ledger * { cursor: crosshair; }
+</style>
+</head>
+<body>
+
+<main class="bench">
+  <!-- Rail: Point · Sketch · Hand, and the Advanced switch at its foot. Nothing else. -->
+  <nav class="rail" aria-label="tools">
+    <div class="wordmark" aria-label="Jig" data-word="Jig" data-pair="a benchtop for shaping a feature before Claude builds it — bench ledger-sim, one clamped repo · SIM">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="3" rx="1" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M6 7v11M18 7v11M6 13h12" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><circle cx="12" cy="13" r="1.6" fill="var(--storm)"/></svg>
+    </div>
+    <button class="tool" type="button" data-tool="point" aria-pressed="true" aria-label="Point — click a component to open the prompt card" data-word="Point" data-pair="hover names a component; click opens the prompt card" data-key="P">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 3l14 8-6.2 1.6L9.6 19z"/><path d="M13.5 13.5L19 19"/></svg>
+    </button>
+    <button class="tool" type="button" data-tool="sketch" aria-pressed="false" aria-label="Sketch — a screen that does not exist yet" data-word="Sketch" data-pair="a screen that does not exist yet, drawn with the app's gauges; the sheet is a prompt target" data-key="S">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="4.5" width="17" height="15" rx="1.5" stroke-dasharray="3 2"/><path d="M7 9h6M7 12.5h10M7 16h4"/></svg>
+    </button>
+    <button class="tool" type="button" data-tool="hand" aria-pressed="false" aria-label="Hand — the app takes your clicks" data-word="Hand" data-pair="the app takes your clicks; drag scrolls the plate" data-key="H">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 13V5.5a1.5 1.5 0 0 1 3 0V12M11 6a1.5 1.5 0 0 1 3 0v6M14 7.5a1.5 1.5 0 0 1 3 0V12M17 10a1.5 1.5 0 0 1 3 0v5a6 6 0 0 1-6 6h-2.5a6 6 0 0 1-4.7-2.3L3.5 15a1.6 1.6 0 0 1 2.4-2.1L8 15"/></svg>
+    </button>
+    <span class="gap"></span>
+    <label class="adv-switch" data-word="Advanced" data-pair="rulers and guides, fixtures, toolpath, the mirror, MCP status, the spine, the scrap bin — kept, one switch away">
+      <input type="checkbox" id="adv" aria-label="Advanced — everything that is not the loop">
+      <span class="sw" aria-hidden="true"></span>
+      <span class="w">Advanced</span>
+    </label>
+  </nav>
+
+  <!-- Centre: the plate, and (Advanced) the drawer under it -->
+  <section class="centre">
+    <div class="plate-wrap" id="plate-wrap" aria-label="plate">
+      <div class="corner" aria-hidden="true">px</div>
+      <div class="ruler top" aria-hidden="true"><canvas id="ruler-top"></canvas></div>
+      <div class="ruler left" aria-hidden="true"><canvas id="ruler-left"></canvas></div>
+      <div class="plate" id="plate" tabindex="0" aria-label="the plate — where the app renders and is clicked">
+        <div class="plate-inner" id="plate-inner">
+
+          <div class="frame lg-root" id="frame-app">
+            <div class="frame-tab" id="frame-tab"><span>Ledger · SIM</span><span class="faint">·</span><span>localhost:4200 through the Jig proxy · SIM</span><span class="on-warn" id="frame-fixture" hidden></span><span class="on-wyrd" id="frame-before-say" hidden></span></div>
+            <!-- ======== Ledger · SIM — the clamped third-party Angular app ======== -->
+            <div class="ledger" id="ledger" data-c="AppComponent">
+              <div class="lg-top" data-c="TopBarComponent" data-g="color.surface,color.line,space.4">
+                <div class="lg-brand"><i aria-hidden="true"></i>Ledger</div>
+                <div class="lg-search" data-c="SearchBoxComponent" data-g="color.line,color.bg,radius.sm,type.sm,space.3">Find an invoice, customer…</div>
+                <span class="lg-spacer"></span>
+                <button class="lg-btn" type="button" data-c="LgButtonComponent" data-g="color.line,radius.sm,type.sm,space.3">Export</button>
+                <div class="lg-avatar" data-c="AvatarComponent" data-g="color.line,type.sm,radius.pill">MJ</div>
+              </div>
+              <nav class="lg-nav" data-c="SideNavComponent" data-g="color.surface,color.line,space.2,space.3">
+                <a class="on" data-c="NavItemComponent" data-g="color.primary,color.bg,radius.sm,space.2,space.3">Invoices</a>
+                <a data-c="NavItemComponent" data-g="radius.sm,space.2,space.3">Customers</a>
+                <a data-c="NavItemComponent" data-g="radius.sm,space.2,space.3">Payments</a>
+                <a class="fit fit-sketch" data-c="NavItemComponent" data-g="radius.sm,space.2,space.3" hidden>Reminders · SIM</a>
+                <a data-c="NavItemComponent" data-g="radius.sm,space.2,space.3">Reports</a>
+                <a data-c="NavItemComponent" data-g="radius.sm,space.2,space.3">Settings</a>
+              </nav>
+              <div class="lg-main" data-c="InvoicesPageComponent" data-g="space.4">
+                <div>
+                  <div class="lg-page-head" data-c="PageHeaderComponent" data-g="type.lg,space.3">
+                    <h1>Invoices</h1>
+                    <span class="lg-pill due fit fit-0001" data-c="LgPillComponent" data-g="color.warn,type.sm,radius.pill">3 due this week · SIM</span>
+                    <span class="lg-spacer"></span>
+                    <button class="lg-btn" type="button" data-c="LgButtonComponent" data-g="color.line,radius.sm,type.sm,space.3">Filter</button>
+                    <button class="lg-btn primary" type="button" data-c="LgButtonComponent" data-g="color.primary,radius.sm,type.sm,space.3">New invoice</button>
+                  </div>
+                  <div class="lg-card" data-c="InvoiceListComponent" data-g="color.surface,color.line,radius.md">
+                    <table class="lg-table" id="lg-table" data-c="DataTableComponent" data-g="type.sm,space.2,color.line,color.bg">
+                      <thead><tr><th>Number</th><th>Customer</th><th class="num">Amount</th><th>Due</th><th>Status</th><th class="num fit fit-build" hidden>Days</th></tr></thead>
+                      <tbody id="lg-rows"></tbody>
+                    </table>
+                  </div>
+                </div>
+                <div class="lg-side">
+                  <div class="lg-card lg-detail" data-c="InvoiceDetailComponent" data-g="color.surface,shadow.card,radius.md,space.4,type.md">
+                    <h2><span id="lg-d-num">INV-1042</span> <span class="lg-pill overdue" id="lg-d-status" data-c="LgPillComponent" data-g="color.danger,type.sm,radius.pill">overdue</span></h2>
+                    <dl>
+                      <dt>Customer</dt><dd id="lg-d-cust">Halvorsen &amp; Daughters</dd>
+                      <dt>Amount</dt><dd id="lg-d-amt">$4,280.00</dd>
+                      <dt>Due</dt><dd id="lg-d-due">2026-08-21</dd>
+                      <dt class="fit fit-build" hidden>Days late</dt><dd class="fit fit-build" id="lg-d-days" hidden>17</dd>
+                    </dl>
+                    <div class="lg-actions">
+                      <button class="lg-btn" type="button" data-c="LgButtonComponent" data-g="color.line,radius.sm,type.sm,space.3">Send reminder</button>
+                    </div>
+                  </div>
+                  <form class="lg-card lg-form" id="lg-form" data-c="InvoiceFormComponent" data-g="color.surface,radius.md,space.3,space.4,type.sm" onsubmit="return false">
+                    <h2>New invoice</h2>
+                    <div class="lg-field" data-c="LgFieldComponent" data-g="color.line,radius.sm,type.sm,space.1,space.2"><label for="f-cust">Customer <span class="sim-tag" hidden>SIM</span></label><input id="f-cust" type="text" placeholder="Customer name"></div>
+                    <div class="lg-row">
+                      <div class="lg-field" data-c="LgFieldComponent" data-g="color.line,radius.sm,type.sm,space.1,space.2" style="flex:1"><label for="f-amt">Amount <span class="sim-tag" hidden>SIM</span></label><input id="f-amt" type="text" placeholder="0.00"></div>
+                      <div class="lg-field" data-c="LgFieldComponent" data-g="color.line,radius.sm,type.sm,space.1,space.2" style="flex:1"><label for="f-due">Due <span class="sim-tag" hidden>SIM</span></label><input id="f-due" type="text" placeholder="YYYY-MM-DD"></div>
+                    </div>
+                    <div class="lg-field" data-c="LgFieldComponent" data-g="color.line,radius.sm,type.sm,space.1,space.2"><label for="f-notes">Notes <span class="sim-tag" hidden>SIM</span></label><textarea id="f-notes" placeholder="Optional"></textarea></div>
+                    <div class="lg-row"><span class="lg-spacer"></span><button class="lg-btn primary" type="button" data-c="LgButtonComponent" data-g="color.primary,radius.sm,type.sm,space.3">Save invoice</button></div>
+                  </form>
+                </div>
+              </div>
+            </div>
+            <!-- ======== end Ledger · SIM ======== -->
+          </div>
+
+          <!-- the mirror's BEFORE plate (Advanced): a clone of the app with nothing any build added -->
+          <div class="frame lg-root snap" id="frame-before" hidden>
+            <div class="frame-tab"><span>before · the release snapshot · SIM</span></div>
+            <div id="before-host"></div>
+          </div>
+
+          <!-- Sketch: the sheet at the app's size -->
+          <div class="frame" id="frame-sketch">
+            <div class="frame-tab"><span>Sketch · payment-reminders</span><span class="faint">·</span><span>.jig/sketches/payment-reminders.json · SIM</span></div>
+            <div class="sketch-bar" id="sketch-bar" role="group" aria-label="sketch primitives — drawn with the app's gauges">
+              <button class="prim" type="button" data-prim="box" aria-pressed="false" title="box — color.surface · color.line · radius.md">box</button>
+              <button class="prim" type="button" data-prim="text" aria-pressed="false" title="text — type.lg · color.ink">text</button>
+              <button class="prim" type="button" data-prim="button" aria-pressed="false" title="button — color.primary · radius.sm · type.sm">button</button>
+              <button class="prim" type="button" data-prim="input" aria-pressed="false" title="input — color.surface · color.line · radius.sm">input</button>
+              <button class="prim" type="button" data-prim="list" aria-pressed="false" title="list — color.surface · color.line · radius.md">list</button>
+              <span class="sep" aria-hidden="true"></span>
+              <span class="prov" id="sk-scrap" hidden></span>
+              <button class="printed" id="sketch-printed" type="button" hidden title="printed — the sheet as it was saved"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12a8 8 0 1 1 2.3 5.7M4 18v-5h5"/></svg>printed</button>
+              <button class="build-screen" id="build-screen" type="button" title="build this screen — open the prompt card for the sheet">build this screen →</button>
+            </div>
+            <div class="sheet" id="sheet" aria-label="sketch sheet">
+              <div class="sheet-say" id="sheet-say">pick a primitive and drag to draw · drag an element to move it — it snaps to the 4px grid and to other edges and centres</div>
+            </div>
+          </div>
+        </div>
+
+        <span class="plate-say" id="plate-say"></span>
+        <button class="printed plate-printed" id="plate-printed" type="button" hidden title="printed — the plate as the app is now: one frame, no rulers, no fixture, nothing lit"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12a8 8 0 1 1 2.3 5.7M4 18v-5h5"/></svg>printed</button>
+      </div>
+
+      <div class="overlay" id="overlay" aria-hidden="true">
+        <div class="hov" id="hov"><div class="tag" id="hov-tag"></div></div>
+        <div class="sel" id="sel"><div class="tag" id="sel-tag"></div></div>
+        <div id="guides"></div>
+        <div id="lit-layer"></div>
+        <div class="ghost" id="ghost"><svg viewBox="0 0 18 18" aria-hidden="true"><path d="M3 2l11 6.5-4.6 1.2 2.8 4.8-1.8 1-2.8-4.8L4 14z"/></svg></div>
+      </div>
+
+      <!-- The prompt card: the loop's one control surface. Anchored to the selection; never covers it. -->
+      <div class="card" id="card" role="dialog" aria-label="prompt card" hidden>
+        <div class="head">
+          <span class="c" id="card-c">InvoiceListComponent</span>
+          <button class="close" type="button" id="card-close" aria-label="close the card — the draft stays in Prompts"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+        </div>
+        <div class="prov" id="card-file">src/app/invoices/invoice-list/invoice-list.component.ts</div>
+        <textarea id="card-text" placeholder="what should change here?" rows="3" spellcheck="false"></textarea>
+        <div class="acc">
+          <span class="title">acceptance <span style="text-transform:none;letter-spacing:0;font-weight:400">· optional</span></span>
+          <ul id="card-acc"></ul>
+          <button class="add" type="button" id="card-acc-add">+ add a line</button>
+        </div>
+        <div class="acts">
+          <button class="hair" type="button" id="card-polish" title="Polish — tighten the words and add acceptance lines · local model · ~1.5 s"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z"/><path d="M19 16l.8 2.2L22 19l-2.2.8L19 22l-.8-2.2L16 19l2.2-.8z"/></svg>Polish</button>
+          <button class="oath" type="button" id="card-ready" aria-label="Ready — hold to make the draft the prompt Claude will get">
+            <svg class="ring" viewBox="0 0 18 18" aria-hidden="true"><circle class="track" cx="9" cy="9" r="7"/><circle class="fill" cx="9" cy="9" r="7"/></svg>
+            <span>Ready</span><span class="pair" id="ready-pair">· hold</span>
+          </button>
+          <button class="build" type="button" id="card-build" hidden aria-label="Build — run Claude Code in the repo with this prompt"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 4l13 8-13 8z"/></svg><span>Build</span><span class="pair">· runs Claude Code</span></button>
+        </div>
+        <div class="say" id="card-say"></div>
+        <div id="card-stream"></div>
+        <div class="foot"><span class="prov" id="card-foot">a draft is not saved until it has words</span></div>
+      </div>
+    </div>
+
+    <!-- Advanced — the drawer: everything v0.1 had that is not the loop. Off by default. -->
+    <div class="adv" id="adv-drawer" hidden aria-label="Advanced">
+      <div class="sim-strip" role="note" aria-label="simulation strip">
+        <span><b>SIM</b> · concept D · the Quiet Bench</span>
+        <span>nothing here is wired — no server, no proxy, no model, no MCP; every fake is labeled SIM</span>
+        <span class="spacer"></span>
+        <span>designed 1440×900 · holds at 1280×720</span>
+      </div>
+      <div class="adv-body">
+        <div class="adv-sec">
+          <span class="title">the spine <span style="text-transform:none;letter-spacing:0;font-weight:400">— every prompt on the ladder</span></span>
+          <div class="spine" id="spine"></div>
+          <div class="row" style="gap:16px;flex-wrap:wrap;margin-top:4px">
+            <label class="switch"><input type="checkbox" id="sw-rulers"><span class="sw" aria-hidden="true"></span><span>rulers &amp; guides</span></label>
+            <label class="switch"><input type="checkbox" id="sw-mirror"><span class="sw" aria-hidden="true"></span><span>the mirror — before | after</span></label>
+          </div>
+          <div class="row" style="gap:8px;flex-wrap:wrap">
+            <span class="say" id="scrap-say">scrap bin · 0</span>
+            <button class="link" id="scrap-putback" type="button" hidden>put back the last one</button>
+          </div>
+        </div>
+        <div class="adv-sec">
+          <span class="title">fixtures</span>
+          <div id="fx-list" style="display:grid;gap:6px"></div>
+          <span class="prov">from the survey's data shapes · openapi/v1.json · SIM</span>
+        </div>
+        <div class="adv-sec">
+          <span class="title">toolpath</span>
+          <div class="row" style="gap:8px">
+            <button class="hair rec" type="button" id="tp-rec" aria-pressed="false">record</button>
+            <button class="hair" type="button" id="tp-play" disabled>replay</button>
+          </div>
+          <span class="say" id="tp-say">Hand clicks on the plate become steps while recording</span>
+          <div class="tp-steps" id="tp-steps"></div>
+        </div>
+        <div class="adv-sec">
+          <span class="title">MCP <span style="text-transform:none;letter-spacing:0;font-weight:400">— the secondary door</span></span>
+          <div class="mcp-row"><span class="chip storm"><span class="dot" aria-hidden="true"></span>connected · Claude Desktop · SIM</span></div>
+          <span class="say">Build runs <b>Claude Code</b> itself in the clamped repo; MCP stays for other agents. <span class="mono">.mcp.json</span> written · SIM</span>
+          <span class="say">local model · <b>Qwen2.5-Coder-7B</b> via Ollama · Polish only, on demand · SIM</span>
+          <span class="prov">.jig/prompts/ · .jig/survey/ · .jig/sketches/ · .jig/logbook.jsonl</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- The right column -->
+  <aside class="col" aria-label="the right column">
+    <div class="tabs" role="tablist">
+      <button type="button" role="tab" id="tab-prompts" aria-selected="true" aria-controls="pane-prompts">Prompts <span class="count" id="prompts-count">0</span></button>
+      <button type="button" role="tab" id="tab-inspect" aria-selected="false" aria-controls="pane-inspect">Inspect</button>
+      <button type="button" role="tab" id="tab-design" aria-selected="false" aria-controls="pane-design">Design system</button>
+    </div>
+    <div class="pane" id="pane-prompts" role="tabpanel" aria-hidden="false">
+      <div id="groups"></div>
+      <div class="hand" id="hand"></div>
+    </div>
+    <div class="pane" id="pane-inspect" role="tabpanel" aria-hidden="true">
+      <div id="inspect"></div>
+    </div>
+    <div class="pane gauges" id="pane-design" role="tabpanel" aria-hidden="true">
+      <div class="row" style="justify-content:space-between">
+        <span class="title">design system <span style="text-transform:none;letter-spacing:0;font-weight:400">— the gauges, measured</span></span>
+        <button class="printed" id="gauges-printed" type="button" hidden title="printed — unlight every gauge"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12a8 8 0 1 1 2.3 5.7M4 18v-5h5"/></svg>printed</button>
+      </div>
+      <div class="prov" style="margin:4px 0 2px">src/styles/_tokens.scss · 24 read by the survey · SIM</div>
+      <div id="gauges-list"></div>
+    </div>
+  </aside>
+</main>
+
+<!-- The status line -->
+<footer class="status" id="status">
+  <button class="claude" type="button" id="status-claude" aria-expanded="false" aria-controls="logbook" title="Claude — click to open the logbook">
+    <span class="pip" id="status-pip" aria-hidden="true"></span>
+    <span class="w">Claude</span><span id="status-text">· idle</span>
+  </button>
+  <span class="spacer"></span>
+  <span class="simclock" id="simclock"><b>SIM</b> · <span id="clock">--:--</span> · the only clock</span>
+</footer>
+
+<!-- The logbook drawer -->
+<div class="logbook" id="logbook" hidden aria-label="logbook — the record of everything that happened on the bench">
+  <div class="lb-head">
+    <span class="title">logbook</span>
+    <button class="f" type="button" data-who="all" aria-pressed="true">all</button>
+    <button class="f" type="button" data-who="human" aria-pressed="false">human</button>
+    <button class="f" type="button" data-who="claude" aria-pressed="false">Claude</button>
+    <button class="f" type="button" data-who="model" aria-pressed="false">model</button>
+    <button class="f" type="button" data-who="bench" aria-pressed="false">bench</button>
+    <button class="printed" id="log-printed" type="button" hidden title="printed — show everything"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12a8 8 0 1 1 2.3 5.7M4 18v-5h5"/></svg>printed</button>
+    <span class="prov">.jig/logbook.jsonl · ages against the SIM clock · nothing leaves the machine</span>
+    <button class="close hair" type="button" id="logbook-close" style="height:24px;padding:0 8px;margin-left:8px">close</button>
+  </div>
+  <div class="lb-body"><div class="log" id="log-list"></div></div>
+</div>
+
+<!-- The palette -->
+<div class="veil" id="veil"></div>
+<div class="palette" id="palette" role="dialog" aria-label="the palette — one move to invoke, one to name" aria-modal="true">
+  <input id="pal-in" type="text" placeholder="name the thing — a tool, a prompt, a gauge, a component…" autocomplete="off" spellcheck="false">
+  <ul id="pal-list" role="listbox"></ul>
+  <div class="foot"><span><kbd>↑↓</kbd> move</span><span><kbd>↵</kbd> go</span><span><kbd>Esc</kbd> close</span><span style="margin-left:auto">Ctrl/⌘+K · two moves</span></div>
+</div>
+
+<div class="tip" id="tip" role="tooltip"></div>
+
+<script>
+(() => {
+'use strict';
+const $ = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
+const html = document.documentElement;
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const pad = n => String(n).padStart(2, '0');
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const PRINTED_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12a8 8 0 1 1 2.3 5.7M4 18v-5h5"/></svg>';
+
+/* ---------- SIM survey: what Jig knows about the subject (all of it fiction, labeled) ---------- */
+const SURVEY = {
+  AppComponent: { file: 'src/app/app.component.ts', sel: 'app-root', routes: ['/'], ends: [] },
+  TopBarComponent: { file: 'src/app/shell/top-bar/top-bar.component.ts', sel: 'app-top-bar', routes: ['/ (shell)'], ends: [] },
+  SearchBoxComponent: { file: 'src/app/shell/search-box/search-box.component.ts', sel: 'app-search-box', routes: [], ends: ['GET /api/search?q='] },
+  LgButtonComponent: { file: 'src/app/ui/button/button.component.ts', sel: 'lg-button', routes: [], ends: [] },
+  AvatarComponent: { file: 'src/app/ui/avatar/avatar.component.ts', sel: 'lg-avatar', routes: [], ends: ['GET /api/me'] },
+  SideNavComponent: { file: 'src/app/shell/side-nav/side-nav.component.ts', sel: 'app-side-nav', routes: ['/invoices', '/customers', '/payments', '/reports', '/settings'], ends: [] },
+  NavItemComponent: { file: 'src/app/shell/side-nav/nav-item.component.ts', sel: 'app-nav-item', routes: [], ends: [] },
+  InvoicesPageComponent: { file: 'src/app/invoices/invoices-page.component.ts', sel: 'app-invoices-page', routes: ['/invoices'], ends: ['GET /api/invoices'] },
+  PageHeaderComponent: { file: 'src/app/ui/page-header/page-header.component.ts', sel: 'lg-page-header', routes: [], ends: [] },
+  LgPillComponent: { file: 'src/app/ui/pill/pill.component.ts', sel: 'lg-pill', routes: [], ends: [] },
+  InvoiceListComponent: { file: 'src/app/invoices/invoice-list/invoice-list.component.ts', sel: 'app-invoice-list', routes: ['/invoices'], ends: ['GET /api/invoices', 'GET /api/invoices/{id}'], docs: ['docs/invoicing.md §3 "Overdue handling" · 0.82', 'docs/api.md "GET /api/invoices" · 0.71'] },
+  DataTableComponent: { file: 'src/app/ui/data-table/data-table.component.ts', sel: 'lg-data-table', routes: [], ends: [] },
+  InvoiceRowComponent: { file: 'src/app/invoices/invoice-list/invoice-row.component.ts', sel: 'app-invoice-row', routes: ['/invoices/:id'], ends: ['GET /api/invoices/{id}'], docs: ['docs/invoicing.md §3 "Overdue handling" · 0.77'] },
+  InvoiceDetailComponent: { file: 'src/app/invoices/invoice-detail/invoice-detail.component.ts', sel: 'app-invoice-detail', routes: ['/invoices/:id'], ends: ['GET /api/invoices/{id}', 'POST /api/invoices/{id}/remind'], docs: ['docs/invoicing.md §4 "Reminders" · 0.69'] },
+  InvoiceFormComponent: { file: 'src/app/invoices/invoice-form/invoice-form.component.ts', sel: 'app-invoice-form', routes: ['/invoices/new'], ends: ['POST /api/invoices'], docs: ['docs/api.md "POST /api/invoices" · 0.74'] },
+  LgFieldComponent: { file: 'src/app/ui/field/field.component.ts', sel: 'lg-field', routes: [], ends: [] },
+  Sketch: { file: '.jig/sketches/payment-reminders.json', sel: '— a screen that does not exist yet', routes: ['/reminders · new — the sketch says so'], ends: ['POST /api/invoices/{id}/remind · exists', 'GET /api/reminders · new'], docs: ['docs/invoicing.md §4 "Reminders" · 0.81'] },
+};
+const GAUGES = [
+  ['colour', 'color.bg', '#f7f8fa'], ['colour', 'color.surface', '#ffffff'], ['colour', 'color.line', '#d9dee5'], ['colour', 'color.ink', '#1c2128'], ['colour', 'color.dim', '#5b6470'],
+  ['colour', 'color.primary', '#1a56db'], ['colour', 'color.primary-ink', '#ffffff'], ['colour', 'color.ok', '#1b7f4a'], ['colour', 'color.warn', '#9a6400'], ['colour', 'color.danger', '#b42318'],
+  ['type', 'type.sm', '12px'], ['type', 'type.md', '14px'], ['type', 'type.lg', '18px'], ['type', 'type.font', 'Segoe UI · Roboto'],
+  ['space', 'space.1', '4px'], ['space', 'space.2', '8px'], ['space', 'space.3', '12px'], ['space', 'space.4', '16px'], ['space', 'space.6', '24px'],
+  ['radius', 'radius.sm', '4px'], ['radius', 'radius.md', '8px'], ['radius', 'radius.pill', '999px'],
+  ['shadow', 'shadow.card', '0 1px 2px rgba(16,24,40,.08)'],
+  ['motion', 'motion.fast', '150ms'],
+].map(([cat, name, v]) => ({ cat, name, v }));
+const ROWS = [
+  ['INV-1042', 'Halvorsen & Daughters', '$4,280.00', '2026-08-21', 'overdue', 17],
+  ['INV-1041', 'Brightwater Co-op', '$1,120.00', '2026-09-09', 'due', -2],
+  ['INV-1040', 'Okafor Studio', '$860.50', '2026-09-04', 'overdue', 3],
+  ['INV-1039', 'Meridian Freight', '$12,400.00', '2026-08-30', 'paid', null],
+  ['INV-1038', 'Pelham Books', '$310.00', '2026-09-12', 'due', -5],
+  ['INV-1037', 'Sato Landscaping', '$2,050.00', '2026-08-15', 'paid', null],
+];
+const FIXTURES = [
+  { name: 'invoice-overdue', key: 'seed 41', shape: 'Invoice[] · 4 rows · every one past due', rows: ROWS.filter(r => r[4] === 'overdue').concat([['INV-1036', 'Quill & Ash', '$5,900.00', '2026-07-30', 'overdue', 39], ['INV-1035', 'Northlake Dental', '$740.00', '2026-08-02', 'overdue', 36]]), form: ['Quill & Ash', '5900.00', '2026-10-07'] },
+  { name: 'invoice-happy', key: 'seed 7', shape: 'Invoice[] · 3 rows · all paid', rows: ROWS.filter(r => r[4] === 'paid').concat([['INV-1034', 'Farrow Print', '$1,980.00', '2026-08-01', 'paid', null]]), form: ['Farrow Print', '1980.00', '2026-10-01'] },
+  { name: 'invoice-empty', key: 'seed 0', shape: 'Invoice[] · 0 rows · the empty state', rows: [], form: ['', '', ''] },
+];
+
+/* ---------- state ---------- */
+const S = { tool: 'point', sel: null, prompts: [], hand: null, cardT: null, cardP: null, build: null, lastBuilt: null, lit: null, adv: false, rulers: false, mirror: false, fixture: null, rec: false, steps: [], replaying: false, logFilter: 'all', scrap: [], log: [], polishing: false, seq: 3 };
+const plate = $('#plate'), wrap = $('#plate-wrap'), ledger = $('#ledger'), card = $('#card');
+
+/* ---------- the clock (the ONLY clock, labeled SIM) · ages · the logbook ---------- */
+const T0 = Date.now();
+function tickClock() { const d = new Date(); $('#clock').textContent = pad(d.getHours()) + ':' + pad(d.getMinutes()); }
+function age(t) { const s = Math.max(0, Math.round((Date.now() - t) / 1000)); return s < 5 ? 'now' : s < 60 ? s + 's' : s < 3600 ? Math.floor(s / 60) + 'm' : Math.floor(s / 3600) + 'h'; }
+function mmss(ms) { const s = Math.floor(ms / 1000); return pad(Math.floor(s / 60)) + ':' + pad(s % 60); }
+function dur(ms) { const s = Math.round(ms / 1000); return Math.floor(s / 60) + 'm ' + pad(s % 60) + 's'; }
+function log(who, what, prov, t = Date.now()) { S.log.push({ who, what, prov, t }); renderLog(); }
+function renderLog() {
+  const list = S.log.filter(e => S.logFilter === 'all' || e.who === S.logFilter).slice().reverse();
+  $('#log-list').innerHTML = list.map(e => `<div class="log-row ${e.who}"><span class="age">${age(e.t)}</span><span><span class="what">${esc(e.what)}</span>${e.prov ? `<span class="prov">${esc(e.prov)}</span>` : ''}</span><span class="who">${e.who}</span></div>`).join('')
+    || `<div class="empty">nothing on the shelves for <b>${esc(S.logFilter)}</b></div>`;
+  $('#log-printed').hidden = S.logFilter === 'all';
+}
+function setLogbook(on) { $('#logbook').hidden = !on; $('#status-claude').setAttribute('aria-expanded', String(on)); if (on) renderLog(); }
+$('#status-claude').addEventListener('click', () => setLogbook($('#logbook').hidden));
+$('#logbook-close').addEventListener('click', () => setLogbook(false));
+$$('#logbook .f').forEach(b => b.addEventListener('click', () => { S.logFilter = b.dataset.who; $$('#logbook .f').forEach(x => x.setAttribute('aria-pressed', String(x === b))); renderLog(); }));
+$('#log-printed').addEventListener('click', () => { S.logFilter = 'all'; $$('#logbook .f').forEach(x => x.setAttribute('aria-pressed', String(x.dataset.who === 'all'))); renderLog(); });
+
+/* ---------- the status line: Claude's one word ---------- */
+function renderStatus() {
+  const pip = $('#status-pip'), txt = $('#status-text');
+  pip.className = 'pip';
+  if (S.build) { pip.classList.add('live'); txt.innerHTML = `· building · <span class="mono">${mmss(Date.now() - S.build.p.t0)}</span> · <span class="mono">${esc(S.build.step || 'starting claude -p')}</span>`; }
+  else if (S.lastBuilt) { pip.classList.add('done'); txt.innerHTML = `· built · <span class="mono">${S.lastBuilt.files} files · ${dur(S.lastBuilt.dur)}</span>`; }
+  else txt.textContent = '· idle';
+}
+
+/* ---------- tools · the tip ---------- */
+const SAY = { point: '<b>Point</b> — hover names a component · click opens the prompt card', sketch: '<b>Sketch</b> — draw with the app\'s gauges · the sheet is a prompt target', hand: '<b>Hand</b> — the app takes your clicks · drag scrolls the plate' };
+function setTool(t, quiet) {
+  if (S.tool === t) return;
+  const swap = (t === 'sketch') !== (html.dataset.plate === 'sketch'); if (swap) closeCard();
+  S.tool = t; html.dataset.tool = t; html.dataset.plate = t === 'sketch' ? 'sketch' : 'app';
+  $$('.tool').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.tool === t)));
+  $('#hov').classList.remove('on');
+  if (t !== 'point') $('#plate-say').innerHTML = SAY[t]; else $('#plate-say').innerHTML = SAY.point;
+  if (S.sel) { const kind = S.sel.kind; if ((t === 'sketch') !== (kind === 'sketch' || kind === 'skel')) deselect(); else placeSel(); }
+  if (t === 'sketch') { sketchSetPrim(sketchPrim); if (S.mirror) setMirror(false); }
+  if (!quiet) log('human', 'tool · ' + t);
+}
+$$('.tool').forEach(b => b.addEventListener('click', () => setTool(b.dataset.tool)));
+const tip = $('#tip');
+function showTip(el) {
+  tip.innerHTML = `<b>${esc(el.dataset.word)}</b> <span class="pair">— ${esc(el.dataset.pair)}</span>${el.dataset.key ? ` <span class="pair mono">· ${esc(el.dataset.key)}</span>` : ''}`;
+  const r = el.getBoundingClientRect(); tip.style.left = (r.right + 10) + 'px'; tip.style.top = Math.max(8, Math.min(r.top, innerHeight - 80)) + 'px'; tip.classList.add('on');
+}
+$$('[data-word]').forEach(el => { el.addEventListener('mouseenter', () => showTip(el)); el.addEventListener('mouseleave', () => tip.classList.remove('on')); el.addEventListener('focusin', () => showTip(el)); el.addEventListener('focusout', () => tip.classList.remove('on')); });
+
+/* ---------- the subject: rows, the detail, Hand clicks ---------- */
+let rowsNow = ROWS;
+function renderRows(rows) {
+  rowsNow = rows;
+  const bp = S.prompts.find(p => p.state === 'built' && p.change === 'days'); const cls = bp ? 'fit-' + bp.id : 'fit-build', hid = bp ? bp.before : true;
+  $('#lg-rows').innerHTML = rows.length ? rows.map((r, i) => `<tr data-c="InvoiceRowComponent" data-g="type.sm,space.2,color.line" data-i="${i}"${i === 0 ? ' class="on"' : ''}><td>${r[0]}</td><td>${esc(r[1])}</td><td class="num">${r[2]}</td><td>${r[3]}</td><td><span class="lg-pill ${r[4]}" data-c="LgPillComponent" data-g="color.${r[4] === 'paid' ? 'ok' : r[4] === 'due' ? 'warn' : 'danger'},type.sm,radius.pill">${r[4]}</span></td><td class="num fit ${cls}"${hid ? ' hidden' : ''}>${r[5] === null ? '—' : r[5] < 0 ? '−' + (-r[5]) : r[5]}</td></tr>`).join('')
+    : `<tr><td colspan="6" style="padding:24px;text-align:center;color:var(--lg-dim)">No invoices yet — the empty state · SIM</td></tr>`;
+  if (rows.length) showDetail(rows[0]); else showDetail(null);
+}
+function showDetail(r) {
+  const d = $('#lg-d-num').closest('.lg-detail');
+  if (!r) { d.style.opacity = '0.5'; return; } d.style.opacity = '';
+  $('#lg-d-num').textContent = r[0]; $('#lg-d-cust').textContent = r[1]; $('#lg-d-amt').textContent = r[2]; $('#lg-d-due').textContent = r[3];
+  const st = $('#lg-d-status'); st.textContent = r[4]; st.className = 'lg-pill ' + r[4]; st.dataset.g = `color.${r[4] === 'paid' ? 'ok' : r[4] === 'due' ? 'warn' : 'danger'},type.sm,radius.pill`;
+  $('#lg-d-days').textContent = r[5] === null ? '—' : r[5] < 0 ? '−' + (-r[5]) : r[5];
+}
+ledger.addEventListener('click', e => {
+  if (S.tool !== 'hand') return;
+  const tr = e.target.closest('tr[data-i]'); if (tr) { $$('#lg-rows tr').forEach(x => x.classList.toggle('on', x === tr)); showDetail(rowsNow[+tr.dataset.i]); }
+  const c = e.target.closest('[data-c]');
+  if (S.rec && c) { S.steps.push({ c: c.dataset.c, text: (c.innerText || '').trim().slice(0, 28) }); renderSteps(); log('human', `toolpath · step ${S.steps.length} · ${c.dataset.c}`); }
+});
+
+/* ---------- Point: hover names, click selects and opens the card ---------- */
+function rectIn(el) { const r = el.getBoundingClientRect(), p = plate.getBoundingClientRect(); return { x: r.left - p.left, y: r.top - p.top, w: r.width, h: r.height }; }
+function boxTo(node, r, tagNode, text) { node.style.left = r.x + 'px'; node.style.top = r.y + 'px'; node.style.width = r.w + 'px'; node.style.height = r.h + 'px'; node.classList.toggle('low', r.y < 26); if (tagNode) tagNode.textContent = text; node.classList.add('on'); }
+function targetAt(x, y) {
+  const el = document.elementFromPoint(x, y); if (!el) return null;
+  if (html.dataset.plate === 'sketch') {
+    const sk = el.closest('.sk'); if (sk) return { el: sk, name: sk.dataset.kind + ' · sketch', kind: 'skel' };
+    if (el.closest('#sheet')) return { el: $('#sheet'), name: 'Sketch · payment-reminders', kind: 'sketch' };
+    return null;
+  }
+  const c = el.closest('[data-c]'); if (!c || !ledger.contains(c)) return null;
+  return { el: c, name: c.dataset.c, kind: 'component' };
+}
+function gaugesOf(el) { return el && el.dataset && el.dataset.g ? el.dataset.g.split(',') : (el && el.classList && el.classList.contains('sk') ? SK_GAUGES[el.dataset.kind] : []); }
+plate.addEventListener('pointermove', e => {
+  if (S.tool !== 'point') return;
+  const t = targetAt(e.clientX, e.clientY);
+  if (!t) { $('#hov').classList.remove('on'); lightRows(S.sel ? gaugesOf(S.sel.el) : []); return; }
+  boxTo($('#hov'), rectIn(t.el), $('#hov-tag'), t.name); lightRows(gaugesOf(t.el));
+});
+plate.addEventListener('pointerleave', () => { $('#hov').classList.remove('on'); lightRows(S.sel ? gaugesOf(S.sel.el) : []); });
+plate.addEventListener('click', e => {
+  if (S.tool !== 'point') return;
+  if (card.contains(e.target) || e.target.closest('#plate-printed')) return; /* the plate's own controls keep their clicks */
+  e.preventDefault(); e.stopPropagation();
+  const t = targetAt(e.clientX, e.clientY);
+  if (!t) { closeCard(); deselect(); return; }
+  select(t); openCard(t);
+}, true);
+function select(t) { S.sel = t; placeSel(); renderInspect(); lightRows(gaugesOf(t.el)); }
+function placeSel() {
+  const g = $('#guides'); sketchEls().forEach(x => x.classList.toggle('on', !!S.sel && S.sel.el === x));
+  if (!S.sel || !S.sel.el.isConnected || S.sel.kind === 'skel') { $('#sel').classList.remove('on'); g.innerHTML = ''; return; }
+  const r = rectIn(S.sel.el); boxTo($('#sel'), r, $('#sel-tag'), S.sel.name);
+  g.innerHTML = S.rulers ? `<div class="guide v" style="left:${r.x}px"></div><div class="guide v" style="left:${r.x + r.w}px"></div><div class="guide h" style="top:${r.y}px"></div><div class="guide h" style="top:${r.y + r.h}px"></div>` : '';
+}
+function deselect() { S.sel = null; $('#sel').classList.remove('on'); renderInspect(); lightRows([]); }
+plate.addEventListener('scroll', () => { placeSel(); if (!card.hidden && S.cardT) placeCard(S.cardT.el); if (S.lit) drawLit(S.lit); if (S.rulers) drawRulers(); });
+addEventListener('resize', () => { placeSel(); if (!card.hidden && S.cardT) placeCard(S.cardT.el); if (S.lit) drawLit(S.lit); if (S.rulers) drawRulers(); });
+
+/* ---------- Inspect ---------- */
+function crumbsOf(el) { const out = []; let n = el; while (n && n !== plate) { if (n.dataset && n.dataset.c) out.push(n.dataset.c); n = n.parentElement; } return out; }
+function renderInspect() {
+  const box = $('#inspect'); const t = S.sel;
+  if (!t) { box.innerHTML = `<div class="empty">Nothing pointed at — <b>Point</b> at the plate and click, or pick a prompt.</div>`; return; }
+  const el = t.el;
+  if (t.kind === 'skel') {
+    const g = SK_GAUGES[el.dataset.kind] || [];
+    box.innerHTML = `<div class="crumbs"><b>${esc(el.dataset.kind)}</b><span class="sep">‹</span>Sketch · payment-reminders</div><div class="block" style="margin-top:10px"><dl class="kv"><dt>kind</dt><dd>${esc(el.dataset.kind)} — a sketch primitive</dd><dt>label</dt><dd>${esc(el.dataset.label || '')}</dd><dt>box</dt><dd class="mono">${el.offsetWidth}×${el.offsetHeight} @ ${el.offsetLeft},${el.offsetTop} · on the 4px grid</dd></dl></div><div class="block"><span class="title">gauges it uses</span><div class="gauge-chips">${chips(g)}</div></div><div class="prov">.jig/sketches/payment-reminders.json · SIM</div>`;
+    return;
+  }
+  const name = t.kind === 'sketch' ? 'Sketch' : el.dataset.c; const sv = SURVEY[name] || {}; const g = t.kind === 'sketch' ? sketchGauges() : gaugesOf(el);
+  const crumbs = t.kind === 'sketch' ? ['Sketch · payment-reminders'] : crumbsOf(el);
+  const text = t.kind === 'sketch' ? `${sketchEls().length} elements` : (el.innerText || '').replace(/\s+/g, ' ').trim().slice(0, 72);
+  const inst = t.kind === 'sketch' ? 1 : $$('[data-c="' + name + '"]', ledger).length;
+  box.innerHTML = `<div class="crumbs">${crumbs.map((c, i) => (i ? '<span class="sep">‹</span>' : '') + (i ? esc(c) : '<b>' + esc(c) + '</b>')).join('')}</div>
+    <div class="block" style="margin-top:10px"><dl class="kv"><dt>file</dt><dd class="mono">${esc(sv.file || '—')}</dd><dt>selector</dt><dd class="mono">${esc(sv.sel || '—')} · ${inst} instance${inst === 1 ? '' : 's'}</dd><dt>tag</dt><dd class="mono">${t.kind === 'sketch' ? 'sheet' : el.tagName.toLowerCase()}${el.className && t.kind !== 'sketch' ? '.' + esc(String(el.className).split(' ')[0]) : ''}</dd><dt>text</dt><dd>${esc(text) || '<span class="dim">—</span>'}</dd></dl></div>
+    <div class="block"><span class="title">gauges it uses</span><div class="gauge-chips">${chips(g) || '<span class="dim" style="font-size:12.5px">none of its own — inherits</span>'}</div></div>
+    <div class="block"><dl class="kv"><dt>routes</dt><dd class="mono">${(sv.routes || []).map(esc).join('<br>') || '—'}</dd><dt>endpoints</dt><dd class="mono">${(sv.ends || []).map(esc).join('<br>') || '—'}</dd><dt>docs</dt><dd class="mono">${(sv.docs || []).map(esc).join('<br>') || '— none matched'}</dd></dl></div>
+    <div class="prov">.jig/survey/ · read at open · SIM</div>`;
+  $$('.gchip', box).forEach(ch => { ch.addEventListener('mouseenter', () => drawLit(ch.dataset.g, true)); ch.addEventListener('mouseleave', () => { if (S.lit) drawLit(S.lit); else clearLit(); }); ch.addEventListener('click', () => lightGauge(ch.dataset.g)); });
+}
+function chips(g) { return g.map(n => { const gg = GAUGES.find(x => x.name === n); return `<button class="gchip" type="button" data-g="${esc(n)}" title="click to light every use on the plate"><span class="swatch" style="${gg && gg.cat === 'colour' ? 'background:' + gg.v : ''}"></span>${esc(n)}</button>`; }).join(''); }
+
+/* ---------- Design system: the gauges, two-way lit ---------- */
+function usesOf(name) { return $$('[data-g]', html.dataset.plate === 'sketch' ? $('#sheet') : ledger).filter(el => !el.hidden && el.dataset.g.split(',').includes(name)).concat(html.dataset.plate === 'sketch' ? $$('.sk', $('#sheet')).filter(el => (SK_GAUGES[el.dataset.kind] || []).includes(name)) : []); }
+function renderGauges() {
+  const cats = ['colour', 'type', 'space', 'radius', 'shadow', 'motion'];
+  $('#gauges-list').innerHTML = cats.map(cat => { const list = GAUGES.filter(g => g.cat === cat); return `<div class="cat-head"><span class="title">${cat}</span><span class="n">${list.length}</span></div>` + list.map(g => { const n = usesOf(g.name).length; const sw = cat === 'colour' ? `<span class="swatch" style="background:${g.v}"></span>` : cat === 'type' ? `<span class="swatch">Aa</span>` : cat === 'space' ? `<span class="swatch"><span style="width:${Math.min(20, parseInt(g.v))}px;height:6px;background:var(--dim);border-radius:1px"></span></span>` : cat === 'radius' ? `<span class="swatch"><span style="width:14px;height:14px;border:1px solid var(--dim);border-radius:${Math.min(7, parseInt(g.v))}px"></span></span>` : cat === 'shadow' ? `<span class="swatch">sh</span>` : `<span class="swatch">ms</span>`; return `<button class="gauge${S.lit === g.name ? ' lit' : ''}" type="button" data-g="${g.name}" aria-pressed="${S.lit === g.name}"><span>${sw}</span><span><span class="name">${g.name}</span><br><span class="val">${esc(g.v)}</span></span><span class="uses">${n}×</span></button>`; }).join(''); }).join('');
+  $$('#gauges-list .gauge').forEach(b => { b.addEventListener('click', () => lightGauge(b.dataset.g)); b.addEventListener('mouseenter', () => drawLit(b.dataset.g, true)); b.addEventListener('mouseleave', () => { if (S.lit) drawLit(S.lit); else clearLit(); }); });
+  $('#gauges-printed').hidden = !S.lit;
+}
+function lightRows(names) { $$('#gauges-list .gauge').forEach(b => b.classList.toggle('lit', names.includes(b.dataset.g) || S.lit === b.dataset.g)); }
+function lightGauge(name) { S.lit = S.lit === name ? null : name; if (S.lit) drawLit(S.lit); else clearLit(); renderGauges(); lightRows(S.sel ? gaugesOf(S.sel.el) : []); plateHouse(); if (S.lit) log('human', `lit · ${name} · ${usesOf(name).length} uses on the plate`); }
+function drawLit(name, preview) { const uses = usesOf(name); $('#lit-layer').innerHTML = uses.map(el => { const r = rectIn(el); return `<div class="lit" style="left:${r.x}px;top:${r.y}px;width:${r.w}px;height:${r.h}px"><span class="n">${esc(name)}</span></div>`; }).join(''); if (!preview) $('#gauges-printed').hidden = !S.lit; }
+function clearLit() { $('#lit-layer').innerHTML = ''; }
+$('#gauges-printed').addEventListener('click', () => { S.lit = null; clearLit(); renderGauges(); lightRows(S.sel ? gaugesOf(S.sel.el) : []); plateHouse(); });
+
+/* ---------- Prompts: the artifact (A4) — draft → ready → building → built, plus scrapped ---------- */
+const STOP = new Set(['a', 'an', 'the', 'in', 'on', 'to', 'of', 'and', 'for', 'it', 'is', 'be', 'that', 'this', 'with', 'please']);
+function slugOf(text) { return text.toLowerCase().replace(/[^a-z0-9]+/g, '-').split('-').filter(w => w && !STOP.has(w)).slice(0, 4).join('-') || 'untitled'; } /* the file name is the human's first words — Polish never renames it */
+function targetOf(t) {
+  if (t.kind === 'sketch' || t.kind === 'skel') return { kind: 'sketch', name: 'Sketch · payment-reminders', c: 'Sketch', crumbs: ['Sketch · payment-reminders'], gauges: sketchGauges(), el: $('#sheet') };
+  return { kind: 'component', name: t.el.dataset.c, c: t.el.dataset.c, crumbs: crumbsOf(t.el), gauges: gaugesOf(t.el), el: t.el };
+}
+function newPrompt(t, text, acc, from) {
+  const id = pad(S.seq++).padStart(4, '0');
+  const p = { id, text: text || '', acc: acc ? acc.slice() : [], state: 'draft', target: targetOf(t), stream: [], createdAt: Date.now(), from: from || null, before: false, change: null };
+  p.slug = slugOf(p.text); S.prompts.push(p); S.hand = p; return p;
+}
+function ctxOf(p) {
+  const sv = SURVEY[p.target.c] || {}; const inst = p.target.kind === 'sketch' ? 1 : $$('[data-c="' + p.target.c + '"]', ledger).length;
+  const line = (k, v) => `<b>${k.padEnd(10)}</b>${v}`;
+  return [line(p.target.kind === 'sketch' ? 'sketch' : 'component', esc(p.target.crumbs.join(' ‹ '))), line('file', esc(sv.file || '—')), line('selector', esc(sv.sel || '—') + (p.target.kind === 'sketch' ? '' : ` · ${inst} instance${inst === 1 ? '' : 's'}`)), line('gauges', esc(p.target.gauges.join(' · ') || '—')), line('routes', esc((sv.routes || []).join(' · ') || '—')), line('endpoints', esc((sv.ends || []).join(' · ') || '—')), line('docs', (sv.docs || []).map(esc).join('\n' + ' '.repeat(10)) || '— none matched')].join('\n');
+}
+function fileOf(p) { return `.jig/prompts/${p.id}-${p.slug}.md`; }
+function renderPrompts() {
+  const groups = ['draft', 'ready', 'building', 'built'];
+  const live = S.prompts.filter(p => p.state !== 'scrapped'); const scrapped = S.prompts.filter(p => p.state === 'scrapped');
+  const row = p => `<button class="prow ${p.state}" type="button" data-id="${p.id}" aria-pressed="${S.hand === p}"><span class="pip" aria-hidden="true"></span><span class="slug">${esc(p.text ? p.slug : '— no words yet')}</span><span class="id">${p.id}</span></button>`;
+  $('#groups').innerHTML = (live.length ? groups.map(st => { const list = live.filter(p => p.state === st); return list.length ? `<div class="grp"><div class="grp-head"><span class="title">${st}</span><span class="n">${list.length}</span></div>${list.map(row).join('')}</div>` : ''; }).join('') : `<div class="empty"><b>No prompts yet</b> — Point at the plate and click a component, or Sketch a screen.</div>`)
+    + (scrapped.length ? `<details class="scrap"><summary>${scrapped.length} scrapped · the scrap bin — nothing is deleted</summary>${scrapped.map(row).join('')}</details>` : '');
+  $('#prompts-count').textContent = live.length;
+  $$('#groups .prow').forEach(b => b.addEventListener('click', () => pickPrompt(S.prompts.find(p => p.id === b.dataset.id))));
+  renderHand(); renderSpine();
+}
+function pickPrompt(p) {
+  S.hand = p; renderPrompts();
+  if (p.target.kind === 'sketch') { if (S.tool !== 'sketch') setTool('sketch'); select({ el: $('#sheet'), name: 'Sketch · payment-reminders', kind: 'sketch' }); }
+  else { const el = p.target.el && p.target.el.isConnected ? p.target.el : $('[data-c="' + p.target.c + '"]', ledger); if (S.tool === 'sketch') setTool('point'); if (el) select({ el, name: el.dataset.c, kind: 'component' }); }
+  if (p.state !== 'scrapped') openCard(S.sel, p);
+}
+function renderHand() {
+  const p = S.hand, box = $('#hand');
+  if (!p) { box.innerHTML = S.prompts.length ? `<div class="empty">No prompt in hand — click one above, or <b>Point</b> at the plate.</div>` : ''; box.hidden = !S.prompts.length; return; }
+  box.hidden = false;
+  const cardOpen = !card.hidden && S.cardP === p;
+  let acts = '';
+  if (p.state === 'draft' || p.state === 'ready') acts += cardOpen ? `<span class="say">the card is open on the plate</span>` : `<button class="link" type="button" data-act="open">open the card</button>`;
+  if (p.state === 'ready' && !cardOpen) acts += ` <button class="build ember" type="button" data-act="build" style="height:30px"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 4l13 8-13 8z"/></svg><span>Build</span><span class="pair">· runs Claude Code</span></button>`;
+  if (p.state === 'draft' || p.state === 'ready') acts += ` <button class="link" type="button" data-act="scrap" style="color:var(--dim)">scrap</button>`;
+  if (p.state === 'scrapped') acts += `<button class="link" type="button" data-act="putback">put back</button>`;
+  box.innerHTML = `<div class="h-head"><span class="mono" style="font-size:12px;color:var(--dim)">${p.id}</span><span class="chip ${p.state === 'building' ? 'wyrd' : p.state === 'built' ? 'ok' : ''}"${p.state === 'ready' ? ' style="color:var(--ink);outline:1.5px solid var(--gold);outline-offset:1px"' : ''}><span class="dot" aria-hidden="true"></span>${p.state}</span><span class="say">→ ${esc(p.target.name)}</span></div>
+    <p class="req">${p.text ? esc(p.text) : '<span class="dim">— no words yet; the card is waiting</span>'}</p>
+    ${p.acc.length ? `<ul class="acc-list">${p.acc.map(a => `<li>${esc(a)}</li>`).join('')}</ul>` : ''}
+    <div class="ctx"><span class="title" style="display:block;margin-bottom:4px">context Jig appends · SIM</span><pre>${ctxOf(p)}</pre></div>
+    ${streamHtml(p)}
+    ${p.state === 'built' ? builtLine(p) : ''}
+    <div class="row" style="gap:10px;flex-wrap:wrap;margin-top:4px">${acts}</div>
+    <div class="prov" style="margin-top:8px">${esc(fileOf(p))} · ${p.state}${p.from ? ' · refined from ' + p.from : ''} · ${age(p.createdAt)}</div>`;
+  box.querySelector('[data-act="open"]')?.addEventListener('click', () => pickPrompt(p));
+  box.querySelector('[data-act="build"]')?.addEventListener('click', () => startBuild(p));
+  box.querySelector('[data-act="scrap"]')?.addEventListener('click', () => scrapPrompt(p));
+  box.querySelector('[data-act="putback"]')?.addEventListener('click', () => putBack(p));
+  wireBuilt(box, p);
+}
+function streamHtml(p) {
+  if (p.state !== 'building' && p.state !== 'built') return '';
+  const head = p.state === 'building' ? `<span class="el mono">building · ${mmss(Date.now() - p.t0)}</span>` : `<span class="el mono">built · ${p.files} files · ${dur(p.dur)}</span>`;
+  return `<div class="stream"><div class="s-head"><span>Claude</span>${head}</div><ol>${p.stream.map((s, i) => `<li class="${i === p.stream.length - 1 && p.state === 'building' ? 'now' : ''}${s.startsWith('SIM') ? ' sim' : ''}">${esc(s)}</li>`).join('')}</ol></div>`;
+}
+function builtLine(p) { return `<div class="built-line"><label class="switch"><input type="checkbox" data-act="before"${p.before ? ' checked' : ''}><span class="sw" aria-hidden="true"></span><span>before — the plate as it was</span></label><button class="link" type="button" data-act="refine">refine — go again</button></div>`; }
+function wireBuilt(box, p) { box.querySelector('[data-act="before"]')?.addEventListener('change', e => setBefore(p, e.target.checked)); box.querySelector('[data-act="refine"]')?.addEventListener('click', () => refine(p)); }
+function scrapPrompt(p) { closeCard(); p.prev = p.state; p.state = 'scrapped'; S.scrap.push({ kind: 'prompt', p }); log('human', `scrapped ${p.id}-${p.slug} · in the scrap bin, not deleted`, fileOf(p)); renderPrompts(); renderScrap(); }
+function putBack(p) { p.state = p.prev || 'draft'; S.scrap = S.scrap.filter(s => s.p !== p); log('human', `put back ${p.id}-${p.slug} · ${p.state}`); renderPrompts(); renderScrap(); }
+function refine(p) { const t = p.target.kind === 'sketch' ? { el: $('#sheet'), kind: 'sketch', name: p.target.name } : { el: p.target.el, kind: 'component', name: p.target.c }; const n = newPrompt(t, p.text, p.acc, p.id); log('human', `refine ${p.id} → ${n.id} · a new draft on the same target`, fileOf(n)); S.lastBuilt = null; renderStatus(); pickPrompt(n); }
+function setBefore(p, on) { p.before = on; $$('.fit-' + p.id).forEach(el => el.hidden = on); $('#frame-tab .on-wyrd').hidden = !S.prompts.some(x => x.before); $('#frame-tab .on-wyrd').textContent = S.prompts.filter(x => x.before).map(x => `before ${x.id} · the snapshot`).join(' · '); plateHouse(); placeSel(); log('human', `before ${p.id} · ${on ? 'the plate shows the snapshot before the build — the change is hidden, not removed' : 'the plate shows the build again'}`); renderHand(); renderCard(); }
+
+/* ---------- the card ---------- */
+function openCard(t, p) {
+  if (!t) return;
+  S.cardT = t; S.cardP = p || S.prompts.filter(x => x.state !== 'scrapped' && x.target.c === targetOf(t).c && (x.state === 'draft' || x.state === 'ready')).pop() || null;
+  if (S.cardP) S.hand = S.cardP;
+  if (S.lastBuilt && (!S.cardP || S.cardP !== S.lastBuilt)) { S.lastBuilt = null; renderStatus(); }
+  const sketch = t.kind === 'sketch' || t.kind === 'skel';
+  $('#card-c').textContent = sketch ? 'build this screen' : t.name;
+  $('#card-file').textContent = (SURVEY[sketch ? 'Sketch' : t.name] || {}).file || '—';
+  $('#card-text').placeholder = sketch ? 'build this screen — what is it for, and what does it do?' : 'what should change here?';
+  card.hidden = false; renderCard(); placeCard(t.el); renderPrompts();
+  if (card.dataset.where === 'corner') say('the selection is larger than the room around it — the card sits over its corner; <b>Esc</b> closes it');
+  if (!S.cardP || S.cardP.state === 'draft') $('#card-text').focus({ preventScroll: true });
+}
+function closeCard() { if (card.hidden) return; if (card.contains(document.activeElement)) plate.focus({ preventScroll: true }); card.hidden = true; S.cardT = null; S.cardP = null; renderPrompts(); } /* focus returns to the plate so the tool keys work again */
+new ResizeObserver(() => { if (!card.hidden && S.cardT) { const was = card.dataset.where; placeCard(S.cardT.el); if (card.dataset.where === 'corner' && was !== 'corner') say('the selection is larger than the room around it — the card sits over its corner; <b>Esc</b> closes it'); } }).observe(card); /* the card grows (Polish, acceptance, the stream) — it is re-placed so it never leaves the plate */
+$('#card-close').addEventListener('click', closeCard);
+function placeCard(el) {
+  if (card.hidden || !el || !el.isConnected) return;
+  const r = rectIn(el), W = plate.clientWidth, H = plate.clientHeight, cw = 340, ch = Math.min(card.offsetHeight, H - 16);
+  const off = { x: plate.getBoundingClientRect().left - wrap.getBoundingClientRect().left, y: plate.getBoundingClientRect().top - wrap.getBoundingClientRect().top };
+  let x, y, where;
+  if (r.x + r.w + 12 + cw <= W - 8) { x = r.x + r.w + 12; y = clamp(r.y, 8, H - ch - 8); where = 'beside'; }
+  else if (r.x - 12 - cw >= 8) { x = r.x - 12 - cw; y = clamp(r.y, 8, H - ch - 8); where = 'beside'; }
+  else if (r.y + r.h + 12 + ch <= H - 8) { x = clamp(r.x, 8, W - cw - 8); y = r.y + r.h + 12; where = 'below'; }
+  else if (r.y - 12 - ch >= 8) { x = clamp(r.x, 8, W - cw - 8); y = r.y - 12 - ch; where = 'above'; }
+  else { x = W - cw - 8; y = H - ch - 8; where = 'corner'; }
+  card.style.left = (off.x + x) + 'px'; card.style.top = (off.y + y) + 'px'; card.dataset.where = where;
+}
+function ensurePrompt() { if (!S.cardP && S.cardT) { S.cardP = newPrompt(S.cardT); S.hand = S.cardP; log('human', `prompt ${S.cardP.id} · a draft on ${S.cardP.target.name}`, fileOf(S.cardP)); renderPrompts(); } return S.cardP; }
+let saveT = null;
+$('#card-text').addEventListener('input', () => {
+  const v = $('#card-text').value; if (!v.trim() && !S.cardP) { renderCardActs(); return; }
+  const p = ensurePrompt(); const was = p.state; p.text = v; if (p.state === 'ready') { p.state = 'draft'; say('edited — a draft again; hold <b>Ready</b> when the words are right'); }
+  if (!p.polished) p.slug = slugOf(p.text); $('#card-foot').textContent = 'saving…'; clearTimeout(saveT); saveT = setTimeout(() => { p.savedAt = Date.now(); renderCardFoot(); }, 400);
+  if (S.lastBuilt) { S.lastBuilt = null; renderStatus(); }
+  renderCardActs(); if (was !== p.state) renderPrompts(); else { renderHand(); renderSpine(); }
+});
+function renderCardFoot() { const p = S.cardP; $('#card-foot').textContent = p && p.text ? `${fileOf(p)} · ${p.state}${p.savedAt ? ' · saved ' + age(p.savedAt) : ''}` : 'a draft is not saved until it has words'; }
+function say(h) { $('#card-say').innerHTML = h; }
+function renderCard() {
+  const p = S.cardP;
+  $('#card-text').value = p ? p.text : ''; $('#card-text').readOnly = !!p && (p.state === 'building' || p.state === 'built');
+  renderAcc(); renderCardActs(); renderCardFoot(); say('');
+  const st = $('#card-stream'); st.innerHTML = p ? streamHtml(p) + (p.state === 'built' ? builtLine(p) : '') : ''; if (p) wireBuilt(st, p);
+  if (p && p.state === 'building') say('Claude is building — the words are locked while it runs');
+  if (p && p.state === 'built') say(`built · <b>${p.files} files</b> · ${dur(p.dur)} — look at the plate, flip <b>before</b>, or refine`);
+}
+function renderAcc() {
+  const p = S.cardP; const ul = $('#card-acc'); const ro = p && (p.state === 'building' || p.state === 'built');
+  ul.innerHTML = (p ? p.acc : []).map((a, i) => `<li><span class="bul" aria-hidden="true"></span><input type="text" value="${esc(a)}" data-i="${i}"${ro ? ' readonly' : ''}><button class="rm" type="button" data-i="${i}" aria-label="remove this line"${ro ? ' hidden' : ''}>×</button></li>`).join('');
+  $('#card-acc-add').hidden = !!ro;
+  $$('input', ul).forEach(inp => inp.addEventListener('input', () => { p.acc[+inp.dataset.i] = inp.value; renderHand(); }));
+  $$('.rm', ul).forEach(b => b.addEventListener('click', () => { p.acc.splice(+b.dataset.i, 1); renderAcc(); renderHand(); }));
+}
+$('#card-acc-add').addEventListener('click', () => { const p = ensurePrompt(); if (!p) return; p.acc.push(''); renderAcc(); $$('#card-acc input').pop().focus(); });
+function renderCardActs() {
+  const p = S.cardP, text = $('#card-text').value.trim(); const st = p ? p.state : 'draft';
+  const polish = $('#card-polish'), ready = $('#card-ready'), build = $('#card-build');
+  polish.hidden = st === 'building' || st === 'built'; polish.disabled = !text || S.polishing;
+  ready.hidden = st === 'building' || st === 'built'; build.hidden = st !== 'ready';
+  ready.classList.toggle('ember', st === 'draft' && !!text && !S.polishing); ready.disabled = st !== 'draft' || !text || S.polishing;
+  ready.style.outline = st === 'ready' ? '1.5px solid var(--gold)' : ''; ready.style.outlineOffset = st === 'ready' ? '2px' : '';
+  $('#ready-pair').textContent = st === 'ready' ? '· held' : text ? '· hold' : '· write the requirement first';
+  build.classList.toggle('ember', st === 'ready');
+  $('#card-text').readOnly = st === 'building' || st === 'built';
+}
+
+/* Polish — on demand (A2). SIM: ~1.5 s, a stated cost, the local model named; the original is kept (Law II). */
+$('#card-polish').addEventListener('click', () => {
+  const p = S.cardP; if (!p || !p.text.trim() || S.polishing) return;
+  S.polishing = true; renderCardActs(); say('polishing · <b>~1.5 s</b> · Qwen2.5-Coder-7B via Ollama · local · nothing leaves the machine · SIM');
+  const t0 = Date.now();
+  setTimeout(() => {
+    S.polishing = false; p.original = p.text; p.polished = true; p.text = polishText(p); if (!p.acc.length) p.acc = polishAcc(p); if (p.state === 'ready') p.state = 'draft';
+    $('#card-text').value = p.text; renderAcc(); renderCardActs(); renderCardFoot(); renderPrompts();
+    say(`polished by the local model · ${((Date.now() - t0) / 1000).toFixed(1)} s · SIM — <button class="link" type="button" id="unpolish">your words</button> puts the original back`);
+    $('#unpolish').addEventListener('click', () => { p.text = p.original; p.polished = false; $('#card-text').value = p.text; renderCardActs(); renderPrompts(); say('your words are back — the polished version is in the logbook'); });
+    log('model', `polished ${p.id} · 1.5 s · Qwen2.5-Coder-7B · local · SIM`, 'was: ' + p.original.slice(0, 80));
+  }, 1500);
+});
+function polishText(p) {
+  const raw = p.text.trim().replace(/\s+/g, ' '); const sv = SURVEY[p.target.c] || {};
+  const where = p.target.kind === 'sketch' ? 'On a new Payment reminders screen' : `In ${p.target.c}${sv.routes && sv.routes[0] ? ' (' + sv.routes[0] + ')' : ''}`;
+  let body = raw.charAt(0).toLowerCase() + raw.slice(1); body = body.replace(/[.!]+$/, '');
+  return `${where}, ${body}. Keep the existing gauges (${p.target.gauges.slice(0, 3).join(', ') || 'the app\'s tokens'}); no new tokens, no new dependencies.`;
+}
+function polishAcc(p) {
+  const sv = SURVEY[p.target.c] || {};
+  return [`Visible on ${sv.routes && sv.routes[0] ? sv.routes[0].split(' ')[0] : 'the screen'} for every record served by ${sv.ends && sv.ends[0] ? sv.ends[0] : 'the existing endpoint'}`, `Uses only ${p.target.gauges.slice(0, 2).join(' and ') || 'the app\'s own gauges'}; nothing hard-coded`, `ng test passes; the change is covered by one new spec`];
+}
+
+/* Ready — the one held gesture. --t-oath is read live from the tokens; release before the fill = honestly cancelled. */
+(() => {
+  const btn = $('#card-ready'); let t0 = 0, timer = null, holding = false;
+  const oath = () => parseFloat(getComputedStyle(html).getPropertyValue('--t-oath')) || 800;
+  function start(e) { if (btn.disabled || !btn.classList.contains('ember') || holding) return; holding = true; t0 = Date.now(); btn.classList.add('holding'); try { btn.setPointerCapture(e.pointerId); } catch (_) {} say('hold — the ring fills; let go early and it stays a draft'); timer = setTimeout(complete, oath()); }
+  function cancel() { if (!holding) return; holding = false; clearTimeout(timer); btn.classList.remove('holding'); say(`let go early — still a draft · <span class="mono">${Date.now() - t0} ms of ${oath()}</span>`); }
+  function complete() { if (!holding) return; holding = false; btn.classList.remove('holding'); const p = S.cardP; if (!p) return; p.state = 'ready'; p.readyAt = Date.now(); log('human', `ready · ${p.id}-${p.slug} — the prompt is written`, fileOf(p)); renderCardActs(); renderCardFoot(); renderPrompts(); say('ready — the file is the prompt Claude will get · <b>Build</b> runs Claude Code in the repo'); $('#card-build').focus({ preventScroll: true }); }
+  btn.addEventListener('pointerdown', start); btn.addEventListener('pointerup', cancel); btn.addEventListener('pointercancel', cancel); btn.addEventListener('pointerleave', cancel); btn.addEventListener('blur', cancel);
+  btn.addEventListener('keydown', e => { if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); if (!holding) start(e); } });
+  btn.addEventListener('keyup', e => { if (e.key === ' ' || e.key === 'Enter') cancel(); });
+})();
+
+/* Build — runs Claude Code itself (A1). SIM: a stream of steps, ~6 s, labeled; it advances the status line, Prompts and the logbook. */
+$('#card-build').addEventListener('click', () => { if (S.cardP && S.cardP.state === 'ready') startBuild(S.cardP); });
+function stepsFor(p) {
+  const sv = SURVEY[p.target.c] || {}; const base = (sv.file || '').replace(/\.ts$/, '');
+  if (p.target.kind === 'sketch') return [['reading ' + fileOf(p), 'reading the prompt'], ['reading .jig/sketches/payment-reminders.json · 5 elements', 'reading the sketch'], ['creating src/app/reminders/reminders-page.component.ts', 'creating reminders-page.component.ts'], ['editing src/app/app.routes.ts', 'editing app.routes.ts'], ['editing src/app/shell/side-nav/side-nav.component.html', 'editing side-nav.component.html'], ['running ng test · 43 passed', 'running ng test'], ['3 files changed · exit 0', 'done']];
+  return [['reading ' + fileOf(p), 'reading the prompt'], ['reading ' + (sv.file || 'the component'), 'reading ' + (sv.file || '').split('/').pop()], ['editing ' + base + '.html', 'editing ' + base.split('/').pop() + '.html'], ['editing ' + (sv.file || 'the component'), 'editing ' + (sv.file || '').split('/').pop()], ['editing src/app/invoices/invoice.model.ts', 'editing invoice.model.ts'], ['running ng test · 41 passed', 'running ng test'], ['3 files changed · exit 0', 'done']];
+}
+let buildTick = null;
+function startBuild(p) {
+  if (S.build || p.state !== 'ready') return;
+  p.state = 'building'; p.t0 = Date.now(); p.stream = []; S.build = { p, i: 0, step: '' }; S.lastBuilt = null;
+  log('claude', `build ${p.id} — claude -p in ~/src/ledger with ${fileOf(p)} · SIM`, 'Build runs Claude Code itself; MCP is the secondary door');
+  selectTab('tab-prompts'); renderPrompts(); renderCard(); renderStatus();
+  const steps = stepsFor(p);
+  buildTick = setInterval(() => { renderStatus(); const h = $('#hand .stream .el'); if (h) h.textContent = `building · ${mmss(Date.now() - p.t0)}`; const c = $('#card-stream .stream .el'); if (c) c.textContent = `building · ${mmss(Date.now() - p.t0)}`; }, 250);
+  const next = () => {
+    const [line, short] = steps[S.build.i]; p.stream.push(line); S.build.step = short; S.build.i++;
+    if (/^(editing|creating|running)/.test(line)) log('claude', line, `${p.id} · SIM`);
+    renderHand(); renderCard(); renderStatus();
+    if (S.build.i < steps.length) setTimeout(next, 850); else setTimeout(finish, 600);
+  };
+  const finish = () => {
+    clearInterval(buildTick); p.state = 'built'; p.files = 3; p.dur = Date.now() - p.t0; p.builtAt = Date.now();
+    const applied = applyBuild(p); if (!applied) p.stream.push('SIM · the canned change was already on the plate — Claude would have changed what the words said');
+    else p.stream.push('SIM · the change on the plate is canned (' + (p.change === 'days' ? 'a Days column' : 'a Reminders route') + '), whatever the words said');
+    S.build = null; S.lastBuilt = p; log('claude', `built ${p.id} · 3 files · ${dur(p.dur)} · exit 0`, fileOf(p));
+    renderPrompts(); renderCard(); renderStatus(); placeSel(); if (!card.hidden && S.cardT) placeCard(S.cardT.el);
+  };
+  setTimeout(next, 700);
+}
+function applyBuild(p) {
+  if (p.target.kind === 'sketch') { const els = $$('.fit-sketch'); if (!els.length) return false; els.forEach(el => { el.hidden = false; el.classList.remove('fit-sketch'); el.classList.add('fit-' + p.id); }); p.change = 'route'; return true; }
+  const els = $$('.fit-build'); if (!els.length) return false; els.forEach(el => { el.hidden = false; el.classList.remove('fit-build'); el.classList.add('fit-' + p.id); }); p.change = 'days'; return true;
+}
+
+/* ---------- tabs · the plate's printed ---------- */
+function selectTab(id) { $$('.tabs [role="tab"]').forEach(t => { const on = t.id === id; t.setAttribute('aria-selected', String(on)); $('#' + t.getAttribute('aria-controls')).setAttribute('aria-hidden', String(!on)); }); if (id === 'tab-design') renderGauges(); if (id === 'tab-inspect') renderInspect(); }
+$$('.tabs [role="tab"]').forEach(t => t.addEventListener('click', () => selectTab(t.id)));
+function plateHouse() { $('#plate-printed').hidden = !(S.rulers || S.mirror || S.fixture || S.lit || S.prompts.some(p => p.before)); }
+$('#plate-printed').addEventListener('click', () => { if (S.rulers) setRulers(false); if (S.mirror) setMirror(false); if (S.fixture) setFixture(null); if (S.lit) { S.lit = null; clearLit(); renderGauges(); } S.prompts.filter(p => p.before).forEach(p => setBefore(p, false)); $('#sw-rulers').checked = false; $('#sw-mirror').checked = false; plateHouse(); log('human', 'printed · the plate as the app is now'); });
+
+/* ==========================================================================
+   Sketch — the sheet at the app's size, five primitives in the app's gauges,
+   REAL snapping: the 4px grid first, then other elements' edges and centres
+   (and the sheet's centre) within 6px, with a storm alignment line while the
+   snap holds. Drawn or moved, nothing lands off the grid.
+   ========================================================================== */
+const sheet = $('#sheet');
+const SK_GAUGES = { box: ['color.surface', 'color.line', 'radius.md'], text: ['type.lg', 'color.ink'], button: ['color.primary', 'color.primary-ink', 'radius.sm', 'type.sm'], input: ['color.surface', 'color.line', 'radius.sm', 'type.sm', 'color.dim'], list: ['color.surface', 'color.line', 'radius.md', 'type.sm', 'space.3'] };
+const SK_DEFAULT = { box: [240, 120, 'Box'], text: [220, 28, 'Heading'], button: [132, 32, 'Button'], input: [220, 32, 'Placeholder'], list: [320, 120, 'List'] };
+const SK_SEED = [{ kind: 'text', x: 32, y: 32, w: 260, h: 28, label: 'Payment reminders' }, { kind: 'input', x: 32, y: 80, w: 220, h: 32, label: 'Days before due' }, { kind: 'button', x: 264, y: 80, w: 132, h: 32, label: 'Send reminders' }, { kind: 'list', x: 32, y: 128, w: 420, h: 200, label: 'Invoices due · customer · amount · due' }, { kind: 'box', x: 468, y: 128, w: 240, h: 120, label: 'Preview' }];
+let sketchPrim = null, skSeq = 0, drag = null;
+const snap4 = v => Math.round(v / 4) * 4;
+function sketchEls() { return $$('.sk', sheet); }
+function sketchGauges() { const s = new Set(); sketchEls().forEach(el => (SK_GAUGES[el.dataset.kind] || []).forEach(g => s.add(g))); return [...s]; }
+function mkSk(d) { const el = document.createElement('div'); el.className = 'sk ' + d.kind; el.dataset.kind = d.kind; el.dataset.label = d.label; el.dataset.id = 'sk' + (++skSeq); el.style.left = d.x + 'px'; el.style.top = d.y + 'px'; el.style.width = d.w + 'px'; el.style.height = d.h + 'px'; if (d.kind !== 'list') el.textContent = d.label; el.title = d.kind + ' · ' + SK_GAUGES[d.kind].join(' · '); sheet.appendChild(el); return el; }
+function sketchReset() { sketchEls().forEach(el => el.remove()); SK_SEED.forEach(mkSk); $('#sketch-printed').hidden = true; }
+function skDirty() { $('#sketch-printed').hidden = false; }
+function sketchSetPrim(k) { sketchPrim = k; $$('#sketch-bar .prim').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.prim === k))); $('#sheet-say').textContent = k ? `${k} — drag on the sheet to draw it, or click to place · ${SK_GAUGES[k].join(' · ')}` : 'pick a primitive and drag to draw · drag an element to move it — it snaps to the 4px grid and to other edges and centres · Delete scraps'; }
+function skSelect(el) { S.sel = el ? { el, name: el.dataset.kind + ' · sketch', kind: 'skel' } : null; placeSel(); renderInspect(); lightRows(el ? SK_GAUGES[el.dataset.kind] : []); }
+function snapTo(el, x, y, w, h) {
+  const TH = 6, cx = [sheet.clientWidth / 2], cy = [sheet.clientHeight / 2]; const lines = []; let bx = null, by = null;
+  sketchEls().filter(o => o !== el).forEach(o => { const l = o.offsetLeft, t = o.offsetTop, r = l + o.offsetWidth, b = t + o.offsetHeight; cx.push(l, r, (l + r) / 2); cy.push(t, b, (t + b) / 2); });
+  [0, w / 2, w].forEach(off => cx.forEach(c => { const d = c - (x + off); if (Math.abs(d) < TH && (bx === null || Math.abs(d) < Math.abs(bx.d))) bx = { d, c }; }));
+  [0, h / 2, h].forEach(off => cy.forEach(c => { const d = c - (y + off); if (Math.abs(d) < TH && (by === null || Math.abs(d) < Math.abs(by.d))) by = { d, c }; }));
+  if (bx) { x += bx.d; lines.push({ v: bx.c }); } if (by) { y += by.d; lines.push({ h: by.c }); }
+  return { x: clamp(x, 0, sheet.clientWidth - w), y: clamp(y, 0, sheet.clientHeight - h), lines };
+}
+function drawAlign(lines) { $$('.aline', sheet).forEach(l => l.remove()); lines.forEach(l => { const d = document.createElement('div'); d.className = 'aline ' + (l.v !== undefined ? 'v' : 'h'); if (l.v !== undefined) d.style.left = l.v + 'px'; else d.style.top = l.h + 'px'; sheet.appendChild(d); }); }
+sheet.addEventListener('pointerdown', e => {
+  if (S.tool !== 'sketch' || e.button !== 0) return;
+  const sr = sheet.getBoundingClientRect(), x = e.clientX - sr.left, y = e.clientY - sr.top; const el = e.target.closest('.sk');
+  if (el) { skSelect(el); drag = { kind: 'move', el, ox: x - el.offsetLeft, oy: y - el.offsetTop, moved: false }; try { sheet.setPointerCapture(e.pointerId); } catch (_) {} e.preventDefault(); return; }
+  if (sketchPrim) { const box = document.createElement('div'); box.className = 'sk-draw'; sheet.appendChild(box); drag = { kind: 'draw', x0: snap4(x), y0: snap4(y), box, w: 0, h: 0 }; Object.assign(box.style, { left: drag.x0 + 'px', top: drag.y0 + 'px', width: '0px', height: '0px' }); try { sheet.setPointerCapture(e.pointerId); } catch (_) {} e.preventDefault(); return; }
+  skSelect(null);
+});
+sheet.addEventListener('pointermove', e => {
+  if (!drag) return; const sr = sheet.getBoundingClientRect(), x = e.clientX - sr.left, y = e.clientY - sr.top;
+  if (drag.kind === 'draw') { const x1 = snap4(clamp(x, 0, sheet.clientWidth)), y1 = snap4(clamp(y, 0, sheet.clientHeight)); drag.l = Math.min(drag.x0, x1); drag.t = Math.min(drag.y0, y1); drag.w = Math.abs(x1 - drag.x0); drag.h = Math.abs(y1 - drag.y0); Object.assign(drag.box.style, { left: drag.l + 'px', top: drag.t + 'px', width: drag.w + 'px', height: drag.h + 'px' }); $('#sheet-say').textContent = `${sketchPrim} · ${drag.w}×${drag.h} @ ${drag.l},${drag.t} · on the 4px grid`; return; }
+  drag.moved = true; const el = drag.el; const res = snapTo(el, snap4(x - drag.ox), snap4(y - drag.oy), el.offsetWidth, el.offsetHeight);
+  el.style.left = res.x + 'px'; el.style.top = res.y + 'px'; drawAlign(res.lines);
+  $('#sheet-say').textContent = `${el.dataset.kind} · ${res.x},${res.y}${res.lines.length ? ' · snapped to ' + res.lines.map(l => l.v !== undefined ? 'x ' + l.v : 'y ' + l.h).join(' and ') : ' · 4px grid'}`;
+});
+function endDrag() {
+  if (!drag) return;
+  if (drag.kind === 'draw') { drag.box.remove(); const d = SK_DEFAULT[sketchPrim]; const big = drag.w >= 16 && drag.h >= 16; const w = big ? drag.w : d[0], h = big ? drag.h : d[1], l = big ? drag.l : clamp(drag.x0, 0, sheet.clientWidth - d[0]), t = big ? drag.t : clamp(drag.y0, 0, sheet.clientHeight - d[1]); const el = mkSk({ kind: sketchPrim, x: l, y: t, w, h, label: d[2] }); skSelect(el); skDirty(); log('human', `sketch · ${sketchPrim} ${w}×${h} @ ${l},${t}`, '.jig/sketches/payment-reminders.json · SIM'); }
+  else if (drag.moved) { skDirty(); log('human', `sketch · moved ${drag.el.dataset.kind} to ${drag.el.offsetLeft},${drag.el.offsetTop}`, '.jig/sketches/payment-reminders.json · SIM'); renderInspect(); }
+  drawAlign([]); drag = null; sketchSetPrim(sketchPrim);
+}
+sheet.addEventListener('pointerup', endDrag); sheet.addEventListener('pointercancel', endDrag);
+function skScrap(el) { S.scrap.push({ kind: 'skel', el }); el.remove(); skSelect(null); skDirty(); renderScrap(); renderSkScrap(); log('human', `scrapped · sketch ${el.dataset.kind} · in the scrap bin, not deleted`); }
+function renderSkScrap() { const n = S.scrap.filter(s => s.kind === 'skel').length; const box = $('#sk-scrap'); box.hidden = !n; box.innerHTML = n ? `<button class="link" type="button" id="sk-putback" style="font-size:11px">${n} scrapped · put back</button>` : ''; $('#sk-putback')?.addEventListener('click', () => { const i = S.scrap.map(s => s.kind).lastIndexOf('skel'); if (i < 0) return; const s = S.scrap.splice(i, 1)[0]; sheet.appendChild(s.el); skSelect(s.el); renderScrap(); renderSkScrap(); log('human', 'put back · sketch ' + s.el.dataset.kind); }); }
+$$('#sketch-bar .prim').forEach(b => b.addEventListener('click', () => sketchSetPrim(sketchPrim === b.dataset.prim ? null : b.dataset.prim)));
+$('#sketch-printed').addEventListener('click', () => { sketchReset(); skSelect(null); renderGauges(); log('human', 'printed · the sheet as it was saved'); });
+$('#build-screen').addEventListener('click', () => { const t = { el: sheet, kind: 'sketch', name: 'Sketch · payment-reminders' }; select(t); openCard(t); });
+
+/* ==========================================================================
+   Advanced — the switch at the rail's foot. Everything v0.1 had that is not
+   the loop, kept: the spine, rulers & guides, the mirror, the scrap bin,
+   fixtures, toolpath, MCP status, the SIM strip. Off by default.
+   ========================================================================== */
+function relayout() { placeSel(); if (!card.hidden && S.cardT) placeCard(S.cardT.el); if (S.lit) drawLit(S.lit); if (S.rulers) drawRulers(); }
+function setAdv(on) { S.adv = on; html.dataset.adv = on ? 'on' : 'off'; $('#adv-drawer').hidden = !on; $('#adv').checked = on; if (on) { renderSpine(); renderFx(); renderSteps(); renderScrap(); } relayout(); log('human', `advanced · ${on ? 'on — the spine, rulers, the mirror, fixtures, toolpath, MCP, the scrap bin' : 'off'}`); }
+$('#adv').addEventListener('change', e => setAdv(e.target.checked));
+$('#sw-rulers').addEventListener('change', e => setRulers(e.target.checked));
+function setRulers(on) { S.rulers = on; wrap.classList.toggle('rulers', on); $('#sw-rulers').checked = on; plateHouse(); relayout(); }
+function drawRulers() {
+  const fr = $('#frame-app').getBoundingClientRect(), pr = plate.getBoundingClientRect(); const origin = { x: fr.left - pr.left, y: fr.top - pr.top }; const cs = getComputedStyle(html);
+  [['#ruler-top', true], ['#ruler-left', false]].forEach(([id, horiz]) => {
+    const c = $(id), W = c.parentElement.clientWidth, H = c.parentElement.clientHeight, dpr = devicePixelRatio || 1; if (!W || !H) return;
+    c.width = W * dpr; c.height = H * dpr; const g = c.getContext('2d'); g.scale(dpr, dpr); g.clearRect(0, 0, W, H);
+    g.strokeStyle = cs.getPropertyValue('--dim').trim(); g.fillStyle = cs.getPropertyValue('--dim').trim(); g.font = '11px ' + cs.getPropertyValue('--mono'); g.lineWidth = 1;
+    const len = horiz ? W : H, o = horiz ? origin.x : origin.y;
+    for (let v = -Math.ceil(o / 8) * 8; v < len - o; v += 8) { const p = Math.round(o + v) + 0.5, major = v % 80 === 0, l = major ? 12 : v % 40 === 0 ? 7 : 4; g.beginPath(); if (horiz) { g.moveTo(p, H); g.lineTo(p, H - l); } else { g.moveTo(W, p); g.lineTo(W - l, p); } g.stroke(); if (major) { if (horiz) g.fillText(String(v), p + 3, 10); else { g.save(); g.translate(10, p - 3); g.rotate(-Math.PI / 2); g.fillText(String(v), 0, 0); g.restore(); } } }
+  });
+}
+$('#sw-mirror').addEventListener('change', e => setMirror(e.target.checked));
+function setMirror(on) {
+  S.mirror = on; $('#sw-mirror').checked = on; const host = $('#before-host'); host.innerHTML = '';
+  if (on) { if (S.tool === 'sketch') setTool('point'); const clone = ledger.cloneNode(true); clone.removeAttribute('id'); $$('[data-c]', clone).forEach(n => n.removeAttribute('data-c')); clone.removeAttribute('data-c'); $$('[id]', clone).forEach(n => n.removeAttribute('id')); host.appendChild(clone); }
+  $('#frame-before').hidden = !on; $('#plate-inner').classList.toggle('mirror', on); $('#frame-tab').firstElementChild.textContent = on ? 'after · Ledger · SIM' : 'Ledger · SIM';
+  plateHouse(); relayout(); log('human', `the mirror · ${on ? 'before | after — two plates at half scale; the subject reads at 6px, disclosed' : 'off'}`);
+}
+function renderFx() { $('#fx-list').innerHTML = FIXTURES.map(f => `<button class="fx" type="button" data-fx="${f.name}" aria-pressed="${S.fixture === f.name}"><span class="name">${f.name}</span><span class="key">${f.key}</span><span class="shape">${esc(f.shape)}</span></button>`).join(''); $$('#fx-list .fx').forEach(b => b.addEventListener('click', () => setFixture(S.fixture === b.dataset.fx ? null : b.dataset.fx))); }
+function setFixture(name) {
+  S.fixture = name; const f = FIXTURES.find(x => x.name === name); renderRows(f ? f.rows : ROWS);
+  ['#f-cust', '#f-amt', '#f-due'].forEach((s, i) => { $(s).value = f ? f.form[i] : ''; $(s).parentElement.querySelector('.sim-tag').hidden = !f || !f.form[i]; }); $('#f-notes').value = '';
+  $('#frame-fixture').hidden = !f; $('#frame-fixture').textContent = f ? `fixture ${f.name} · ${f.key} · served on GET /api/invoices · SIM` : ''; renderFx(); plateHouse(); relayout();
+  log('bench', f ? `fixture ${f.name} · ${f.key} · ${f.rows.length} rows served, the form filled by the input events Angular honours · SIM` : 'fixture cleared · the app\'s own data', f ? '.jig/fixtures/' + f.name + '.json' : null);
+}
+$('#tp-rec').addEventListener('click', () => { S.rec = !S.rec; $('#tp-rec').setAttribute('aria-pressed', String(S.rec)); $('#tp-rec').textContent = S.rec ? 'stop' : 'record'; if (S.rec) { S.steps = []; if (S.tool !== 'hand') setTool('hand'); $('#tp-say').innerHTML = 'recording — <b>Hand</b> clicks on the plate become steps'; } else $('#tp-say').textContent = S.steps.length ? `${S.steps.length} steps · replay walks a ghost through them` : 'nothing recorded — Hand clicks on the plate become steps while recording'; renderSteps(); log('human', S.rec ? 'toolpath · recording' : `toolpath · stopped · ${S.steps.length} steps`); });
+function renderSteps() { $('#tp-steps').innerHTML = S.steps.map((s, i) => `<div class="tp-step"><span class="i">${i + 1}</span><span>${esc(s.c)}${s.text ? ' · ' + esc(s.text) : ''}</span></div>`).join(''); $('#tp-play').disabled = !S.steps.length || S.rec || S.replaying; }
+$('#tp-play').addEventListener('click', () => {
+  if (!S.steps.length || S.replaying) return; S.replaying = true; renderSteps(); const per = 450, ghost = $('#ghost'); const cost = ((S.steps.length * per) / 1000).toFixed(1);
+  $('#tp-say').innerHTML = `replaying · ${S.steps.length} steps · ~${cost} s`; log('bench', `toolpath replay · ${S.steps.length} steps · ~${cost} s`); ghost.classList.add('on'); let i = 0;
+  const step = () => { $$('.tp-step').forEach((d, j) => d.classList.toggle('now', j === i)); const s = S.steps[i]; const el = $$('[data-c="' + s.c + '"]', ledger).find(e => (e.innerText || '').trim().slice(0, 28) === s.text) || $('[data-c="' + s.c + '"]', ledger); if (el) { const r = rectIn(el); ghost.style.left = (r.x + r.w / 2 - 4) + 'px'; ghost.style.top = (r.y + r.h / 2 - 2) + 'px'; boxTo($('#hov'), r, $('#hov-tag'), s.c); } i++; if (i < S.steps.length) setTimeout(step, per); else setTimeout(() => { ghost.classList.remove('on'); $('#hov').classList.remove('on'); $$('.tp-step').forEach(d => d.classList.remove('now')); S.replaying = false; renderSteps(); $('#tp-say').textContent = `${S.steps.length} steps · replayed`; }, per); };
+  step();
+});
+function renderSpine() { const sp = $('#spine'); const live = S.prompts.filter(p => p.state !== 'scrapped'); const rungs = ['draft', 'ready', 'building', 'built']; sp.innerHTML = live.length ? live.map(p => { const i = rungs.indexOf(p.state); return `<div class="sp-card"><span class="id">${p.id} · ${esc(p.target.name)}</span><span class="slug">${esc(p.text ? p.slug : '— no words yet')}</span><div class="ladder">${rungs.map((r, j) => `<div class="rung ${r}${j < i ? ' done' : j === i ? ' now' : ''}${r === 'ready' && i >= 1 ? ' oath' : ''}"><span class="pip" aria-hidden="true"></span><span class="lbl">${r}</span></div>`).join('')}</div></div>`; }).join('') : '<span class="say">no prompts yet</span>'; }
+function renderScrap() { const n = S.scrap.length; $('#scrap-say').innerHTML = `scrap bin · <b>${n}</b>${n ? ' · counted, regenerable — nothing is deleted' : ''}`; $('#scrap-putback').hidden = !n; }
+$('#scrap-putback').addEventListener('click', () => { const s = S.scrap[S.scrap.length - 1]; if (!s) return; if (s.kind === 'prompt') putBack(s.p); else { S.scrap.pop(); sheet.appendChild(s.el); skDirty(); renderScrap(); renderSkScrap(); log('human', 'put back · sketch ' + s.el.dataset.kind); } });
+
+/* ---------- the palette: Ctrl/⌘+K — one move to invoke, one to name ---------- */
+function palItems() {
+  const items = [];
+  [['point', 'Point', 'click a component to open the prompt card'], ['sketch', 'Sketch', 'a screen that does not exist yet'], ['hand', 'Hand', 'the app takes your clicks']].forEach(([t, w, pair]) => items.push({ label: w, pair, kind: 'tool', go: () => setTool(t) }));
+  [['tab-prompts', 'Prompts'], ['tab-inspect', 'Inspect'], ['tab-design', 'Design system']].forEach(([id, w]) => items.push({ label: w, pair: 'the right column', kind: 'tab', go: () => selectTab(id) }));
+  items.push({ label: 'Advanced', pair: S.adv ? 'switch off' : 'rulers, fixtures, toolpath, the mirror, MCP, the spine', kind: 'switch', go: () => setAdv(!S.adv) });
+  items.push({ label: 'Logbook', pair: 'the record of everything that happened', kind: 'drawer', go: () => setLogbook(true) });
+  S.prompts.forEach(p => items.push({ label: `${p.id} ${p.text ? p.slug : '— no words yet'}`, pair: p.state + ' · ' + p.target.name, kind: 'prompt', go: () => pickPrompt(p) }));
+  GAUGES.forEach(g => items.push({ label: g.name, pair: 'gauge · ' + g.v, kind: 'gauge', go: () => { selectTab('tab-design'); if (S.lit !== g.name) lightGauge(g.name); } }));
+  Object.keys(SURVEY).filter(k => k !== 'Sketch').forEach(c => { if ($('[data-c="' + c + '"]', ledger)) items.push({ label: c, pair: 'component · ' + SURVEY[c].file, kind: 'component', go: () => { if (S.tool === 'sketch') setTool('point'); const el = $('[data-c="' + c + '"]', ledger); el.scrollIntoView({ block: 'nearest' }); select({ el, name: c, kind: 'component' }); selectTab('tab-inspect'); } }); });
+  return items;
+}
+let palSel = 0, palMatches = [];
+function openPal() { $('#veil').classList.add('on'); $('#palette').classList.add('on'); $('#pal-in').value = ''; palSel = 0; renderPal(); $('#pal-in').focus(); }
+function closePal() { $('#veil').classList.remove('on'); $('#palette').classList.remove('on'); }
+function renderPal() { const q = $('#pal-in').value.trim().toLowerCase().split(/\s+/).filter(Boolean); palMatches = palItems().filter(it => q.every(w => (it.label + ' ' + it.pair + ' ' + it.kind).toLowerCase().includes(w))).slice(0, 12); palSel = Math.min(palSel, Math.max(0, palMatches.length - 1)); $('#pal-list').innerHTML = palMatches.map((it, i) => `<li role="option" aria-selected="${i === palSel}" data-i="${i}"><span>${esc(it.label)}<span class="pair">${esc(it.pair)}</span></span><span class="k">${it.kind}</span></li>`).join('') || `<li><span class="dim">nothing on the shelves for “${esc($('#pal-in').value)}”</span></li>`; $$('#pal-list li[data-i]').forEach(li => li.addEventListener('click', () => palGo(+li.dataset.i))); }
+function palGo(i) { const it = palMatches[i]; if (!it) return; closePal(); it.go(); log('human', `palette · ${it.label}`); }
+$('#pal-in').addEventListener('input', () => { palSel = 0; renderPal(); });
+$('#pal-in').addEventListener('keydown', e => { if (e.key === 'ArrowDown') { palSel = Math.min(palSel + 1, palMatches.length - 1); renderPal(); e.preventDefault(); } else if (e.key === 'ArrowUp') { palSel = Math.max(palSel - 1, 0); renderPal(); e.preventDefault(); } else if (e.key === 'Enter') palGo(palSel); });
+$('#veil').addEventListener('click', closePal);
+
+/* ---------- keys: Ctrl/⌘+K · Esc closes what is open, then returns to Hand · P S H · Delete scraps a sketch element ---------- */
+addEventListener('keydown', e => {
+  const typing = /^(INPUT|TEXTAREA)$/.test((document.activeElement || {}).tagName || '');
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); if ($('#palette').classList.contains('on')) closePal(); else openPal(); return; }
+  if (e.key === 'Escape') { if ($('#palette').classList.contains('on')) { closePal(); return; } if (!$('#logbook').hidden) { setLogbook(false); return; } if (!card.hidden) { closeCard(); return; } if (S.tool !== 'hand') setTool('hand'); return; }
+  if (typing) return;
+  if (e.key === 'p' || e.key === 'P') setTool('point'); else if (e.key === 's' || e.key === 'S') setTool('sketch'); else if (e.key === 'h' || e.key === 'H') setTool('hand');
+  else if ((e.key === 'Delete' || e.key === 'Backspace') && html.dataset.plate === 'sketch' && S.sel && S.sel.kind === 'skel') { e.preventDefault(); skScrap(S.sel.el); }
+});
+
+/* ---------- seed: one built prompt (with its change on the plate), one scrapped; the logbook remembers ---------- */
+function seed() {
+  const t = Date.now();
+  const p1 = { id: '0001', text: 'Show a "due this week" pill beside the Invoices heading, counting invoices due in the next 7 days.', acc: ['Counts only unpaid invoices with due ≤ today + 7', 'Uses color.warn and radius.pill — no new gauges'], state: 'built', target: targetOf({ el: $('[data-c="PageHeaderComponent"]', ledger), kind: 'component', name: 'PageHeaderComponent' }), stream: ['reading .jig/prompts/0001-due-this-week-pill.md', 'reading src/app/ui/page-header/page-header.component.ts', 'editing src/app/ui/page-header/page-header.component.html', 'editing src/app/invoices/invoices-page.component.ts', 'editing src/app/invoices/invoice.service.ts', 'running ng test · 40 passed', '3 files changed · exit 0'], createdAt: t - 21 * 60000, readyAt: t - 16 * 60000, t0: t - 15 * 60000, builtAt: t - 15 * 60000 + 72000, files: 3, dur: 72000, before: false, change: 'pill', slug: 'due-this-week-pill', from: null, savedAt: t - 20 * 60000 };
+  const p2 = { id: '0002', text: 'Move Export into the side nav under Reports.', acc: [], state: 'scrapped', prev: 'draft', target: targetOf({ el: $('[data-c="TopBarComponent"]', ledger), kind: 'component', name: 'TopBarComponent' }), stream: [], createdAt: t - 9 * 60000, before: false, change: null, slug: 'move-export-into-the', from: null, savedAt: t - 9 * 60000 };
+  S.prompts.push(p1, p2); S.scrap.push({ kind: 'prompt', p: p2 });
+  log('bench', 'npx jigbench · bench ledger-sim opened · survey read: Angular · .NET · 17 components · 24 gauges · SIM', '.jig/survey/', t - 22 * 60000);
+  log('human', 'prompt 0001 · a draft on PageHeaderComponent', '.jig/prompts/0001-due-this-week-pill.md', p1.createdAt);
+  log('model', 'polished 0001 · 1.4 s · Qwen2.5-Coder-7B · local · SIM', null, t - 19 * 60000);
+  log('human', 'ready · 0001-due-this-week-pill — the prompt is written', '.jig/prompts/0001-due-this-week-pill.md', p1.readyAt);
+  log('claude', 'build 0001 — claude -p in ~/src/ledger with .jig/prompts/0001-due-this-week-pill.md · SIM', 'Build runs Claude Code itself; MCP is the secondary door', p1.t0);
+  log('claude', 'editing src/app/ui/page-header/page-header.component.html', '0001 · SIM', p1.t0 + 20000);
+  log('claude', 'running ng test · 40 passed', '0001 · SIM', p1.t0 + 60000);
+  log('claude', 'built 0001 · 3 files · 1m 12s · exit 0', '.jig/prompts/0001-due-this-week-pill.md', p1.builtAt);
+  log('human', 'prompt 0002 · a draft on TopBarComponent', '.jig/prompts/0002-move-export-into-the.md', p2.createdAt);
+  log('human', 'scrapped 0002-move-export-into-the · in the scrap bin, not deleted', null, t - 8 * 60000);
+}
+
+/* ---------- open ---------- */
+renderRows(ROWS); seed(); sketchReset(); renderPrompts(); renderInspect(); renderGauges(); renderStatus(); renderLog(); renderScrap(); renderFx(); renderSkScrap();
+$('#plate-say').innerHTML = SAY.point; sketchSetPrim(null);
+tickClock(); setInterval(tickClock, 15000); setInterval(() => { renderLog(); renderCardFoot(); if (!drag) renderHand(); }, 30000);
+})();
+</script>
+</body>
+</html>

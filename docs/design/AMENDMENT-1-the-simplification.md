@@ -2,7 +2,7 @@
 title: "AMENDMENT 1 — the simplification: one loop, one button"
 date: 2026-09-07
 seat: Design
-status: RULED — four rows by Matter in one batch (2026-09-06 ~21:30 CDT), after his first live test of v0.1.0; concept D commissioned; v0.2 slices below
+status: RULED — four rows by Matter in one batch (2026-09-06 ~21:30 CDT); concept D · The Quiet Bench built, FLOOR CLEAR, and ruled CHASSIS as is (Matter, 2026-09-07); S12 builds it
 amends: COMMISSION.md (F5, F6, F7, F11, F13, F14, F20) — the rows stand where not named here
 ---
 
