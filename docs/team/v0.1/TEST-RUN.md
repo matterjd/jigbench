@@ -193,18 +193,41 @@ state. Collapse the tray again.
 
 **18. Fixtures** — reproducible test data. Click the rail's fourth icon *Fixture — a reproducible
 set of test data* (the **Fixture** tab opens).
+- Because this walkthrough clamped `examples/ledger-angular` alone (step 13's `--repo .`), the
+  panel opens with a line in words: **this survey has no endpoints — survey the API too.** — the
+  Angular adapter surveys the app's own models (5 schemas here) but never endpoints; only the
+  .NET adapter finds those, and it never ran over this narrower `--repo`. That note is honest,
+  not a bug: it tells you up front why the plate can't answer *live requests* from a fixture
+  created here, before you go looking for a missing terminal header.
 - Two fields: the first is the fixture's **name** (type `overdue-heavy`), the second the **seed**
   (type `42`). Click **new fixture**.
 - The fixture appears in the panel's list. Click its **load**.
-PASS: the Ledger table on the plate changes to generated invoices, and a cyan chip on the plate's
-frame reads `fixture · overdue-heavy · loaded — the plate answers from it`. Prove it from a terminal:
+PASS: a chip appears on both the plate's frame and the Fixture tab, and — because the bench
+itself makes a real request through the plate to check, the same one the `curl` below runs by
+hand — both read the identical honest sentence:
+`fixture · overdue-heavy · loaded — the plate can't answer from it yet: this survey has no
+endpoints — survey the API too`. Prove it from a terminal:
 ```bash
 curl -sI http://127.0.0.1:4601/api/invoices | grep -i x-jig-fixture
 ```
-PASS: `x-jig-fixture: overdue-heavy`. Now click **fill the form** while the Ledger *New invoice*
-form is open on the plate (rail **Hand**, click **New invoice** in the app, then back to the
-Fixture tab): the form fields fill with the fixture's values. Click **unload**: the chip goes, the
-`curl` header disappears, the real invoices return. Same seed, same data, every time.
+PASS (for *this* narrower survey): no output — `grep` finds nothing, matching the chip's own
+words; the Ledger table on the plate is unchanged (still the real invoices). **To see the full
+proof instead** — the table swapping to generated data and the header actually appearing — repeat
+steps 8–13 once with the wider survey step 8 already showed you (`npx jigbench survey --repo ..`
+from `examples/ledger-angular`, then start the bench with that same `--repo ..`): create and load
+the fixture again there and the chip instead reads `fixture · overdue-heavy · loaded — the plate
+answers from it — x-jig-fixture: overdue-heavy` (the exact value the bench's own check just read
+back — not a repeated guess), the Ledger table shows generated invoices, and the `curl` above
+prints `x-jig-fixture: overdue-heavy`.
+- Now click **fill the form** while the Ledger *New invoice* form is open on the plate (rail
+  **Hand**, click **New invoice** in the app, then back to the Fixture tab). PASS: the fields the
+  form actually has inputs for get real values — Angular's reactive form uses
+  `formControlName`, not `name`, and the loupe resolves both — and a line in words says which of
+  the fixture's OTHER fields (ones with no matching input on this form at all, e.g. a schema's
+  `id`/`status`, or a value the input itself rejected as malformed) could not be matched:
+  `filled "Invoice" onto the plate — could not match: id, number, status, lines, total`. Click
+  **unload**: the chip goes, the `curl` header disappears (on the wider survey), the real
+  invoices return. Same seed, same data, every time.
 
 **19. Toolpath** — record a click sequence, replay it. Click the rail's fifth icon *Toolpath — a
 recorded click sequence, replayable* (the **Toolpath** tab opens, with **record**, speed buttons
