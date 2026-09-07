@@ -4,6 +4,8 @@ id: "0007"
 slug: highlight-invoice-due-date
 state: released
 draftedBy: model
+model: "qwen2.5-coder:7b"
+elapsedMs: 5200
 marks: ["m-0001", "m-0002"]
 ---
 

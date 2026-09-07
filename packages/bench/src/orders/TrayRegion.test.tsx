@@ -97,6 +97,30 @@ describe('TrayRegion — collapsed: the order in hand', () => {
     expect(screen.getByText(/drafted · model/i)).toBeTruthy();
   });
 
+  // Retest defect 5 (2026-09-06 evening): "I just see `drafted · model`. The tray badge
+  // lacks the model name and elapsed seconds even with Ollama running (after a scrap and a
+  // fresh mark)." A re-read order (a bench restart, or a scrap + fresh mark) always has
+  // `log: []` (the logbook never round-trips through the persisted file), but now carries
+  // `model`/`elapsedMs` directly — the badge must read THOSE, not fall all the way back to
+  // the bare driver name.
+  it('badges the model name and cost from order.model/elapsedMs when the log carries no drafted entry (defect 5)', () => {
+    const drafted = wo({ state: 'drafted', draftedBy: 'model', model: 'qwen2.5-coder:7b', elapsedMs: 5200, log: [] });
+    render(<TrayRegion workOrders={[drafted]} />);
+    expect(screen.getByText(/drafted · qwen2\.5-coder:7b · 5\.2s/i)).toBeTruthy();
+  });
+
+  it('still prefers a real drafted log entry note over the persisted fields, when both are present', () => {
+    const drafted = wo({
+      state: 'drafted',
+      draftedBy: 'model',
+      model: 'qwen2.5-coder:7b',
+      elapsedMs: 5200,
+      log: [{ at: '2026-09-05T00:00:00.000Z', actor: 'model', event: 'drafted', ref: '0001', note: 'a fresher live note · 1.0s' }],
+    });
+    render(<TrayRegion workOrders={[drafted]} />);
+    expect(screen.getByText(/drafted · a fresher live note · 1\.0s/i)).toBeTruthy();
+  });
+
   it('badges "released" once the order is past drafted, even with no released log entry', () => {
     const released = wo({ state: 'released', draftedBy: 'model', log: [] });
     render(<TrayRegion workOrders={[released]} />);

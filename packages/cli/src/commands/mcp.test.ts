@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { existsSync } from 'node:fs';
-import { mkdtemp, readFile, rm } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { PassThrough } from 'node:stream';
@@ -90,6 +90,35 @@ describe('runMcpCommand (S6: the real stdio MCP server)', () => {
     expect(names).toEqual(
       ['jig_claim', 'jig_docs', 'jig_draft', 'jig_fixture', 'jig_gauges', 'jig_report', 'jig_survey', 'jig_work_order', 'jig_work_orders'].sort(),
     );
+
+    toServer.end();
+    await runPromise;
+  });
+
+  // Retest defect 22 (2026-09-06 evening): "pass and connected! did not see it reflected in
+  // jig" was a WRONG root, silently — nothing printed which `.jig/` this process was
+  // actually serving, so there was no way to tell from the Claude Code transcript alone.
+  // `jigbench mcp` now says so on stderr (stdout stays JSON-RPC-only) up front, including
+  // whether an existing survey was found there.
+  it('logs the resolved repo root and whether a survey was found, to stderr', async () => {
+    const repoRoot = await freshRepo();
+    const surveyDir = jigPaths(repoRoot).survey;
+    await mkdir(surveyDir, { recursive: true });
+    await writeFile(
+      join(surveyDir, 'survey.json'),
+      JSON.stringify({ jigFormat: JIG_FORMAT, stack: [], components: [], routes: [], endpoints: [], schemas: [], docs: [], generatedAt: new Date().toISOString() }),
+      'utf8',
+    );
+    const { toServer, fromServer, send, messages } = rig();
+    const stderrSpy = vi.spyOn(process.stderr, 'write').mockImplementation(() => true);
+
+    const runPromise = runMcpCommand({ repo: repoRoot, stdin: toServer, stdout: fromServer });
+    await handshake(send, messages);
+
+    const lines = stderrSpy.mock.calls.map((c) => String(c[0])).join('');
+    expect(lines).toContain('serving repo root');
+    expect(lines).toContain(JSON.stringify(repoRoot));
+    expect(lines).toMatch(/survey.*found.*true|found.*survey.*true/i);
 
     toServer.end();
     await runPromise;

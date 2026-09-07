@@ -15,6 +15,11 @@ const sample: WorkOrder = {
   slug: 'highlight-invoice-due-date',
   state: 'released',
   draftedBy: 'model',
+  // Retest defect 5 (2026-09-06 evening): persisted draft metadata — the model name + the
+  // measured wall-clock cost, so the tray badge still knows "qwen2.5-coder:7b · 5.2s" after
+  // a bench restart or a scrap + fresh mark, not just the bare "model" driver name.
+  model: 'qwen2.5-coder:7b',
+  elapsedMs: 5200,
   marks: ['m-0001', 'm-0002'],
   human: {
     what: 'Highlight the invoice due date in red when it is overdue.',
@@ -73,5 +78,31 @@ describe('WorkOrder markdown golden round trip', () => {
     const md = serializeWorkOrder(wo);
     expect(md).not.toContain('## Shop brief');
     expect(parseWorkOrder(md)).toEqual(wo);
+  });
+
+  // Retest defect 5 (2026-09-06 evening): "I just see `drafted · model`" — the model name +
+  // elapsed cost must survive the markdown round trip, not just live in the ephemeral log.
+  it('round-trips model + elapsedMs through the frontmatter', () => {
+    const md = serializeWorkOrder(sample);
+    // Quoted: `yamlScalar` quotes any value that isn't a bare identifier — a model name
+    // with a colon in it (qwen2.5-coder:7b) always needs it, same as every other field.
+    expect(md).toContain('model: "qwen2.5-coder:7b"');
+    expect(md).toContain('elapsedMs: 5200');
+    expect(parseWorkOrder(md).model).toBe('qwen2.5-coder:7b');
+    expect(parseWorkOrder(md).elapsedMs).toBe(5200);
+  });
+
+  // Backward compat: every pre-existing work-order file (written before this fix, or drafted
+  // by 'shop'/'person' rather than 'model') has no model/elapsedMs at all — must still parse
+  // cleanly, and neither field appears in a fresh serialization when absent.
+  it('omits model/elapsedMs entirely when absent (backward compat with pre-existing files)', () => {
+    const { model: _model, elapsedMs: _elapsedMs, ...withoutMeta } = sample;
+    const wo: WorkOrder = { ...withoutMeta };
+    const md = serializeWorkOrder(wo);
+    expect(md).not.toContain('model:');
+    expect(md).not.toContain('elapsedMs:');
+    expect(parseWorkOrder(md)).toEqual(wo);
+    expect(parseWorkOrder(md).model).toBeUndefined();
+    expect(parseWorkOrder(md).elapsedMs).toBeUndefined();
   });
 });

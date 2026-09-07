@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { JigStateSchema, WiringSchema } from './jig-state.js';
+import { JigStateSchema, ShopInfoSchema, WiringSchema } from './jig-state.js';
 import { stubSurvey } from './survey.js';
 
 const wiring = {
@@ -53,5 +53,54 @@ describe('JigStateSchema', () => {
       wiring,
     };
     expect(() => JigStateSchema.parse(state)).not.toThrow();
+  });
+
+  // Retest defect 22 (2026-09-06 evening): the bench's ShopLane/SimStrip need to know WHO is
+  // connected, live — `shop` (the connected agent's client label + connectedAt, or null) is
+  // now part of the canonical, typed JigState shape rather than an ad hoc extension http.ts
+  // bolted on only at the HTTP/WS boundary. Optional (not required) so every pre-existing
+  // JigState-shaped literal across the codebase that never mentions `shop` still parses and
+  // still type-checks.
+  it('accepts state with no shop key at all (pre-existing literals stay valid)', () => {
+    const state = {
+      survey: stubSurvey(),
+      gauges: { jigFormat: 1, gauges: [], generatedAt: new Date().toISOString() },
+      marks: [],
+      workOrders: [],
+      wiring,
+    };
+    expect(JigStateSchema.parse(state).shop).toBeUndefined();
+  });
+
+  it('accepts shop: null (no agent connected)', () => {
+    const state = {
+      survey: stubSurvey(),
+      gauges: { jigFormat: 1, gauges: [], generatedAt: new Date().toISOString() },
+      marks: [],
+      workOrders: [],
+      wiring,
+      shop: null,
+    };
+    expect(JigStateSchema.parse(state).shop).toBeNull();
+  });
+
+  it('accepts shop: {client, connectedAt} (an agent is connected)', () => {
+    const shop = { client: 'Claude Code 2.1.259', connectedAt: '2026-09-06T20:00:00.000Z' };
+    const state = {
+      survey: stubSurvey(),
+      gauges: { jigFormat: 1, gauges: [], generatedAt: new Date().toISOString() },
+      marks: [],
+      workOrders: [],
+      wiring,
+      shop,
+    };
+    expect(JigStateSchema.parse(state).shop).toEqual(shop);
+  });
+});
+
+describe('ShopInfoSchema', () => {
+  it('requires both client and connectedAt as strings', () => {
+    expect(() => ShopInfoSchema.parse({ client: 'Claude Code', connectedAt: '2026-09-06T20:00:00.000Z' })).not.toThrow();
+    expect(() => ShopInfoSchema.parse({ client: 'Claude Code' })).toThrow();
   });
 });

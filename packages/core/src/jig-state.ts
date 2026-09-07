@@ -27,11 +27,27 @@ export const WiringSchema = z.object({
 });
 export type Wiring = z.infer<typeof WiringSchema>;
 
+// Retest defect 22 (2026-09-06 evening): the bench's ShopLane/SimStrip need to show WHO is
+// connected, live — this used to be an ad hoc extension `http.ts`'s `composedState` bolted
+// onto `store.getState()`'s output only at the HTTP/WS boundary (`JigState & {shop: ...}`),
+// invisible to `JigState`'s own type. Folding it into the canonical schema means
+// `store.getState()` can include it directly, and the bench's `useJigState` (which already
+// pushes every WS state broadcast live) carries it too — no separate one-shot fetch needed.
+export const ShopInfoSchema = z.object({
+  client: z.string(),
+  connectedAt: z.string(),
+});
+export type ShopInfo = z.infer<typeof ShopInfoSchema>;
+
 export const JigStateSchema = z.object({
   survey: SurveySchema,
   gauges: GaugeSetSchema,
   marks: z.array(MarkSchema),
   workOrders: z.array(WorkOrderSchema),
   wiring: WiringSchema,
+  // Optional (not required, no default): every pre-existing JigState-shaped object literal
+  // across the codebase that never mentions `shop` stays valid, both through `.parse()` and
+  // as a plain TS literal typed `JigState` (an optional field can simply be omitted).
+  shop: ShopInfoSchema.nullable().optional(),
 });
 export type JigState = z.infer<typeof JigStateSchema>;

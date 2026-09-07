@@ -275,6 +275,29 @@ describe('JigStore — S6 shop wiring bridge', () => {
     expect(store.getShopInfo()).toEqual({ client: 'Claude Code 2.1.259', connectedAt: now });
   });
 
+  // Retest defect 22 (2026-09-06 evening): `getState()` (what GET /api/state and every WS
+  // broadcast actually send) must carry `shop` directly — before this fix, only
+  // `http.ts`'s own ad hoc `composedState` wrapper added it, which `JigState`'s own type
+  // never declared and which the bench's `useJigState`-fed components had no typed way to
+  // read live off the pushed WS state.
+  it('getState().shop mirrors getShopInfo() — null when nothing is connected, the info once fresh', async () => {
+    const repoRoot = await freshRepo();
+    const store = new JigStore(repoRoot);
+    await store.init();
+    expect(store.getState().shop).toBeNull();
+
+    const paths = jigPaths(repoRoot);
+    await mkdir(paths.cache, { recursive: true });
+    const now = new Date().toISOString();
+    await writeFile(
+      join(paths.cache, 'shop.json'),
+      JSON.stringify({ client: 'Claude Code 2.1.259', pid: 1234, connectedAt: now, lastSeen: now }),
+      'utf8',
+    );
+    await store.reload();
+    expect(store.getState().shop).toEqual({ client: 'Claude Code 2.1.259', connectedAt: now });
+  });
+
   it('reports wiring.shop "none" when the heartbeat file is stale', async () => {
     const repoRoot = await freshRepo();
     const store = new JigStore(repoRoot);

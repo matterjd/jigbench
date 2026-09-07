@@ -102,16 +102,13 @@ export interface JigServerHandle {
   close(): Promise<void>;
 }
 
-// S6: GET /api/state and every WS 'state' broadcast carry the same composed shape — the core
-// JigState plus a top-level `shop` (the connected agent's own name/connectedAt, or null),
-// which `wiring.shop`'s wired/none alone can't say. One function so the two call sites never
-// drift apart.
-function composedState(store: JigStore): ReturnType<JigStore['getState']> & { shop: ReturnType<JigStore['getShopInfo']> } {
-  return { ...store.getState(), shop: store.getShopInfo() };
-}
-
+// S6, folded into JigStore.getState() itself (retest defect 22, 2026-09-06 evening):
+// GET /api/state and every WS 'state' broadcast carry the same shape — the core JigState,
+// which now includes `shop` (the connected agent's own name/connectedAt, or null) directly —
+// which `wiring.shop`'s wired/none alone can't say. `store.getState()` is the one function
+// every call site shares, so they can never drift apart.
 function broadcastState(wss: WebSocketServer, store: JigStore): void {
-  const payload = JSON.stringify({ type: 'state', state: composedState(store) });
+  const payload = JSON.stringify({ type: 'state', state: store.getState() });
   for (const client of wss.clients as Set<WebSocket>) {
     if (client.readyState === client.OPEN) client.send(payload);
   }
@@ -153,7 +150,7 @@ function buildApp(
   });
 
   app.get('/api/state', (_req, res) => {
-    res.json(composedState(store));
+    res.json(store.getState());
   });
 
   app.get('/api/docs', createDocsRoute(store.repoRoot)); // S2b — see docs/route.ts
@@ -409,7 +406,7 @@ export async function createJigServer(options: CreateJigServerOptions): Promise<
   });
 
   wss.on('connection', (ws: WebSocket) => {
-    ws.send(JSON.stringify({ type: 'state', state: composedState(store) }));
+    ws.send(JSON.stringify({ type: 'state', state: store.getState() }));
   });
 
   await new Promise<void>((resolve) => httpServer.listen(port, host, resolve));

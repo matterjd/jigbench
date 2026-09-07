@@ -1,5 +1,5 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, render, screen, waitFor } from '@testing-library/react';
+import { afterEach, describe, expect, it } from 'vitest';
+import { cleanup, render, screen } from '@testing-library/react';
 import { SimStrip } from './SimStrip.js';
 import type { Wiring } from '@jigbench/core';
 
@@ -15,39 +15,52 @@ const wiring: Wiring = {
   sketch: 'none',
 };
 
-function fakeFetch(result: unknown, delayMs = 0): typeof fetch {
-  return (() =>
-    new Promise((resolve) =>
-      setTimeout(() => resolve({ json: () => Promise.resolve(result) } as Response), delayMs),
-    )) as unknown as typeof fetch;
-}
-
+// Retest defect 22 (2026-09-06 evening): "the SIM strip SHOP: NONE" even once the shop had
+// actually connected. Root cause: SimStrip fetched `/api/state` exactly ONCE on mount and
+// never again — App.tsx already holds a LIVE state (`useJigState`'s WebSocket-pushed
+// `state`, updated on every broadcast, including the shop-freshness watcher's own flip) but
+// SimStrip ignored it entirely. SimStrip now takes `wiring`/`connected` as props sourced
+// from that live state — the same data, but it actually updates when the connection changes
+// after the page has already loaded.
 describe('SimStrip', () => {
-  it('shows a loading state — the only moving thing on the page — while fetching', async () => {
-    render(<SimStrip fetchImpl={fakeFetch({ wiring }, 50)} />);
+  it('shows a loading state — the only moving thing on the page — until the first state arrives', () => {
+    render(<SimStrip wiring={null} connected={true} />);
     expect(screen.getByRole('status')).toBeTruthy();
-    await waitFor(() => expect(screen.queryByRole('status')).toBeNull());
   });
 
-  it('renders every subsystem labeled SIM once state arrives', async () => {
-    render(<SimStrip fetchImpl={fakeFetch({ wiring })} />);
+  it('renders every subsystem labeled SIM once wiring is known', () => {
+    render(<SimStrip wiring={wiring} connected={true} />);
 
-    await waitFor(() => expect(screen.getByText(/survey/i)).toBeTruthy());
     expect(screen.getByLabelText('sim: what is wired')).toBeTruthy();
     for (const name of ['survey', 'proxy', 'drafter', 'shop', 'fixtures', 'toolpath', 'sketch']) {
       expect(screen.getByText(new RegExp(name, 'i'))).toBeTruthy();
     }
   });
 
-  it('is honest when the server is unreachable', async () => {
-    const failingFetch = (() => Promise.reject(new Error('network down'))) as unknown as typeof fetch;
-    render(<SimStrip fetchImpl={failingFetch} />);
-    await waitFor(() => expect(screen.getByText(/unreachable/i)).toBeTruthy());
+  it('is honest when the bench socket is not connected', () => {
+    render(<SimStrip wiring={null} connected={false} />);
+    expect(screen.getByText(/unreachable/i)).toBeTruthy();
   });
 
-  it('pairs every sub-11px subsystem chip with a non-text glyph (design floor item 3)', async () => {
-    render(<SimStrip fetchImpl={fakeFetch({ wiring })} />);
-    await waitFor(() => expect(screen.getByText(/survey/i)).toBeTruthy());
+  // A real disconnect after already having live data — the socket drops, but the strip
+  // still knows the last wiring it heard. "Unreachable" (the connection fact) wins over
+  // stale chips, exactly like App.tsx's own separate "bench socket: reconnecting" indicator.
+  it('shows "unreachable" once disconnected, even with a previously-known wiring', () => {
+    render(<SimStrip wiring={wiring} connected={false} />);
+    expect(screen.getByText(/unreachable/i)).toBeTruthy();
+  });
+
+  it('updates live when wiring changes on a rerender — no page reload needed', () => {
+    const { rerender } = render(<SimStrip wiring={null} connected={true} />);
+    expect(screen.getByRole('status')).toBeTruthy();
+
+    rerender(<SimStrip wiring={{ ...wiring, shop: 'wired' }} connected={true} />);
+    expect(screen.queryByRole('status')).toBeNull();
+    expect(screen.getByText(/shop: wired/i)).toBeTruthy();
+  });
+
+  it('pairs every sub-11px subsystem chip with a non-text glyph (design floor item 3)', () => {
+    render(<SimStrip wiring={wiring} connected={true} />);
     // One glyph per subsystem chip (7 subsystems) — each chip's own text renders at 10px,
     // under the floor's 11px threshold, so it must carry a paired non-text signal.
     expect(document.querySelectorAll('.jig-chip__glyph')).toHaveLength(7);

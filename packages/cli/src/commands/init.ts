@@ -2,7 +2,7 @@ import { existsSync } from 'node:fs';
 import { readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { initJigTree } from '@jigbench/server';
-import { isOutsideRepoRoot, resolveRepoRoot } from '../repo-root.js';
+import { resolveRepoRoot } from '../repo-root.js';
 import { formatMcpJsonDiff, mergeMcpJson } from '../mcp-json.js';
 import { ensureGitignoreEntry } from '../gitignore.js';
 import { printHuman } from '../human-output.js';
@@ -33,12 +33,17 @@ export async function runInitCommand(options: InitCommandOptions): Promise<InitC
 
   const mcpJsonPath = join(repoRoot, '.mcp.json');
   const existingMcpJson = await readJsonIfPresent(mcpJsonPath);
-  // S6: "add --repo when init is run from outside the repo root" — cwd bearing no
-  // containment relation to repoRoot at all (isOutsideRepoRoot) is that signal; cwd being
-  // repoRoot itself, or somewhere inside it, relies on whatever spawns `npx jigbench mcp`
-  // later (Claude Code) cwd-ing into the directory that holds this very .mcp.json.
-  const mcpJsonOptions = isOutsideRepoRoot(repoRoot) ? { repoRoot } : {};
-  const { merged, changed: mcpChanged } = mergeMcpJson(existingMcpJson, mcpJsonOptions);
+  // Retest defect 22 (2026-09-06 evening): this USED to omit `--repo` whenever cwd already
+  // equaled repoRoot, relying on whatever spawns `npx jigbench mcp` later (Claude Code) to
+  // cwd into the directory holding this very `.mcp.json` and re-detect the same root on its
+  // own. That re-detection breaks the instant this directory has no `.git` of its own — a
+  // subfolder of a bigger repo, e.g. `examples/ledger-angular` inside the jigbench monorepo —
+  // because the later process walks past it to the outer `.git` (or, before repo-root.ts's
+  // own fix, ignored a `.jig/` it should have preferred). `--repo <clamped path>` is now
+  // ALWAYS baked into the entry so the served root never depends on cwd-based re-detection
+  // at all — the same unconditional guarantee `claude-desktop-config.ts` already gives its
+  // entry, for the same reason (no cwd to rely on there either).
+  const { merged, changed: mcpChanged } = mergeMcpJson(existingMcpJson, { repoRoot });
   if (mcpChanged) {
     printHuman(formatMcpJsonDiff(existingMcpJson, merged));
     await writeFile(mcpJsonPath, `${JSON.stringify(merged, null, 2)}\n`, 'utf8');
