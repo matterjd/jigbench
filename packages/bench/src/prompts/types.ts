@@ -114,3 +114,20 @@ export type ClaudeStatus =
   | { state: 'idle' }
   | { state: 'building'; id: string; elapsed: number }
   | { state: 'built'; id: string; files: string[]; elapsed: number };
+
+/** The two fields S11's `composedState()` adds to the `/api/state` payload alongside the plain
+ * `@jigbench/core` `JigState` — `wiring.claude` (a `'installed'|'none'` field the core `Wiring`
+ * schema doesn't carry) and `status.claude`. `@jigbench/core`'s own types can't express this
+ * until S11 merges (see this file's header) — App.tsx reads them through `composedExtras()`
+ * below rather than an inline cast at every call site. */
+export interface ComposedStateExtras {
+  wiring: { claude: 'installed' | 'none' };
+  status: { claude: ClaudeStatus };
+}
+
+/** Safely narrows a `JigState | null` (or any object) to the S11 extras it carries at runtime
+ * once the real server sends them — a type-level seam, not a validator; a server without S11
+ * simply never has `status`/`wiring.claude`, and every read here is already optional-chained. */
+export function composedExtras(state: unknown): Partial<ComposedStateExtras> {
+  return (state ?? {}) as Partial<ComposedStateExtras>;
+}

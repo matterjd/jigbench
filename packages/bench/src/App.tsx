@@ -22,7 +22,7 @@ import { useTool } from './tools/toolState.js';
 import { usePrompts } from './prompts/usePrompts.js';
 import { PromptsPane } from './prompts/PromptsPane.js';
 import { PromptCard } from './prompts/PromptCard.js';
-import type { BuildStreamEvent, Prompt, PromptTarget } from './prompts/types.js';
+import { composedExtras, type BuildStreamEvent, type Prompt, type PromptTarget } from './prompts/types.js';
 import './App.css';
 
 interface DocsSearchResult {
@@ -72,7 +72,8 @@ export function App() {
   const [localAcceptance, setLocalAcceptance] = useState<string[]>([]);
   const [beforeIds, setBeforeIds] = useState<Set<string>>(new Set());
 
-  const prompts = usePrompts({ buildEvent: lastBuildEvent, claudeStatus: state?.status?.claude });
+  const extras = composedExtras(state);
+  const prompts = usePrompts({ buildEvent: lastBuildEvent, claudeStatus: extras.status?.claude });
 
   // Measures the plate's own box (the outer chassis region, not the cross-origin iframe inside
   // it) so the card can place itself against a plate-local rect it never had to walk the DOM
@@ -110,7 +111,7 @@ export function App() {
       title: lastPick.component ?? lastPick.tag,
       file: lastPick.file,
       promptTarget: { kind: 'element', path: lastPick.path, component: lastPick.component, file: lastPick.file },
-      anchorRect: lastPick.rect,
+      anchorRect: { x: lastPick.rect.x, y: lastPick.rect.y, w: lastPick.rect.width, h: lastPick.rect.height },
     });
     setCardOpen(true);
     setLocalText('');
@@ -169,7 +170,7 @@ export function App() {
     if (gauge) plateRef.current?.highlight(selectorsForGauge(gauge, survey?.components ?? []));
   }
 
-  const buildingId = state?.status?.claude.state === 'building' ? state.status.claude.id : null;
+  const buildingId = extras.status?.claude.state === 'building' ? extras.status.claude.id : null;
   const activeStream: BuildStreamEvent[] = buildingId ? (prompts.buildStreams[buildingId] ?? []) : [];
   const lastEventText =
     buildingId && activeStream.length > 0
@@ -185,7 +186,7 @@ export function App() {
   return (
     <>
       <Chassis
-        rail={<Rail postToPlate={(message) => plateRef.current?.post(message)} />}
+        rail={<Rail postToPlate={(message) => plateRef.current?.post({ ...message })} />}
         plate={
           <div ref={plateBoxRef} style={{ position: 'absolute', inset: 0 }}>
             {tool === 'sketch' ? (
@@ -241,7 +242,7 @@ export function App() {
               onRulersChange={setRulersOn}
               mirrorOn={mirrorOn}
               onMirrorChange={setMirrorOn}
-              fixturePanel={<FixturePanel iframeRef={plateIframeRef} plateOrigin={plateOrigin} lastPickPath={lastPick?.path ?? null} survey={survey} />}
+              fixturePanel={<FixturePanel iframeRef={plateIframeRef} plateOrigin={plateOrigin} lastPickPath={lastPick?.path ?? null} />}
               toolpathBar={<ToolpathBar lastEvent={lastEvent} post={(message) => plateRef.current?.post(message)} />}
               shop={state?.shop ?? null}
               scrapCount={scrapCount}
@@ -293,8 +294,8 @@ export function App() {
         }
         statusLine={
           <StatusLine
-            wired={state?.wiring.claude === 'installed'}
-            status={state?.status?.claude}
+            wired={extras.wiring?.claude === 'installed'}
+            status={extras.status?.claude}
             lastEventText={lastEventText}
             logbookOpen={logbookOpen}
             onToggleLogbook={() => setLogbookOpen((v) => !v)}
