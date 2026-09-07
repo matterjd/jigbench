@@ -1,0 +1,14 @@
+/* Modeled on worldloom's packages/chart-harness/src/tokens.css: a plain static site with
+   its design tokens as CSS custom properties, no build step, no package.json — the case a
+   generic "does this repo have stylesheets at all" detector has to catch on its own. */
+:root {
+  --harness-storm: #5fc9e0;
+  --harness-ink: #0a0c0f;
+  --harness-space-2: 8px;
+}
+
+.title {
+  color: var(--harness-ink);
+  background: var(--harness-storm);
+  padding: var(--harness-space-2);
+}

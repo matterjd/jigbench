@@ -65,6 +65,19 @@ export const SurveyAdapterMetaSchema = z.object({
   appRoot: z.string().optional(),
   source: z.string().optional(),
   stub: z.boolean(),
+  /** S16 (adapter-web): a dev-server URL guessed from `package.json` scripts — a hint only,
+   * never live-checked. `serve.ts`'s `--target` auto-detection reads this before falling back
+   * to a stack adapter's own heuristic (e.g. Angular's `angular.json` port). */
+  devServer: z.string().optional(),
+  /** S16 (adapter-web): frameworks detected from `package.json` dependencies (react, vue,
+   * svelte, next, @angular/core, expo) — an honest hint, never inferred beyond what the
+   * repo's own manifest declares. */
+  frameworks: z.array(z.string()).optional(),
+  /** S16 (adapter-web): true when this adapter cannot enumerate components/routes for its
+   * stack at all (the generic web adapter, always) — distinguishes "empty because none exist"
+   * from "empty because we never surveyed for them" so a consumer never reads a bare `[]` as
+   * "this app has no components." */
+  unknown: z.boolean().optional(),
 });
 export type SurveyAdapterMeta = z.infer<typeof SurveyAdapterMetaSchema>;
 

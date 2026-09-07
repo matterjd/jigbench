@@ -1,0 +1,9 @@
+:root {
+  --app-accent: #3b6e5e;
+  --app-space-1: 4px;
+}
+
+body {
+  color: var(--app-accent);
+  margin: var(--app-space-1);
+}

@@ -1,0 +1,8 @@
+{
+  "name": "nested-workspace-chart-harness-fixture",
+  "private": true,
+  "version": "0.0.0",
+  "scripts": {
+    "serve": "node serve.mjs --root . --port 8174"
+  }
+}
