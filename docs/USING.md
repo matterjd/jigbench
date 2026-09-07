@@ -30,10 +30,21 @@ This reads markdown, text, and PDF files under that folder, heading-chunks them,
 
 The survey runs automatically the first time Jig starts (and again on demand with
 `npx jigbench survey`). It writes `.jig/survey/survey.json`, one `.jig/survey/<adapter>.json`
-per stack adapter that detected the repo, and `.jig/gauges.json`. The bench's **Survey** tab (one
+per adapter that detected the repo, and `.jig/gauges.json`. The bench's **Survey** tab (one
 of the three tabs in the properties column, alongside **Loupe** and **Gauges**) shows what it
-found under a **stack** heading — and a **clamped docs** heading if you clamped one. An app the
-survey doesn't recognize still gets an honest stub, never a crash.
+found under a **stack** heading — and a **clamped docs** heading if you clamped one.
+
+Jig works with any app that has a dev server — the loop never depends on a survey adapter, and
+adapters only enrich it (Angular and .NET 10 have dedicated ones: real components, routes, and API
+endpoints). Every other repo still gets a real survey from the generic **web** adapter: any
+`package.json` or stylesheet is enough to match, and it reads CSS custom properties, SCSS `$vars`,
+and Less `@vars` into gauges, guesses a dev-server URL from `package.json`'s scripts (so
+`--target` can often be inferred without asking), and lists any frameworks it recognizes from the
+manifest's dependencies — honest hints, never invented. Where no stack adapter matches at all, the
+survey's stack is `web` and components/routes are marked unknown, not guessed at; where a stack
+adapter also matches, the web adapter's gauges and dev-server guess still fold in alongside the
+stack adapter's own real components and routes. An app nothing recognizes at all still gets an
+honest stub, never a crash.
 
 ## The plate and the loupe
 
