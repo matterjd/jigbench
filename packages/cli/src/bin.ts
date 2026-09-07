@@ -6,6 +6,8 @@ import { runSurveyCommand } from './commands/survey.js';
 import { runClampCommand } from './commands/clamp.js';
 import { runMcpCommand } from './commands/mcp.js';
 import { runMcpInstallCommand } from './commands/mcp-install.js';
+import { runBuildCommand } from './commands/build.js'; // S11
+import { runPromptsCommand } from './commands/prompts.js'; // S11
 import { printHuman, printSummary } from './human-output.js';
 import { logger } from '@jigbench/server';
 
@@ -131,5 +133,35 @@ mcpCommand
       process.exitCode = 1;
     }
   });
+
+// === S11: `build`/`prompts` commands (delimited block) ===
+program
+  .command('build <id>')
+  .description('run Claude Code against a ready prompt (.jig/prompts/) — streams the run to stderr, exits with Claude\'s own exit code')
+  .action(async (id: string, _opts: unknown, command: Command) => {
+    try {
+      const { repo } = command.optsWithGlobals<{ repo?: string }>();
+      const result = await runBuildCommand({ repo, id });
+      process.exitCode = result.exitCode;
+    } catch (err) {
+      logger.error('jigbench build failed', String(err));
+      process.exitCode = 1;
+    }
+  });
+
+program
+  .command('prompts')
+  .description('list every prompt under .jig/prompts/')
+  .action(async (_opts: unknown, command: Command) => {
+    try {
+      const { repo } = command.optsWithGlobals<{ repo?: string }>();
+      const result = await runPromptsCommand({ repo });
+      printHuman(result.message);
+    } catch (err) {
+      logger.error('jigbench prompts failed', String(err));
+      process.exitCode = 1;
+    }
+  });
+// === end S11 block ===
 
 await program.parseAsync(process.argv);

@@ -14,3 +14,4 @@ export * from './jsonschema.js';
 export * from './docs.js';
 export * from './rank.js';
 export * from './sketch.js'; // S9
+export * from './prompt.js'; // S11

@@ -48,6 +48,11 @@ async function freshServer(): Promise<JigServerHandle> {
     openBrowser: false,
     benchDistDir: join(tmpdir(), 'jig-no-such-bench-dist'),
     drafters: { ollama: fakeOllama },
+    // S11: this suite never spawns a real build — pointing `claude` at a command that can't
+    // possibly exist keeps `wiring.claude`/`status.claude` deterministic across desks
+    // (whether or not the REAL `claude` happens to be on THIS machine's PATH), same reasoning
+    // `benchDistDir` above already applies to bench serving.
+    claude: { command: 'jig-test-no-such-claude-binary' },
   });
   return handle;
 }
@@ -79,8 +84,10 @@ describe('GET /api/state', () => {
       toolpath: 'none',
       sketch: 'none',
       docs: 'none',
+      claude: 'none', // S11 — freshServer() points `claude` at a binary that can't exist
     });
     expect(body.shop).toBeNull();
+    expect(body.status).toEqual({ claude: { state: 'idle' } }); // S11
   });
 
   // S6: "extend /api/state with shop: {client, connectedAt}" — so the bench can show WHO is

@@ -11,5 +11,11 @@ export type { SurveyCommandOptions, SurveyCommandResult } from './commands/surve
 export { runMcpCommand } from './commands/mcp.js';
 export type { McpCommandOptions } from './commands/mcp.js';
 
+export { runBuildCommand } from './commands/build.js';
+export type { BuildCommandOptions, BuildCommandResult } from './commands/build.js';
+
+export { runPromptsCommand } from './commands/prompts.js';
+export type { PromptsCommandOptions, PromptsCommandResult } from './commands/prompts.js';
+
 export { resolveRepoRoot, findRepoRoot } from './repo-root.js';
 export { printHuman } from './human-output.js';
