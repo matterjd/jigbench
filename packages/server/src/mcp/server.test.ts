@@ -66,7 +66,7 @@ describe('createJigMcpServer', () => {
     const client = new Client({ name: 'test-client', version: '1.0.0' });
 
     await Promise.all([mcpServer.connect(serverTransport), client.connect(clientTransport)]);
-    expect(client.getServerVersion()).toEqual({ name: 'jig', version: '0.1.0' });
+    expect(client.getServerVersion()).toEqual({ name: 'jig', version: '0.2.0' });
 
     await client.close();
   });
