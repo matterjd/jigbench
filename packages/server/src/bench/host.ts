@@ -5,7 +5,7 @@ import { join } from 'node:path';
 import express, { type NextFunction, type Request, type Response, type Router } from 'express';
 import { WebSocketServer, type WebSocket } from 'ws';
 import open from 'open';
-import type { DetectedTargetSummary } from '@jigbench/core';
+import { JIG_FORMAT, stubSurvey, type DetectedTargetSummary, type GaugeSet } from '@jigbench/core';
 import { isSameOriginOrAbsent } from '../same-origin.js';
 import { attachBenchServing, type BenchServeMode } from '../bench-serve.js';
 import { defaultBenchDistDir } from '../default-bench-dist.js';
@@ -168,8 +168,18 @@ export async function createBenchHost(options: CreateBenchHostOptions = {}): Pro
   async function composeState(): Promise<Record<string, unknown>> {
     const recent = await readRecentBenches(recentBenchesFile);
     if (!currentBench) {
+      // S17b: the empty host is still a WHOLE `JigState` (core's `BenchState` extends it) —
+      // an honest stub survey, an empty gauge set, no marks, no work orders — so the bench
+      // never has to special-case "no bench yet" at every read. Same honest-empty convention
+      // `JigStore` itself uses before a survey has run.
+      const emptyGauges: GaugeSet = { jigFormat: JIG_FORMAT, gauges: [], generatedAt: new Date().toISOString() };
       return {
         bench: null,
+        survey: stubSurvey(),
+        gauges: emptyGauges,
+        marks: [],
+        workOrders: [],
+        shop: null,
         wiring: EMPTY_WIRING,
         target: targetRunner.getState(),
         status: { claude: { state: 'idle' } },

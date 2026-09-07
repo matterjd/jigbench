@@ -75,6 +75,17 @@ describe('GET /api/state', () => {
     });
     expect(Array.isArray(body.recent)).toBe(true);
   });
+
+  it('S17b: with nothing clamped the state is still a whole JigState — an honest stub survey, empty gauges/marks/workOrders — so no reader has to special-case the empty host', async () => {
+    const h = await boot();
+    const body = await (await fetch(`${h.url}/api/state`)).json();
+    expect(body.bench).toBeNull();
+    expect(body.survey.stub).toBe(true);
+    expect(body.survey.components).toEqual([]);
+    expect(body.gauges.gauges).toEqual([]);
+    expect(body.marks).toEqual([]);
+    expect(body.workOrders).toEqual([]);
+  });
 });
 
 describe('POST /api/clamp', () => {

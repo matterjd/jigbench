@@ -14,7 +14,10 @@ import { CommandPalette, type PaletteDocsResult } from './palette/CommandPalette
 import { FixturePanel } from './fixtures/index.js';
 import { ToolpathBar } from './toolpath/ToolpathBar.js';
 import { SketchSheet } from './sketch/SketchSheet.js';
-import { Logbook } from './components/Logbook.js';
+import { LogbookDrawer } from './logbook/LogbookDrawer.js';
+import { useLogbook } from './logbook/useLogbook.js';
+import { ClampScreen } from './clamp/ClampScreen.js';
+import { SetupDrawer } from './setup/SetupDrawer.js';
 import { useJigState } from './hooks/useJigState.js';
 import { useTool } from './tools/toolState.js';
 import { usePrompts } from './prompts/usePrompts.js';
@@ -50,7 +53,7 @@ function targetsMatch(a: PromptTarget, b: PromptTarget): boolean {
 }
 
 export function App() {
-  const { state, connected, lastBuildEvent } = useJigState();
+  const { state, connected, lastBuildEvent, lastTargetLog } = useJigState();
   const { tool, setTool } = useTool();
   const { advanced } = useAdvanced();
   const plateRef = useRef<PlateBenchHandle>(null);
@@ -64,6 +67,17 @@ export function App() {
   const [rulersOn, setRulersOn] = useState(false);
   const [mirrorOn, setMirrorOn] = useState(false);
   const [logbookOpen, setLogbookOpen] = useState(false);
+  const [setupOpen, setSetupOpen] = useState(false);
+  // S17b: the Clamp screen is held open from the moment the host says `bench: null` until the
+  // human says "go to the bench" — a clamp made FROM the screen flips `state.bench` long before
+  // the human is done with the app/docs/Claude Code steps on the same screen.
+  const [screenHeld, setScreenHeld] = useState(false);
+  const [targetLog, setTargetLog] = useState<string[]>([]);
+  const logbook = useLogbook();
+  // The hook's callbacks are useCallback-stable; the object holding them is not — effects below
+  // depend on the callbacks, never on `logbook` itself (a fresh object every render would re-run
+  // them on every render — and the target-log append below would then loop the bench).
+  const { add: logAdd, noteBuildFrame, noteTargetLog } = logbook;
   const [cardTarget, setCardTarget] = useState<CardTarget | null>(null);
   const [cardOpen, setCardOpen] = useState(false);
   const [localText, setLocalText] = useState('');
@@ -90,6 +104,49 @@ export function App() {
     window.addEventListener('resize', measure);
     return () => window.removeEventListener('resize', measure);
   }, []);
+
+  // #9 — the logbook's sources: every build-stream frame (a Claude row) and every line of the
+  // target app's own log (an app row); state transitions are noted below.
+  useEffect(() => {
+    noteBuildFrame(lastBuildEvent);
+  }, [lastBuildEvent, noteBuildFrame]);
+  const lastTailSeqRef = useRef<number | null>(null);
+  useEffect(() => {
+    noteTargetLog(lastTargetLog);
+    if (!lastTargetLog || lastTargetLog.seq === lastTailSeqRef.current) return;
+    lastTailSeqRef.current = lastTargetLog.seq;
+    setTargetLog((prev) => [...prev, lastTargetLog.line].slice(-200));
+  }, [lastTargetLog, noteTargetLog]);
+
+  const targetStatus = state?.target?.status;
+  const targetUrl = state?.target?.status === 'up' ? state.target.url : undefined;
+  const targetExit = state?.target?.status === 'down' ? state.target.exitCode : undefined;
+  const lastTargetWordRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!targetStatus) return;
+    const word =
+      targetStatus === 'up' ? `the app · up · ${targetUrl ?? ''}` : targetStatus === 'down' ? `the app · down · exit ${targetExit ?? 'unknown'}` : targetStatus === 'starting' ? 'the app · starting' : 'the app · not running';
+    if (lastTargetWordRef.current === null && targetStatus === 'none') {
+      lastTargetWordRef.current = word; // the resting state at first sight is not an event
+      return;
+    }
+    if (lastTargetWordRef.current === word) return;
+    lastTargetWordRef.current = word;
+    logAdd('bench', word, 'the app');
+    if (targetStatus === 'none' || targetStatus === 'down') setTargetLog([]);
+  }, [targetStatus, targetUrl, targetExit, logAdd]);
+
+  const benchRepoRoot = state?.bench?.repoRoot ?? null;
+  const lastBenchRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (state?.bench === null) setScreenHeld(true);
+    if (benchRepoRoot && lastBenchRef.current !== benchRepoRoot) {
+      lastBenchRef.current = benchRepoRoot;
+      logAdd('bench', `clamped · ${benchRepoRoot}`, 'bench');
+    }
+  }, [state?.bench, benchRepoRoot, logAdd]);
+
+  const showClampScreen = state?.bench === null || screenHeld;
 
   // One source of truth for "what mode is the plate in" (AMENDMENT-1 A3): Point puts the plate
   // in loupe mode (it carries the old loupe's hover); Hand returns it to hand; Sketch leaves the
@@ -160,7 +217,7 @@ export function App() {
   }
 
   const survey = state?.survey;
-  const gauges = state?.gauges.gauges;
+  const gauges = state?.gauges?.gauges;
 
   const pickedComponent = useMemo(
     () => (lastPick && survey ? survey.components.find((c) => c.file === lastPick.file || c.name === lastPick.component) : undefined),
@@ -183,11 +240,20 @@ export function App() {
       : undefined;
 
   const scrapCount = prompts.prompts.filter((p) => p.state === 'scrapped').length;
-  const allLogEntries = useMemo(() => [], []); // CONCERN: the logbook has no event source yet in this slice — see report.
 
   return (
     <>
       <Chassis
+        screen={
+          showClampScreen ? (
+            <ClampScreen
+              state={state}
+              targetLogTail={targetLog}
+              onToBench={() => setScreenHeld(false)}
+              onLog={logAdd}
+            />
+          ) : undefined
+        }
         rail={<Rail postToPlate={(message) => plateRef.current?.post({ ...message })} />}
         plate={
           <div ref={plateBoxRef} style={{ position: 'absolute', inset: 0 }}>
@@ -297,11 +363,28 @@ export function App() {
             status={state?.status?.claude}
             lastEventText={lastEventText}
             logbookOpen={logbookOpen}
-            onToggleLogbook={() => setLogbookOpen((v) => !v)}
+            onToggleLogbook={() => {
+              setSetupOpen(false);
+              setLogbookOpen((v) => !v);
+            }}
+            setupOpen={setupOpen}
+            onToggleSetup={() => {
+              setLogbookOpen(false);
+              setSetupOpen((v) => !v);
+            }}
           />
         }
       />
-      {logbookOpen && <Logbook entries={allLogEntries} />}
+      <LogbookDrawer open={logbookOpen} entries={logbook.entries} onClose={() => setLogbookOpen(false)} />
+      <SetupDrawer
+        open={setupOpen}
+        onClose={() => setSetupOpen(false)}
+        state={state}
+        targetLogTail={targetLog}
+        canUnclamp={state?.bench !== undefined && state?.bench !== null}
+        onLog={logAdd}
+        onUnclamp={() => setSetupOpen(false)}
+      />
       <CommandPalette
         tools={[
           { tool: 'point', word: 'Point', pair: 'click a component to open the prompt card' },
