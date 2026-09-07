@@ -16,8 +16,8 @@ yet — write the requirement the way a PM would, and Jig saves it as a servicea
 your words on top, then what Jig knows about the selection and the app (component, file, gauges,
 routes, endpoints, matching docs). Hold **Ready**, press **Build**, and Jig runs Claude Code
 itself in the repo with that prompt, streaming its work onto the status line and into the
-logbook. Look at the result on the plate — *before* is one click away — refine the words, go
-again.
+logbook. Look at the result on the plate — the files Claude touched are on the built line — refine
+the words, go again.
 
 Jig never edits application source. Claude Code does, on your word. Jig only writes files under
 `.jig/` in the repo you clamped.
@@ -84,7 +84,7 @@ the UI or the docs (`docs/design/COMMISSION.md` §3, as amended by
 | Prompt | a requirement saved as the prompt Claude will get — draft · ready · building · built |
 | Ready | held ~800 ms; what makes a draft the prompt |
 | Build | runs Claude Code in the repo with the prompt |
-| Built | the plate after the build, with *before* one click away |
+| Built | the plate after the build; the built line lists the files Claude touched |
 | Claude | the one status word on the status line |
 | Design system | the gauges, categorised; *gauges* stays the word for one token |
 | Toolpath | a recorded click sequence, replayable (Advanced) |

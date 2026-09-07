@@ -14,7 +14,7 @@ any of this.
 
 | Layer | What landed | Slice |
 |---|---|---|
-| The loop | Point → requirement → Polish (on demand) → held Ready → Build (`claude -p` in the repo) → Built with *before* one click away; the artifact is a Prompt under `.jig/prompts/` | S11, S12, S13 |
+| The loop | Point → requirement → Polish (on demand) → held Ready → Build (`claude -p` in the repo) → Built (the files Claude touched on the built line); the artifact is a Prompt under `.jig/prompts/` | S11, S12, S13 |
 | The quiet bench | Concept D: rail Point · Sketch · Hand, the prompt card, Prompts · Inspect · Design system, one status line, the Advanced drawer housing every v0.1 instrument | S12 |
 | Any app with a dev server | the generic `web` adapter (CSS/SCSS/Less gauges, a dev-server guess, honest framework hints, components and routes marked unknown rather than invented); runtime component naming Angular → React → Vue; nested workspaces (`apps/*`, `packages/*`) | S16 |
 | Setup in the app | one command (`npx jigbench`); the Clamp screen (recent benches, the folder browser, the survey shown as it runs, Start the app, Docs, Register with Claude Code); the setup checklist one click from the status line; MCP stays the secondary door | S17a, S17b |
@@ -38,7 +38,7 @@ any of this.
 | #4 | esbuild advisory | `npm audit` noise, no runtime exposure |
 | #5 | karma `qs` advisory in the Angular example | the fixture's own dev deps, not Jig's |
 | #6 | the work-order log on a round-trip | migrated prompts only |
-| #8 | the Advanced mirror switch is not wired to a built Prompt's before/after | Advanced → the mirror |
+| #8 | a built Prompt keeps no *before* — the S12 mirror switch and the built line's *before* toggle were no-ops and are gone (0.2.0); the S8 snapshot machinery is keyed by work order, not prompt | the built line, Advanced → the mirror |
 | #10 | `cli init` / `mcp install` duplicate the server's setup functions | maintenance, not behaviour |
 
 ## Not planned

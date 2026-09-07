@@ -1,7 +1,7 @@
 # Test run — Jig 0.2.0, the loop end to end
 
 A step-by-step run for Matter: one `npx jigbench`, the Clamp screen, then the loop on the Ledger
-example — Point → requirement → Polish → hold Ready → Build → Built → *before* — the Advanced
+example — Point → requirement → Polish → hold Ready → Build → Built — the Advanced
 tour, and the same moves on your own repo. Every command is bash (Git Bash). Every step says where
 to look, what to click (labels quoted exactly as the bench shows them), and what PASS looks like.
 Steps marked **[you only]** are the ones a remote session cannot verify — your hand, your desk.
@@ -173,10 +173,11 @@ survey as `human`/`bench` rows, and `ng serve`'s lines as `app` rows; the pills 
 When Claude exits: `Claude · built · N files · m:ss`, the prompt moves to **built**. FAIL: `Claude
 · not installed` → step 1.
 
-**17. Built → before.** In **Prompts** click the built prompt.
-PASS: its **built** line carries **before — the plate as it was** (flip it: the plate shows the
-release snapshot; flip back: the change is there) and **refine — go again** (opens a new draft on
-the same target with the words pre-filled). The change is in the working tree; Jig wrote none of it:
+**17. Built.** In **Prompts** click the built prompt.
+PASS: its **built** line reads *built · N files* and lists the files Claude touched, with
+**refine — go again** beside it (opens a new draft on the same target with the words pre-filled).
+There is no *before* switch: the plate shows the app after the build, and a snapshot at Ready is
+not kept for a prompt yet (#8, open). The change is in the working tree; Jig wrote none of it:
 ```bash
 git -C /c/Users/matte/source/repos/jigbench status --short examples/ledger-angular | head
 ```
@@ -205,8 +206,8 @@ PASS: the Design system tab opens — two moves. `Esc` closes.
 **21.** Switch **Advanced** on at the rail's foot.
 PASS: a drawer under the plate with the wiring strip (`survey: wired · proxy: wired · docs: wired
 …`), **the spine — every prompt on the ladder** (your prompt on its rung), **rulers & guides**
-(switch it on: rulers in the app's px around the plate), **the mirror — before | after**,
-`scrap bin · 0`, **fixtures** (the form's reproducibility field reads **key (optional)**),
+(switch it on: rulers in the app's px around the plate), a line in place of the mirror (*the
+mirror — before | after — returns once a built prompt keeps its before*), `scrap bin · 0`, **fixtures** (the form's reproducibility field reads **key (optional)**),
 **toolpath** (**record**, then Hand-click `Customers` → `Invoices` → a row, **stop**, name it
 `tour`, **replay**), and **MCP — the secondary door** (*none connected* until an agent attaches).
 Switch Advanced off: the plate is whole again.

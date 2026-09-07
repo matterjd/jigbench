@@ -65,7 +65,6 @@ export function App() {
   const [lastEvent, setLastEvent] = useState<PlateEvent | null>(null); // Toolpath's own seam
   const [rightTab, setRightTab] = useState<RightColumnTab>('prompts');
   const [rulersOn, setRulersOn] = useState(false);
-  const [mirrorOn, setMirrorOn] = useState(false);
   const [logbookOpen, setLogbookOpen] = useState(false);
   const [setupOpen, setSetupOpen] = useState(false);
   // S17b: the Clamp screen is held open from the moment the host says `bench: null` until the
@@ -82,7 +81,6 @@ export function App() {
   const [cardOpen, setCardOpen] = useState(false);
   const [localText, setLocalText] = useState('');
   const [localAcceptance, setLocalAcceptance] = useState<string[]>([]);
-  const [beforeIds, setBeforeIds] = useState<Set<string>>(new Set());
 
   const prompts = usePrompts({ buildEvent: lastBuildEvent, claudeStatus: state?.status?.claude, benchKey: state?.bench?.repoRoot ?? null });
 
@@ -305,8 +303,6 @@ export function App() {
               prompts={prompts.prompts}
               rulersOn={rulersOn}
               onRulersChange={setRulersOn}
-              mirrorOn={mirrorOn}
-              onMirrorChange={setMirrorOn}
               fixturePanel={<FixturePanel iframeRef={plateIframeRef} plateOrigin={plateOrigin} lastPickPath={lastPick?.path ?? null} survey={survey} />}
               toolpathBar={<ToolpathBar lastEvent={lastEvent} post={(message) => plateRef.current?.post(message)} />}
               shop={state?.shop ?? null}
@@ -331,14 +327,6 @@ export function App() {
                 onBuild={(id) => void prompts.build(id)}
                 onScrap={(id) => void prompts.scrap(id)}
                 onRestore={(id) => void prompts.restore(id)}
-                onBeforeToggle={(id, on) =>
-                  setBeforeIds((prev) => {
-                    const next = new Set(prev);
-                    if (on) next.add(id);
-                    else next.delete(id);
-                    return next;
-                  })
-                }
                 onRefine={(p) => {
                   setLocalText(p.requirement);
                   setLocalAcceptance(p.acceptance);

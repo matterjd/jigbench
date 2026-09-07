@@ -157,6 +157,22 @@
   margin: 0 0 8px;
 }
 
+.jig-prompts-pane__built-word {
+  font-size: 12.5px;
+  color: var(--ink);
+}
+
+/* the files a build touched — paths are provenance-shaped but load-bearing here, so --dim */
+.jig-prompts-pane__files {
+  flex-basis: 100%;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font: 11px/1.5 var(--mono);
+  color: var(--dim);
+  overflow-wrap: anywhere;
+}
+
 .jig-prompts-pane__actions {
   display: flex;
   align-items: center;

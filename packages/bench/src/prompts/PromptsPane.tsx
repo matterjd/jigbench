@@ -15,7 +15,6 @@ export interface PromptsPaneProps {
   onBuild: (id: string) => void;
   onScrap: (id: string) => void;
   onRestore: (id: string) => void;
-  onBeforeToggle: (id: string, on: boolean) => void;
   onRefine: (prompt: Prompt) => void;
 }
 
@@ -41,6 +40,17 @@ function contextText(prompt: Prompt): string {
   return lines.join('\n');
 }
 
+function lastBuild(prompt: Prompt) {
+  return prompt.builds.length > 0 ? prompt.builds[prompt.builds.length - 1] : undefined;
+}
+
+/** The built line's one sentence — the last build's file count, in words. */
+function builtWords(prompt: Prompt): string {
+  const files = lastBuild(prompt)?.filesTouched.length ?? 0;
+  if (files === 0) return 'built · no files touched';
+  return `built · ${files} ${files === 1 ? 'file' : 'files'}`;
+}
+
 /** "Prompts — the list grouped draft · ready · building · built (+ a collapsed scrapped count
  * with restore), the prompt in hand" (S12 brief). The right column's default tab. */
 export function PromptsPane({
@@ -54,7 +64,6 @@ export function PromptsPane({
   onBuild,
   onScrap,
   onRestore,
-  onBeforeToggle,
   onRefine,
 }: PromptsPaneProps) {
   if (status === 'loading') {
@@ -143,10 +152,17 @@ export function PromptsPane({
           )}
           {hand.state === 'built' && (
             <div className="jig-prompts-pane__built-line">
-              <label>
-                <input type="checkbox" aria-label="before — the plate as it was" onChange={(e) => onBeforeToggle(hand.id, e.target.checked)} />
-                before — the plate as it was
-              </label>
+              {/* #8: the "before" switch S12 shipped here was a no-op (no snapshot is kept at
+                  Ready for a Prompt yet). What IS known about the build — the files Claude
+                  touched — is said instead; a control that answers nothing is a floor item. */}
+              <span className="jig-prompts-pane__built-word">{builtWords(hand)}</span>
+              {lastBuild(hand)?.filesTouched.length ? (
+                <ul className="jig-prompts-pane__files">
+                  {lastBuild(hand)!.filesTouched.map((file) => (
+                    <li key={file}>{file}</li>
+                  ))}
+                </ul>
+              ) : null}
               <button type="button" className="jig-prompts-pane__link" onClick={() => onRefine(hand)}>
                 refine — go again
               </button>

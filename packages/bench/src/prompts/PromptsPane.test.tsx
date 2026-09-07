@@ -34,7 +34,6 @@ function baseProps(overrides: Partial<React.ComponentProps<typeof PromptsPane>> 
     onBuild: vi.fn(),
     onScrap: vi.fn(),
     onRestore: vi.fn(),
-    onBeforeToggle: vi.fn(),
     onRefine: vi.fn(),
     ...overrides,
   };
@@ -93,14 +92,27 @@ describe('PromptsPane', () => {
     expect(onBuild).toHaveBeenCalledWith('0003');
   });
 
-  it('shows the "before" switch and "refine" for a built prompt in hand', () => {
-    const onBeforeToggle = vi.fn();
+  // #8: the "before" switch was a disclosed no-op (the bench keeps no snapshot at Ready for a
+  // Prompt yet). The built line now says what IS known — the files Claude touched — and
+  // carries "refine"; no control that answers nothing.
+  it('the built line lists the files Claude touched and "refine" — no "before" switch (#8)', () => {
     const onRefine = vi.fn();
-    render(<PromptsPane {...baseProps({ prompts: [prompt({ state: 'built' })], hand: prompt({ state: 'built' }), onBeforeToggle, onRefine })} />);
-    fireEvent.click(screen.getByLabelText(/before/i));
-    expect(onBeforeToggle).toHaveBeenCalledWith('0003', true);
+    const built = prompt({
+      state: 'built',
+      builds: [{ id: 'b1', startedAt: 'a', finishedAt: 'b', exitCode: 0, filesTouched: ['src/app/invoice-list/invoice-list.html', 'src/app/invoice-list/invoice-list.ts'] }],
+    });
+    render(<PromptsPane {...baseProps({ prompts: [built], hand: built, onRefine })} />);
+    expect(screen.queryByLabelText(/before/i)).toBeNull();
+    expect(screen.getByText(/built · 2 files/)).toBeTruthy();
+    expect(screen.getByText('src/app/invoice-list/invoice-list.html')).toBeTruthy();
     fireEvent.click(screen.getByText(/refine — go again/i));
     expect(onRefine).toHaveBeenCalledWith(expect.objectContaining({ id: '0003' }));
+  });
+
+  it('a built prompt whose build touched nothing says so in words', () => {
+    const built = prompt({ state: 'built', builds: [{ id: 'b1', startedAt: 'a', exitCode: 0, filesTouched: [] }] });
+    render(<PromptsPane {...baseProps({ prompts: [built], hand: built })} />);
+    expect(screen.getByText(/built · no files touched/)).toBeTruthy();
   });
 
   it('shows the live build stream while building', () => {
