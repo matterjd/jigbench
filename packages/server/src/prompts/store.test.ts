@@ -1,8 +1,9 @@
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { mkdir, mkdtemp, readdir, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { jigPaths, serializeWorkOrder, type WorkOrder } from '@jigbench/core';
+import { logger } from '../logger.js';
 import { PromptNotFoundError, PromptStore } from './store.js';
 
 let repoRoot: string;
@@ -181,6 +182,33 @@ describe('PromptStore — S11 migration from .jig/work-orders/', () => {
     await second.init();
     expect(second.get('0003')!.state).toBe('ready');
     expect(second.get('0003')!.updatedAt === beforeUpdatedAt || true).toBe(true); // sanity: still readable
+  });
+
+  // CI run 34148382041 logged this failure repeatedly and moved on with no trace anywhere a
+  // real user (or this test) could see — `migrationSkipped()` is how that stops being silent
+  // (see also http.test.ts's `GET /api/state` coverage of the same data).
+  it('records a skipped work order in migrationSkipped() instead of swallowing the failure silently', async () => {
+    const paths = jigPaths(repoRoot);
+    await mkdir(paths.workOrders, { recursive: true });
+    await import('node:fs/promises').then((fs) =>
+      fs.writeFile(join(paths.workOrders, '0009-broken.md'), 'not a valid work order at all', 'utf8'),
+    );
+
+    // This deliberately-malformed fixture is EXPECTED to log the "S11 migration ... failed to
+    // migrate" WARN — that line is the CI-run-34148382041 regression signal everywhere else,
+    // so it's suppressed here (the assertions below are the real evidence this test cares
+    // about, not the log line) rather than let a correct, on-purpose warning read as if the
+    // bug had come back.
+    const warnSpy = vi.spyOn(logger, 'warn').mockImplementation(() => {});
+    const store = new PromptStore(repoRoot);
+    await store.init();
+    warnSpy.mockRestore();
+
+    expect(store.list()).toEqual([]);
+    const skipped = store.migrationSkipped();
+    expect(skipped).toHaveLength(1);
+    expect(skipped[0].entry).toBe('0009-broken.md');
+    expect(skipped[0].error).toMatch(/./); // some non-empty error text, not swallowed
   });
 
   it('does nothing when neither .jig/work-orders/ nor .jig/prompts/ exist', async () => {

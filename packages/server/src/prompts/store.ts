@@ -38,6 +38,18 @@ export class PromptNotFoundError extends Error {
   }
 }
 
+/** One work order the S11 migration could not turn into a prompt (CI run 34148382041: the
+ * migration failure this recorded was previously visible ONLY in a server log line — a real
+ * user with a v0.1 work order would have silently lost it). Exposed via `migrationSkipped()`
+ * so a caller (`GET /api/state`'s `migration.skipped`, in particular) can surface it instead
+ * of the migration just moving on. */
+export interface MigrationSkip {
+  /** The work-order filename under `.jig/work-orders/` that failed to migrate. */
+  entry: string;
+  /** `String(err)` from the failure — never swallowed. */
+  error: string;
+}
+
 export interface CreatePromptInput {
   requirement: string;
   acceptance?: string[];
@@ -49,6 +61,7 @@ export class PromptStore {
   readonly repoRoot: string;
   readonly paths: ReturnType<typeof jigPaths>;
   private prompts: Prompt[] = [];
+  private migrationSkips: MigrationSkip[] = [];
 
   constructor(repoRoot: string) {
     this.repoRoot = repoRoot;
@@ -63,6 +76,13 @@ export class PromptStore {
 
   async reload(): Promise<void> {
     this.prompts = await this.loadAll();
+  }
+
+  /** Work orders the S11 migration could not turn into a prompt — empty when nothing was
+   * skipped, or migration never ran. Never cleared across `reload()`; only a fresh `init()`
+   * (a new process/instance) resets it, matching migration itself only ever running once. */
+  migrationSkipped(): MigrationSkip[] {
+    return [...this.migrationSkips];
   }
 
   private async hasAnyPromptFile(): Promise<boolean> {
@@ -92,7 +112,9 @@ export class PromptStore {
         await atomicWriteFile(this.filePathFor(prompt), serializePrompt(prompt));
         migrated++;
       } catch (err) {
-        logger.warn(`S11 migration: work order ${entry} failed to migrate to a prompt; skipping it`, String(err));
+        const error = String(err);
+        this.migrationSkips.push({ entry, error });
+        logger.warn(`S11 migration: work order ${entry} failed to migrate to a prompt; skipping it`, error);
       }
     }
     if (migrated > 0) {
