@@ -25,11 +25,17 @@ packages/adapters/angular     SurveyAdapter for Angular; imports core interfaces
 packages/adapters/dotnet      SurveyAdapter for .NET 10; imports core interfaces only.
                               Source of truth for: how .NET 10 apps are surveyed.
 
+packages/adapters/web         the generic SurveyAdapter (S16); imports core interfaces only.
+                              Source of truth for: what any repo with a package.json or a
+                              stylesheet yields — gauges, a dev-server guess, framework hints.
+
 examples/                     a tiny Angular app + a tiny .NET 10 app; not a workspace package.
                               Source of truth for: the fixture every adapter's tests run against.
 
 docs/                         Source of truth for: the execution plan, ADRs, the v0.1 team plan,
-                              and `USING.md` (the end-to-end walkthrough in Jig's own words).
+                              `USING.md` (the walkthrough in Jig's own words), `TEST-RUN.md`
+                              (the step-by-step run of the loop) and `ROADMAP.md` (what comes
+                              after 0.2.0).
 
 scripts/                      Source of truth for: repo-level verification scripts run by npm
                               (e.g. `check:stdout`) or directly (`npx-control.sh`,

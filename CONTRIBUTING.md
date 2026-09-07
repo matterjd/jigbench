@@ -1,6 +1,6 @@
 # Contributing to Jig
 
-Thanks for looking at this. Jig is a young project (v0.1 in progress) — read
+Thanks for looking at this. Jig is a young project (0.2.0, the loop) — read
 `docs/EXECUTION-PLAN.md` for the current plan before picking up a slice.
 
 ## Running the monorepo
@@ -91,7 +91,7 @@ All are bash, run from the repo root after `npm run build` unless noted:
   `initialize` → `tools/list` over stdio; asserts the *entire* stdout stream is JSON-RPC and
   nothing else. Accepts `JIG_MCP_CMD` to target something other than the local
   `packages/cli/dist/bin.js` build — e.g. a packed release tarball:
-  `JIG_MCP_CMD="npx --yes ./jigbench-0.1.0.tgz" bash scripts/stdout-guard.sh`.
+  `JIG_MCP_CMD="npx --yes ./jigbench-0.2.0.tgz" bash scripts/stdout-guard.sh`.
 - `bash scripts/mcp-smoke.sh` (`npm run check:mcp-smoke`) — builds, re-runs the guard above,
   then a read-only MCP e2e with the real SDK `Client`. `JIGBENCH_SMOKE_GLOBAL=1` additionally
   runs the two global-state steps described above.
