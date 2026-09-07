@@ -2,7 +2,7 @@
 title: "COMMISSION — Jig: a local-first benchtop for shaping a feature before an agent builds it"
 date: 2026-09-05
 seat: Design
-status: RULED — F1–F4 by Matter in batch 1 (2026-09-05 11:40 CDT); F5–F22 defaults ACCEPTED AS WRITTEN and F15 ruled React + Vite in batch 2 (2026-09-05 12:35 CDT); §7 answered; concepts A–C built and FLOOR CLEAR; VERDICT 2026-09-05 — A chassis, steals from B (spine, shop lane) and C (mirror + scrubber); GRADUATED to jigbench/docs/design/COMMISSION.md (canonical from now; this copy is the round's record)
+status: RULED — F1–F4 by Matter in batch 1 (2026-09-05 11:40 CDT); F5–F22 defaults ACCEPTED AS WRITTEN and F15 ruled React + Vite in batch 2 (2026-09-05 12:35 CDT); §7 answered; concepts A–C built and FLOOR CLEAR; VERDICT 2026-09-05 — A chassis, steals from B (spine, shop lane) and C (mirror + scrubber); GRADUATED to jigbench/docs/design/COMMISSION.md (canonical from now; this copy is the round's record) · AMENDED 2026-09-07 by AMENDMENT-1-the-simplification.md (Matter, after the first live test: one loop, one Build button, Polish on demand, the loop-only default view, the artifact is a Prompt) — rows F5/F6/F7/F11/F13/F14/F20 read through the amendment
 supersedes: nothing. A NEW PRODUCT (DESIGN-TEAM decision 9 — the grill fires first).
 tracker: matterjd/jigbench (founded 2026-09-05, private until Matter flips it at ship)
 ---
