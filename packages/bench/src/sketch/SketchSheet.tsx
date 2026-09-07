@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState, type FormEvent, type MouseEvent as ReactMouseEvent } from 'react';
 import type { Gauge, SketchElement } from '@jigbench/core';
+import { snap } from '@jigbench/core';
 import { resolveGridPx } from '../plate/gridReadout.js';
 import { PlateRulers } from '../plate/PlateRulers.js';
 import { PlateGuides } from '../plate/PlateGuides.js';
+import { resolveSnap, type SnapLine } from './resolveSnap.js';
 import {
   DEFAULT_GRID,
   addElement,
@@ -10,6 +12,7 @@ import {
   newSketch,
   openSketch,
   loadSketches,
+  placeElementAt,
   printed,
   resizeElement,
   restoreSketch,
@@ -61,7 +64,13 @@ export function SketchSheet({ gauges, fetchImpl = fetch }: SketchSheetProps) {
   const dragRef = useRef<DragState | null>(null);
   const [name, setName] = useState('');
   const [showScrapBin, setShowScrapBin] = useState(false);
+  const [alignLines, setAlignLines] = useState<SnapLine[]>([]);
   const grid = resolveGridPx(gauges).px || DEFAULT_GRID;
+  // A ref, not a dependency: the move-drag listener below is attached once per `grid` value, not
+  // once per pointer-move — it reads the LATEST sketch through this ref instead of re-subscribing
+  // window listeners on every drag tick (which risks dropping an event between remove/re-add).
+  const activeSketchRef = useRef(state.activeSketch);
+  activeSketchRef.current = state.activeSketch;
 
   useEffect(() => {
     void loadSketches(fetchImpl);
@@ -87,13 +96,31 @@ export function SketchSheet({ gauges, fetchImpl = fetch }: SketchSheetProps) {
       const dx = event.clientX - drag.startX;
       const dy = event.clientY - drag.startY;
       if (drag.kind === 'move') {
-        moveElement(drag.id, drag.originX + dx, drag.originY + dy, grid);
+        // Real snapping (S13): the 4px grid first, then the nearest other element's edge or
+        // centre (or the sheet's own centre) within 6px, holding a storm alignment line on each
+        // axis — ported from concept D's snapTo(). `placeElementAt` (not `moveElement`) lands
+        // the ALIGNED coordinate exactly; re-running it through the grid snap would silently
+        // undo a fine alignment that isn't itself a grid multiple.
+        const sketch = activeSketchRef.current;
+        const rawX = snap(drag.originX + dx, grid);
+        const rawY = snap(drag.originY + dy, grid);
+        if (sketch) {
+          const others = sketch.elements
+            .filter((e) => e.id !== drag.id)
+            .map((e) => ({ x: e.x, y: e.y, w: e.w, h: e.h }));
+          const result = resolveSnap({ x: rawX, y: rawY, w: drag.originW, h: drag.originH }, others, sketch.size);
+          placeElementAt(drag.id, result.x, result.y);
+          setAlignLines(result.lines);
+        } else {
+          moveElement(drag.id, drag.originX + dx, drag.originY + dy, grid);
+        }
       } else {
         resizeElement(drag.id, drag.originW + dx, drag.originH + dy, grid);
       }
     }
     function onUp(): void {
       dragRef.current = null;
+      setAlignLines([]);
     }
     window.addEventListener('mousemove', onMove);
     window.addEventListener('mouseup', onUp);
@@ -263,6 +290,23 @@ export function SketchSheet({ gauges, fetchImpl = fetch }: SketchSheetProps) {
                 />
               </div>
             ))}
+            {alignLines.map((line, i) =>
+              line.axis === 'v' ? (
+                <div
+                  key={`v-${i}`}
+                  data-testid="sketch-align-v"
+                  className="jig-sketch-sheet-panel__aline jig-sketch-sheet-panel__aline--v"
+                  style={{ left: line.at }}
+                />
+              ) : (
+                <div
+                  key={`h-${i}`}
+                  data-testid="sketch-align-h"
+                  className="jig-sketch-sheet-panel__aline jig-sketch-sheet-panel__aline--h"
+                  style={{ top: line.at }}
+                />
+              ),
+            )}
           </div>
           <PlateGuides rect={selectedRect} grid={gridResult} />
         </div>

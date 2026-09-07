@@ -141,3 +141,23 @@
   background: var(--bg1);
   cursor: nwse-resize;
 }
+
+/* Real snapping's alignment line (S13, ported from concept D's .aline): a storm hairline on
+   the axis the drag currently holds, drawn only while dragging. */
+.jig-sketch-sheet-panel__aline {
+  position: absolute;
+  background: var(--storm);
+  pointer-events: none;
+}
+
+.jig-sketch-sheet-panel__aline--v {
+  width: 1px;
+  top: 0;
+  bottom: 0;
+}
+
+.jig-sketch-sheet-panel__aline--h {
+  height: 1px;
+  left: 0;
+  right: 0;
+}
