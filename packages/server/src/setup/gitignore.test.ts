@@ -19,4 +19,11 @@ describe('ensureGitignoreEntry (server-side copy)', () => {
     expect(changed).toBe(false);
     expect(updated).toBe('node_modules/\n.jig/cache/\n');
   });
+
+  // Ported from the CLI's own gitignore.test.ts when #10 retired that copy.
+  it('does not duplicate a trailing newline that already exists', () => {
+    const { updated, changed } = ensureGitignoreEntry('node_modules/\n', '.jig/cache/');
+    expect(changed).toBe(true);
+    expect(updated).toBe('node_modules/\n.jig/cache/\n');
+  });
 });

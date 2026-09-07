@@ -1,7 +1,8 @@
 import { existsSync } from 'node:fs';
 import { readFile, writeFile } from 'node:fs/promises';
 import { dirname } from 'node:path';
-import { claudeDesktopConfigPath, formatClaudeDesktopConfigDiff, mergeClaudeDesktopConfig } from '../claude-desktop-config.js';
+// #10: the same three functions `POST /api/setup/desktop` uses (packages/server/src/setup/).
+import { claudeDesktopConfigPath, formatClaudeDesktopConfigDiff, mergeClaudeDesktopConfig } from '@jigbench/server';
 import { resolveRepoRoot } from '../repo-root.js';
 
 /**
