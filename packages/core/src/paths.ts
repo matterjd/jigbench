@@ -11,6 +11,8 @@ export interface JigPaths {
   toolpaths: string;
   sketches: string;
   cache: string;
+  /** S11 (AMENDMENT-1 A4): the artifact that replaces the work order — `.jig/prompts/`. */
+  prompts: string;
 }
 
 export function jigPaths(repoRoot: string): JigPaths {
@@ -25,5 +27,6 @@ export function jigPaths(repoRoot: string): JigPaths {
     toolpaths: `${root}/toolpaths`,
     sketches: `${root}/sketches`,
     cache: `${root}/cache`,
+    prompts: `${root}/prompts`,
   };
 }

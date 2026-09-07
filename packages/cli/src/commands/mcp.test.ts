@@ -76,7 +76,7 @@ async function handshake(send: (msg: JsonRpcMessage) => void, messages: JsonRpcM
 }
 
 describe('runMcpCommand (S6: the real stdio MCP server)', () => {
-  it('completes the initialize handshake and lists all nine tools', async () => {
+  it('completes the initialize handshake and lists all tools (nine plus the S11 prompt aliases)', async () => {
     const repoRoot = await freshRepo();
     const { toServer, fromServer, messages, send } = rig();
 
@@ -88,7 +88,8 @@ describe('runMcpCommand (S6: the real stdio MCP server)', () => {
     const toolsResponse = messages.find((m) => m.id === 2)!;
     const names = (toolsResponse.result!.tools ?? []).map((t) => t.name).sort();
     expect(names).toEqual(
-      ['jig_claim', 'jig_docs', 'jig_draft', 'jig_fixture', 'jig_gauges', 'jig_report', 'jig_survey', 'jig_work_order', 'jig_work_orders'].sort(),
+      // S11: registerPromptTools adds three more names — see mcp/tools.test.ts's own fix.
+      ['jig_claim', 'jig_docs', 'jig_draft', 'jig_fixture', 'jig_gauges', 'jig_mark_built', 'jig_prompt', 'jig_prompts', 'jig_report', 'jig_survey', 'jig_work_order', 'jig_work_orders'].sort(),
     );
 
     toServer.end();

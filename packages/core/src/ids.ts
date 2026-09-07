@@ -36,3 +36,9 @@ export function nextWorkOrderId(existing: readonly string[]): string {
 export function nextToolpathId(existing: readonly string[]): string {
   return nextFourDigitId(existing);
 }
+
+/** The next four-digit prompt id, given the ids already under `.jig/prompts/` (S11) — same
+ * numbering rule, own name, same reasoning as `nextToolpathId` above. */
+export function nextPromptId(existing: readonly string[]): string {
+  return nextFourDigitId(existing);
+}

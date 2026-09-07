@@ -12,6 +12,7 @@ describe('jigPaths', () => {
       toolpaths: '/repo/.jig/toolpaths',
       sketches: '/repo/.jig/sketches',
       cache: '/repo/.jig/cache',
+      prompts: '/repo/.jig/prompts',
     });
   });
 

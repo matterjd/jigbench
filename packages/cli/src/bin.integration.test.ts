@@ -65,7 +65,8 @@ describeIfBuilt('bin.js (built) — mcp honors --repo and speaks stdio MCP for r
 
         const toolsResponse = messages.find((m) => m.id === 2)!;
         expect((toolsResponse.result!.tools ?? []).map((t) => t.name).sort()).toEqual(
-          ['jig_claim', 'jig_docs', 'jig_draft', 'jig_fixture', 'jig_gauges', 'jig_report', 'jig_survey', 'jig_work_order', 'jig_work_orders'].sort(),
+          // S11: registerPromptTools adds three more names — see mcp/tools.test.ts's own fix.
+          ['jig_claim', 'jig_docs', 'jig_draft', 'jig_fixture', 'jig_gauges', 'jig_mark_built', 'jig_prompt', 'jig_prompts', 'jig_report', 'jig_survey', 'jig_work_order', 'jig_work_orders'].sort(),
         );
 
         const exitCodePromise = new Promise<number | null>((resolve) => child.on('exit', (code) => resolve(code)));

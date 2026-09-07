@@ -62,3 +62,16 @@ export { readShopHeartbeat, shopHeartbeatFile } from './mcp/heartbeat.js';
 // FixtureStore (jig_fixture reads it) the same way `createJigServer` already does.
 export { FixtureStore, FixtureNameConflictError, FixtureNotFoundError, FixtureScrappedError } from './fixtures/store.js';
 export type { CreateFixtureInput, FixtureWiringSink, FixtureWiringStatus } from './fixtures/store.js';
+
+// === S11 prompts + build runner — exported for the CLI's `build`/`prompts` commands, which
+// (like `mcp.ts` already does for JigStore/OrdersService/FixtureStore) construct their own
+// PromptStore/PromptService/BuildRunner rather than reaching into packages/server/src/* ===
+export { PromptStore, PromptNotFoundError } from './prompts/store.js';
+export type { CreatePromptInput } from './prompts/store.js';
+export { PromptService, PromptEditSchema } from './prompts/service.js';
+export type { PolishResult, PromptServiceOptions } from './prompts/service.js';
+export { ClaudeNotInstalledError, PolishUnavailableError, PromptBuildConflictError, PromptConflictError } from './prompts/errors.js';
+export { BuildRunner } from './build/runner.js';
+export type { BuildRunnerOptions } from './build/runner.js';
+export type { BuildOutcome, BuildRunnerLike, BuildStreamEvent, ClaudeStatus, StartBuildInput } from './build/types.js';
+// === end S11 block ===

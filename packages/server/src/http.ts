@@ -28,6 +28,13 @@ import { SnapshotStore } from './trialfit/snapshot.js'; // S8
 import { attachTrialFitRoute } from './trialfit/route.js'; // S8
 import { SketchStore } from './sketch/store.js'; // S9
 import { attachSketchesRoute } from './sketch/route.js'; // S9
+// === S11 prompts + build runner: imports (delimited block; owned by packages/server/src/{prompts,build}/*) ===
+import { PromptStore } from './prompts/store.js';
+import { PromptService } from './prompts/service.js';
+import { attachPromptsRoute } from './prompts/route.js';
+import { BuildRunner } from './build/runner.js';
+import type { BuildRunnerLike } from './build/types.js';
+// === end S11 block ===
 
 export interface CreateJigServerOptions {
   repoRoot: string;
@@ -52,6 +59,17 @@ export interface CreateJigServerOptions {
    * finding 3) re-evaluates `wiring.shop` and broadcasts if it flipped. Production default:
    * `SHOP_FRESHNESS_TICK_MS` (10s). */
   shopFreshnessTickMs?: number;
+  // === S11: prompts + build runner options (delimited block) ===
+  /** How the real `claude` executable is invoked — `command` defaults to `'claude'` (resolved
+   * off PATH); `commandArgsPrefix` is prepended before every argument list. Production never
+   * sets this; tests point `command` at `process.execPath` and `commandArgsPrefix` at a fake
+   * `claude` script, the same shape `build/runner.test.ts` uses directly. */
+  claude?: { command?: string; commandArgsPrefix?: string[] };
+  /** Test-only override hook, same reasoning as `drafters` above — inject a fully
+   * deterministic `BuildRunnerLike` instead of a real child-process `BuildRunner`. Takes
+   * priority over `claude` when both are given. */
+  runner?: BuildRunnerLike;
+  // === end S11 block ===
 }
 
 /** True when `origin` is absent (a non-browser client — curl, an MCP client, the CLI itself
@@ -98,16 +116,46 @@ export interface JigServerHandle {
   snapshotStore: SnapshotStore;
   /** S9 — the sketch data/lifecycle store; exposed for tests the same way `store` is. */
   sketchStore: SketchStore;
+  /** S11 — the prompt data/lifecycle service; exposed for tests the same way `store` is. */
+  promptStore: PromptStore;
+  promptService: PromptService;
   benchServeMode: BenchServeMode;
   close(): Promise<void>;
 }
+
+// === S11: composedState's claude fields (delimited block) ===
+// `wiring.claude` ('installed' | 'none' — whether the `claude` executable was found on PATH)
+// and `status.claude` (idle | building | built, from the BuildRunner) ride along on the same
+// composed shape below. A `WeakMap` keyed by the `JigStore` instance — rather than adding
+// parameters to `composedState`/`broadcastState` — keeps every ALREADY-EXISTING call site
+// (six of them, scattered through this file) compiling unchanged; `createJigServer` registers
+// the one entry for its own `store` right after constructing the prompt service.
+// `getClaudeInstalled` reads a value refreshed ONCE at server startup, not on every call —
+// spawning `claude --version` on every single `/api/state` poll or WS broadcast would be
+// wasteful, especially mid-build when broadcasts fire often; a claude install that appears
+// mid-session is picked up the next time a Build is actually attempted (`PromptService.build()`
+// always re-checks for real) even though this badge may lag until then — a disclosed v0.2
+// trade-off, not an oversight.
+const promptContextByStore = new WeakMap<JigStore, { promptService: PromptService; getClaudeInstalled: () => boolean }>();
+// === end S11 block ===
 
 // S6: GET /api/state and every WS 'state' broadcast carry the same composed shape — the core
 // JigState plus a top-level `shop` (the connected agent's own name/connectedAt, or null),
 // which `wiring.shop`'s wired/none alone can't say. One function so the two call sites never
 // drift apart.
-function composedState(store: JigStore): ReturnType<JigStore['getState']> & { shop: ReturnType<JigStore['getShopInfo']> } {
-  return { ...store.getState(), shop: store.getShopInfo() };
+function composedState(store: JigStore): Omit<ReturnType<JigStore['getState']>, 'wiring'> & {
+  wiring: ReturnType<JigStore['getState']>['wiring'] & { claude: 'installed' | 'none' }; // S11
+  shop: ReturnType<JigStore['getShopInfo']>;
+  status: { claude: ReturnType<PromptService['claudeStatus']> }; // S11
+} {
+  const state = store.getState();
+  const promptCtx = promptContextByStore.get(store); // S11
+  return {
+    ...state,
+    wiring: { ...state.wiring, claude: promptCtx?.getClaudeInstalled() ? 'installed' : 'none' }, // S11
+    shop: store.getShopInfo(),
+    status: { claude: promptCtx?.promptService.claudeStatus() ?? { state: 'idle' } }, // S11
+  };
 }
 
 function broadcastState(wss: WebSocketServer, store: JigStore): void {
@@ -126,7 +174,8 @@ function buildApp(
   trialFitMirror: TrialFitMirror, // S8
   snapshotStore: SnapshotStore, // S8
   sketchStore: SketchStore, // S9
-): { app: Express; benchServeMode: BenchServeMode; orders: OrdersService } {
+  promptStore: PromptStore, // S11
+): { app: Express; benchServeMode: BenchServeMode; orders: OrdersService; promptService: PromptService; runner: BuildRunnerLike } {
   const app = express();
   // 64kb: the bench's own request bodies (marks, work-order patches) are all small,
   // structured JSON — a generous cap on any single field lives closer to that field
@@ -313,6 +362,28 @@ function buildApp(
 
   attachSketchesRoute(app, sketchStore, () => store.getState().gauges); // S9
 
+  // === S11 prompts + build runner: construct + mount (delimited block) ===
+  // `runner` reuses `options.drafters?.ollama` for `PromptService.polish()` — the same
+  // `OllamaLike` test double (`FakeOllamaDrafter`) every existing HTTP test already injects,
+  // rather than inventing a second override option for the identical seam.
+  const runner: BuildRunnerLike = options.runner ?? new BuildRunner({ repoRoot: store.repoRoot, ...options.claude });
+  const promptService = new PromptService({
+    store: promptStore,
+    survey: () => store.getState().survey,
+    gauges: () => store.getState().gauges,
+    ollama: options.drafters?.ollama,
+    runner,
+    notify: () => broadcastState(wss, store),
+    onBuildEvent: (id, event, elapsedMs) => {
+      const payload = JSON.stringify({ type: 'build', id, event, elapsedMs });
+      for (const client of wss.clients as Set<WebSocket>) {
+        if (client.readyState === client.OPEN) client.send(payload);
+      }
+    },
+  });
+  attachPromptsRoute(app, promptService);
+  // === end S11 block ===
+
   const benchServeMode = attachBenchServing(app, {
     benchDistDir: options.benchDistDir ?? defaultBenchDistDir(),
     benchDevServerUrl: options.benchDevServerUrl,
@@ -331,7 +402,7 @@ function buildApp(
     res.status(status).json({ error: message });
   });
 
-  return { app, benchServeMode, orders };
+  return { app, benchServeMode, orders, promptService, runner };
 }
 
 export async function createJigServer(options: CreateJigServerOptions): Promise<JigServerHandle> {
@@ -367,9 +438,30 @@ export async function createJigServer(options: CreateJigServerOptions): Promise<
   await sketchStore.init();
   // -------------------------------------------------------------------------------------------
 
+  // --- S11 (prompts): construct + wire ---------------------------------------------------
+  const promptStore = new PromptStore(repoRoot);
+  await promptStore.init(); // runs the .jig/work-orders/ -> .jig/prompts/ migration, if needed
+  // -----------------------------------------------------------------------------------------
+
   const wss = new WebSocketServer({ noServer: true });
-  const { app, benchServeMode, orders } = buildApp(store, wss, options, fixtureStore, toolpathStore, trialFitMirror, snapshotStore, sketchStore);
+  const { app, benchServeMode, orders, promptService, runner } = buildApp(
+    store,
+    wss,
+    options,
+    fixtureStore,
+    toolpathStore,
+    trialFitMirror,
+    snapshotStore,
+    sketchStore,
+    promptStore,
+  );
   const httpServer: HttpServer = createHttpServer(app);
+
+  // --- S11: `wiring.claude` snapshot — see composedState's own comment for why this is a
+  // one-time-at-startup check rather than a live one on every call. ---------------------------
+  const claudeInstalled = await runner.isClaudeAvailable();
+  promptContextByStore.set(store, { promptService, getClaudeInstalled: () => claudeInstalled });
+  // -----------------------------------------------------------------------------------------
 
   // --- S6: the .jig/ watcher — the MCP process (ADR-001) is a SEPARATE process from this
   // one, so a jig_draft/jig_claim/jig_report tool call writes a file this server never
@@ -434,6 +526,8 @@ export async function createJigServer(options: CreateJigServerOptions): Promise<
     trialFitMirror, // S8
     snapshotStore, // S8
     sketchStore, // S9
+    promptStore, // S11
+    promptService, // S11
     benchServeMode,
     async close() {
       watcher.stop(); // S6
@@ -443,6 +537,7 @@ export async function createJigServer(options: CreateJigServerOptions): Promise<
       for (const client of wss.clients as Set<WebSocket>) client.terminate();
       wss.close();
       await orders.close(); // finding 3 fix — drain any background auto-draft before the store goes away
+      await promptService.close(); // S11 — same reasoning, for any background build in flight
       await trialFitMirror.close(); // S8 — the mirror's own listening socket, if started
       await new Promise<void>((resolve, reject) => {
         httpServer.close((err) => (err ? reject(err) : resolve()));
