@@ -70,6 +70,18 @@ function markedAt(order: WorkOrder): string | undefined {
   return order.log.find((l) => l.event === 'marked')?.at;
 }
 
+// Retest defect 5 (2026-09-06 evening): "I just see `drafted · model`. The tray badge lacks
+// the model name and elapsed seconds even with Ollama running (after a scrap and a fresh
+// mark)." A re-read order (a bench restart, or a scrap + fresh mark) always has `log: []`
+// (the logbook is a separate surface that never round-trips through the persisted file —
+// debt #6, left as is) — but now carries `model`/`elapsedMs` directly on the order itself
+// (core schema addition). Built the same way `service.ts`'s own `costNote` formats it, so a
+// persisted order badges identically to a freshly-drafted one.
+function persistedDraftNote(order: WorkOrder): string | undefined {
+  if (order.draftedBy !== 'model' || order.model === undefined) return undefined;
+  return order.elapsedMs === undefined ? order.model : `${order.model} · ${(order.elapsedMs / 1000).toFixed(1)}s`;
+}
+
 /** Drafted-by badge text — always names WHO and, once known, the measured cost (Law III:
  * a process over 300ms shows its charge, never a bare spinner).
  *
@@ -105,7 +117,7 @@ function DraftBadge({ order, nowMs }: { order: WorkOrder; nowMs: number }) {
     case 'drafted':
       return (
         <Chip tone={order.draftedBy === 'model' ? 'wyrd' : 'ok'} glyph="●">
-          drafted · {drafted?.note ?? order.draftedBy}
+          drafted · {drafted?.note ?? persistedDraftNote(order) ?? order.draftedBy}
         </Chip>
       );
     case 'marked': {

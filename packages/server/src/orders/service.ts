@@ -269,6 +269,12 @@ export class OrdersService {
           ...order,
           human: { ...order.human, ...human },
           draftedBy: selection.driver,
+          // Retest defect 5 (2026-09-06 evening): "I just see `drafted · model`" — persisted
+          // on the work order itself (core schema addition), not just this log entry's note,
+          // so a re-read order (a bench restart, or a scrap + fresh mark) still knows the
+          // model name and measured cost. Only ever set for the 'model' driver — shop/person
+          // drafting has no model cost to report.
+          ...(selection.driver === 'model' ? { model: selection.model, elapsedMs } : {}),
           log: [...order.log, draftedLog],
         };
 

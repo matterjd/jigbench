@@ -92,6 +92,51 @@ describe('OrdersService.createMark + draftOrder — the auto-draft flow', () => 
     expect(notify).toHaveBeenCalled();
   });
 
+  // Retest defect 5 (2026-09-06 evening): "I just see `drafted · model`. The tray badge
+  // lacks the model name and elapsed seconds even with Ollama running (after a scrap and a
+  // fresh mark)." The log entry's note carries the detail, but `log` never round-trips
+  // through the persisted markdown file (work-order.ts's parseWorkOrder — "the logbook is a
+  // separate surface") — a re-read order needs `model`/`elapsedMs` on the work order itself.
+  it('persists model + elapsedMs on the work order itself, not just the ephemeral log', async () => {
+    const store = await freshStore();
+    const face = { what: 'flag overdue rows', why: 'nobody notices overdue invoices', where: 'InvoiceListComponent', acceptance: ['an overdue row is red'] };
+    const service = new OrdersService({ store, ollama: ollamaAvailable(face, 5) });
+
+    const { workOrder } = await service.createMark({ pick: { path: 'body > app-invoice-list', component: 'InvoiceListComponent' }, prompt: 'flag overdue rows' });
+
+    await vi.waitFor(() => {
+      expect(store.getWorkOrder(workOrder.id)?.state).toBe('drafted');
+    });
+
+    const drafted = store.getWorkOrder(workOrder.id)!;
+    expect(drafted.model).toBe('qwen2.5-coder:7b');
+    expect(typeof drafted.elapsedMs).toBe('number');
+    expect(drafted.elapsedMs!).toBeGreaterThanOrEqual(5);
+
+    // Simulating exactly what defect 5 reported: a scrap + a fresh mark means the order is
+    // re-read straight off disk (parseWorkOrder), never through the in-memory instance that
+    // drafted it — the persisted fields must survive that round trip.
+    await store.reload();
+    const reloaded = store.getWorkOrder(workOrder.id)!;
+    expect(reloaded.model).toBe('qwen2.5-coder:7b');
+    expect(reloaded.elapsedMs).toBe(drafted.elapsedMs);
+  });
+
+  it('leaves model/elapsedMs unset when a shop agent or a human drafts the order (only a local model has a cost to report)', async () => {
+    const store = await freshStore();
+    const service = new OrdersService({ store, ollama: ollamaUnavailable() });
+
+    const { workOrder } = await service.createMark({ pick: { path: 'x' }, prompt: 'do the thing' });
+    await vi.waitFor(() => {
+      expect(store.getWorkOrder(workOrder.id)?.state).toBe('drafted');
+    });
+
+    const drafted = store.getWorkOrder(workOrder.id)!;
+    expect(drafted.draftedBy).toBe('person');
+    expect(drafted.model).toBeUndefined();
+    expect(drafted.elapsedMs).toBeUndefined();
+  });
+
   it('degrades to human and still reaches drafted when Ollama is unreachable', async () => {
     const store = await freshStore();
     const service = new OrdersService({ store, ollama: ollamaUnavailable() });

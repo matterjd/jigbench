@@ -44,6 +44,18 @@ export const WorkOrderSchema = z.object({
   human: WorkOrderHumanSchema,
   shop: WorkOrderShopSchema.optional(),
   draftedBy: DraftedBySchema,
+  // === Retest defect 5 (2026-09-06 evening): persisted draft metadata block =============
+  // "I just see `drafted · model`" — the tray badge's model name + measured wall-clock cost
+  // used to live ONLY in the ephemeral in-memory `log` (never round-tripped through the
+  // markdown file — see parseWorkOrder's `log: []` below, "the logbook is a separate
+  // surface"), so a re-read order (a bench restart, or a scrap + fresh mark) lost it even
+  // though a local model drafted it moments before. Both optional: absent for every driver
+  // other than 'model' (shop/person drafting has no model cost to report) and for every
+  // pre-existing work-order file written before this fix — debt #6 (the full log round trip)
+  // stays as is; this only persists the two fields the badge actually needs.
+  model: z.string().optional(),
+  elapsedMs: z.number().optional(),
+  // === end defect 5 block =================================================================
   marks: z.array(z.string()),
   log: z.array(LogEntrySchema),
 });
@@ -93,6 +105,9 @@ export function serializeWorkOrder(wo: WorkOrder): string {
     `slug: ${yamlScalar(wo.slug)}`,
     `state: ${yamlScalar(wo.state)}`,
     `draftedBy: ${yamlScalar(wo.draftedBy)}`,
+    // Defect 5 block: omitted entirely when absent — never an empty string/zero placeholder.
+    ...(wo.model !== undefined ? [`model: ${yamlScalar(wo.model)}`] : []),
+    ...(wo.elapsedMs !== undefined ? [`elapsedMs: ${wo.elapsedMs}`] : []),
     `marks: ${yamlFlowArray(wo.marks)}`,
     '---',
   ];
@@ -154,6 +169,10 @@ export function parseWorkOrder(markdown: string): WorkOrder {
   const slug = unquote(fm.slug ?? '');
   const state = unquote(fm.state ?? '');
   const draftedBy = unquote(fm.draftedBy ?? '');
+  // Defect 5 block: both absent from `fm` entirely on a pre-existing file (unlike `marks`,
+  // there is no default here — `undefined` means "never persisted", not "empty").
+  const model = fm.model !== undefined ? unquote(fm.model) : undefined;
+  const elapsedMs = fm.elapsedMs !== undefined ? Number.parseInt(fm.elapsedMs, 10) : undefined;
   const marks = parseYamlFlowArray(fm.marks ?? '[]');
 
   // Split the body into sections keyed by their heading line.
@@ -208,6 +227,8 @@ export function parseWorkOrder(markdown: string): WorkOrder {
     human,
     ...(shop ? { shop } : {}),
     draftedBy: draftedBy as WorkOrder['draftedBy'],
+    ...(model !== undefined ? { model } : {}),
+    ...(elapsedMs !== undefined ? { elapsedMs } : {}),
     marks,
     log: [] as LogEntry[],
   };
