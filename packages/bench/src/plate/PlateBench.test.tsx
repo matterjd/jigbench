@@ -117,20 +117,35 @@ describe('PlateBench', () => {
     });
     const plateOrigin = 'http://localhost:4601';
 
-    act(() => {
-      window.dispatchEvent(
-        new MessageEvent('message', { data: { type: 'jig:event', kind: 'click', path: 'a' }, origin: plateOrigin }),
-      );
-    });
-    await waitFor(() => expect(onEvent).toHaveBeenCalledWith({ type: 'jig:event', kind: 'click', path: 'a' }));
+    // Each event is dispatched INSIDE the wait's own retry — the same fix PR #15's b9596ef gave
+    // App.test.tsx's `pickOnPlate`. The bridge attaches its `message` listener in a passive
+    // effect after the render that creates the iframe, so the iframe can be in the DOM while
+    // the listener that knows the plate origin is not there yet; one dispatch fired in that
+    // gap is lost. main's push run 34175544158 (windows-latest, at 3939bc0) hit it:
+    //   AssertionError: expected "vi.fn()" to be called with arguments: [ { type: 'jig:event', …(2) } ]
+    //   Number of calls: 0
+    // Re-dispatching the same event is idempotent for these assertions (at least one call;
+    // the last call), and the order — clicks before the input — still holds.
+    const click = { type: 'jig:event', kind: 'click', path: 'a' };
+    await waitFor(
+      () => {
+        act(() => {
+          window.dispatchEvent(new MessageEvent('message', { data: click, origin: plateOrigin }));
+        });
+        expect(onEvent).toHaveBeenCalledWith(click);
+      },
+      { timeout: 4000 },
+    );
 
-    act(() => {
-      window.dispatchEvent(
-        new MessageEvent('message', { data: { type: 'jig:event', kind: 'input', path: 'b', value: 'x' }, origin: plateOrigin }),
-      );
-    });
-    await waitFor(() =>
-      expect(onEvent).toHaveBeenLastCalledWith({ type: 'jig:event', kind: 'input', path: 'b', value: 'x' }),
+    const input = { type: 'jig:event', kind: 'input', path: 'b', value: 'x' };
+    await waitFor(
+      () => {
+        act(() => {
+          window.dispatchEvent(new MessageEvent('message', { data: input, origin: plateOrigin }));
+        });
+        expect(onEvent).toHaveBeenLastCalledWith(input);
+      },
+      { timeout: 4000 },
     );
     void iframe;
   });
