@@ -64,11 +64,16 @@
  *     Replies `jig:snapshotted`.
  *
  * Outbound (plate -> bench):
+ *   {type:'jig:ready'} (#19)
+ *     Posted once, as soon as this script boots — the bench answers with `jig:survey`, so a
+ *     survey that arrived before the frame had loaded still reaches it.
  *   {type:'jig:pick', path, tag, text, component, componentClass, file, framework, rect}
  *     A loupe-mode click — the element's DOM path, tag, trimmed text, resolved
- *     component/file (when the survey names one), a `framework` badge naming which runtime
- *     resolver actually found the component ('angular'|'react'|'vue'|null — S16, see the
- *     delimited block below), and viewport rect.
+ *     component/file (`component` is the survey's own name when a surveyed selector matched,
+ *     else the runtime class name with a leading underscore stripped; `componentClass` is
+ *     the runtime class as found — #19), a `framework` badge naming which runtime resolver
+ *     actually found the component ('angular'|'react'|'vue'|null — S16, see the delimited
+ *     block below), and viewport rect.
  *   {type:'jig:event', kind:'click'|'input', path, value}
  *     A hand-mode click or input, mirrored to the bench's event log (`value` only for input).
  *   {type:'jig:filled', filled:[...], missing:[...]} (S7)
@@ -410,12 +415,18 @@
   function describeElement(el) {
     var match = surveyedMatch(el);
     var runtime = resolveRuntimeComponent(el);
-    var component = runtime.name || (match ? match.name : undefined);
+    // #19 (the 0.2.0 review): when a surveyed selector matches, the survey's name IS the
+    // component — that is what the table is for, and `prompts/context.ts` matches it against
+    // the survey's `name` exactly. Angular's dev build names the class `_InvoiceListComponent`,
+    // so letting the runtime name win left the prompt's Context empty. The runtime class rides
+    // along as `componentClass`; with nothing surveyed it is the component itself, a leading
+    // underscore (the dev-build decoration) stripped as the last resort.
+    var component = match ? match.name : runtime.name ? runtime.name.replace(/^_+/, '') : undefined;
     var file = match ? match.file : undefined;
     return {
       tag: el.tagName.toLowerCase(),
       component: component,
-      componentClass: component,
+      componentClass: runtime.name || component,
       file: file,
       framework: runtime.framework,
     };
@@ -563,6 +574,11 @@
       navigateSameOrigin(String(data.path || ''));
     }
   });
+
+  // #19: say we are here. The bench's survey can arrive before this frame has loaded (a
+  // runtime clamp), and a `jig:survey` posted to a frame that is not there yet is lost —
+  // the bench answers this with the table it holds, so the loupe never has to guess.
+  post({ type: 'jig:ready' });
 
   // Exposed only so this file's own unit tests (jsdom, no real browser) can exercise its
   // pure helpers directly. Nothing in the runtime listeners above reads through this hook.

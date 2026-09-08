@@ -311,3 +311,59 @@ describe('usePlateBridge', () => {
     document.body.removeChild(iframe);
   });
 });
+
+// #19 (the 0.2.0 review): on a runtime clamp the survey arrives before the plate iframe has
+// loaded — the one `jig:survey` post went to a frame that was not there yet and was lost, so
+// the loupe never had the selector table and every pick came back with no file (the prompt's
+// Context read "nothing surveyed yet" although the survey found 7 components). The bench must
+// post the survey again when the iframe loads, and answer the loupe's own `jig:ready`.
+describe('the survey reaches a plate that loads after it arrived (#19)', () => {
+  const SELECTORS = [{ selector: 'app-invoice-list', name: 'InvoiceListComponent', file: 'src/app/invoices/invoice-list.ts' }];
+
+  function iframeWithCapture(): { ref: { current: HTMLIFrameElement }; posted: unknown[]; iframe: HTMLIFrameElement } {
+    const ref = createRef<HTMLIFrameElement>() as { current: HTMLIFrameElement };
+    const iframe = document.createElement('iframe');
+    document.body.appendChild(iframe);
+    ref.current = iframe;
+    const posted: unknown[] = [];
+    Object.defineProperty(iframe, 'contentWindow', { value: { postMessage: (msg: unknown) => posted.push(msg) } });
+    return { ref, posted, iframe };
+  }
+
+  it("re-posts jig:survey on the iframe's load event — the plate that loads after the survey still gets it", () => {
+    const { ref, posted, iframe } = iframeWithCapture();
+    renderHook(() => usePlateBridge(ref, PLATE_ORIGIN, SELECTORS));
+    posted.length = 0; // the eager post, which a not-yet-loaded frame drops — not what this proves
+
+    act(() => {
+      iframe.dispatchEvent(new Event('load'));
+    });
+
+    expect(posted).toContainEqual({ type: 'jig:survey', selectors: SELECTORS });
+    document.body.removeChild(iframe);
+  });
+
+  it('answers the loupe\'s jig:ready (from the plate origin only) with jig:survey', () => {
+    const { ref, posted, iframe } = iframeWithCapture();
+    renderHook(() => usePlateBridge(ref, PLATE_ORIGIN, SELECTORS));
+    posted.length = 0;
+
+    act(() => fireMessage({ type: 'jig:ready' }, 'http://evil.example'));
+    expect(posted).toEqual([]);
+
+    act(() => fireMessage({ type: 'jig:ready' }, PLATE_ORIGIN));
+    expect(posted).toContainEqual({ type: 'jig:survey', selectors: SELECTORS });
+    document.body.removeChild(iframe);
+  });
+
+  it('posts nothing on load or ready while there is no survey to send', () => {
+    const { ref, posted, iframe } = iframeWithCapture();
+    renderHook(() => usePlateBridge(ref, PLATE_ORIGIN, []));
+    act(() => {
+      iframe.dispatchEvent(new Event('load'));
+    });
+    act(() => fireMessage({ type: 'jig:ready' }, PLATE_ORIGIN));
+    expect(posted).toEqual([]);
+    document.body.removeChild(iframe);
+  });
+});

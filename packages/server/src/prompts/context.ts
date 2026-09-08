@@ -30,6 +30,13 @@ function resolveRelative(componentFile: string, rel: string): string {
   return toPosix(posix.normalize(posix.join(dirname(toPosix(componentFile)), rel)));
 }
 
+/** Angular's dev build names a class `_InvoiceListComponent`. The loupe reports the survey's
+ * own name when a selector matched (#19), but a pick made while the plate had no survey table,
+ * or an older prompt file, can still carry the decorated runtime name. */
+function stripDecoration(name: string): string {
+  return name.replace(/^_+/, '');
+}
+
 function findComponent(survey: Survey, target: PromptTarget): Component | undefined {
   if (target.component) {
     const byName = survey.components.find((c) => c.name === target.component);
@@ -38,6 +45,12 @@ function findComponent(survey: Survey, target: PromptTarget): Component | undefi
   if (target.file) {
     const byFile = survey.components.find((c) => c.file === target.file);
     if (byFile) return byFile;
+  }
+  if (target.component) {
+    // #19: the last resort — the runtime class name with its dev-build underscore stripped.
+    const wanted = stripDecoration(target.component);
+    const byStrippedName = survey.components.find((c) => stripDecoration(c.name) === wanted);
+    if (byStrippedName) return byStrippedName;
   }
   return undefined;
 }
