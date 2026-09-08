@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, type RefObject } from 'react';
+import { useCallback, useEffect, useRef, useState, type RefObject } from 'react';
 
 /**
  * The bench half of the postMessage contract with the loupe (`packages/server/src/plate/
@@ -61,6 +61,11 @@ function isPlateEvent(data: unknown): data is PlateEvent {
   return typeof data === 'object' && data !== null && (data as { type?: unknown }).type === 'jig:event';
 }
 
+/** #19: the loupe posts `jig:ready` as soon as it boots — the bench answers with the survey. */
+function isReady(data: unknown): boolean {
+  return typeof data === 'object' && data !== null && (data as { type?: unknown }).type === 'jig:ready';
+}
+
 /** Listens for the loupe's postMessage traffic (origin-checked against `plateOrigin`) and
  * exposes the last pick plus a capped event log; `setMode` and the survey-selector push post
  * back to the plate iframe via `iframeRef`. `plateOrigin` is null until `/api/plate` reports
@@ -74,20 +79,6 @@ export function usePlateBridge(
   const [events, setEvents] = useState<PlateEvent[]>([]);
   const [mode, setModeState] = useState<LoupeMode>('hand');
 
-  useEffect(() => {
-    function onMessage(event: MessageEvent): void {
-      if (!plateOrigin || event.origin !== plateOrigin) return;
-      const data: unknown = event.data;
-      if (isPick(data)) {
-        setLastPick(data);
-      } else if (isPlateEvent(data)) {
-        setEvents((prev) => [...prev, data].slice(-MAX_EVENTS));
-      }
-    }
-    window.addEventListener('message', onMessage);
-    return () => window.removeEventListener('message', onMessage);
-  }, [plateOrigin]);
-
   const postToPlate = useCallback(
     (message: unknown) => {
       if (!plateOrigin) return;
@@ -96,10 +87,45 @@ export function usePlateBridge(
     [iframeRef, plateOrigin],
   );
 
+  // #19 (the 0.2.0 review): on a runtime clamp the survey arrives before the plate iframe has
+  // loaded — the state carries it while the plate is still coming up — and a post to a frame
+  // that is not there yet is simply lost; the loupe never had the selector table, every pick
+  // came back with no file, and the prompt's Context read "nothing surveyed yet". So the
+  // latest table lives in a ref and is sent three ways: eagerly when it changes (as before),
+  // again on the iframe's own `load` (every navigation of the frame fires it — a full reload
+  // under HMR included), and in answer to the loupe's `jig:ready`, posted as soon as it boots.
+  const selectorsRef = useRef<SurveySelector[]>(selectors);
+  selectorsRef.current = selectors;
+  const postSurvey = useCallback(() => {
+    if (selectorsRef.current.length > 0) postToPlate({ type: 'jig:survey', selectors: selectorsRef.current });
+  }, [postToPlate]);
+
   useEffect(() => {
-    if (selectors.length > 0) postToPlate({ type: 'jig:survey', selectors });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectors, plateOrigin]);
+    function onMessage(event: MessageEvent): void {
+      if (!plateOrigin || event.origin !== plateOrigin) return;
+      const data: unknown = event.data;
+      if (isPick(data)) {
+        setLastPick(data);
+      } else if (isPlateEvent(data)) {
+        setEvents((prev) => [...prev, data].slice(-MAX_EVENTS));
+      } else if (isReady(data)) {
+        postSurvey();
+      }
+    }
+    window.addEventListener('message', onMessage);
+    return () => window.removeEventListener('message', onMessage);
+  }, [plateOrigin, postSurvey]);
+
+  useEffect(() => {
+    postSurvey();
+  }, [selectors, postSurvey]);
+
+  useEffect(() => {
+    const iframe = iframeRef.current;
+    if (!iframe || !plateOrigin) return;
+    iframe.addEventListener('load', postSurvey);
+    return () => iframe.removeEventListener('load', postSurvey);
+  }, [iframeRef, plateOrigin, postSurvey]);
 
   const setMode = useCallback(
     (next: LoupeMode) => {

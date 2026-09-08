@@ -20,7 +20,7 @@ const BENCH_ORIGIN = 'http://localhost:4600';
 interface LoupeInternal {
   buildDomPath(el: Element): string;
   surveyedMatch(el: Element): { selector: string; name: string; file: string } | null;
-  describeElement(el: Element): { tag: string; component?: string; file?: string };
+  describeElement(el: Element): { tag: string; component?: string; componentClass?: string; file?: string };
   setSurveySelectors(next: Array<{ selector: string; name: string; file: string }>): void;
   setMode(next: 'hand' | 'loupe'): void;
   getMode(): 'hand' | 'loupe';
@@ -94,19 +94,47 @@ describe('loupe.js', () => {
     expect(internalOf(dom).surveyedMatch(dom.window.document.getElementById('cell')!)).toBeNull();
   });
 
-  it('describeElement prefers Angular dev-mode resolution over the survey fallback', () => {
+  // #19 (the 0.2.0 review): Angular's dev build names the class `_InvoiceListComponent`, and
+  // `prompts/context.ts` matches the pick's `component` against the survey's `name` exactly —
+  // so a runtime name that won over a surveyed selector match left the prompt's Context empty.
+  // When a surveyed selector matches, its name IS the component (that is what the survey is
+  // for); the runtime's class name rides along as `componentClass`.
+  it('describeElement prefers the survey\'s name when a surveyed selector matches, keeping the runtime class as componentClass', () => {
     const dom = loadLoupe('<app-invoice-list id="host"><span id="inner">hi</span></app-invoice-list>');
     internalOf(dom).setSurveySelectors([
-      { selector: 'app-invoice-list', name: 'SurveyName', file: 'survey/file.ts' },
+      { selector: 'app-invoice-list', name: 'InvoiceListComponent', file: 'survey/file.ts' },
     ]);
     (dom.window as unknown as { ng: unknown }).ng = {
       getComponent: () => null,
       getOwningComponent: (el: Element) =>
-        el.closest('app-invoice-list') ? { constructor: { name: 'InvoiceListComponent' } } : null,
+        el.closest('app-invoice-list') ? { constructor: { name: '_InvoiceListComponent' } } : null,
     };
     const described = internalOf(dom).describeElement(dom.window.document.getElementById('inner')!);
     expect(described.component).toBe('InvoiceListComponent');
+    expect(described.componentClass).toBe('_InvoiceListComponent');
     expect(described.file).toBe('survey/file.ts');
+  });
+
+  it('describeElement strips a leading underscore from a runtime class name when nothing surveyed matches — the last resort', () => {
+    const dom = loadLoupe('<app-unsurveyed id="host"><span id="inner">hi</span></app-unsurveyed>');
+    internalOf(dom).setSurveySelectors([{ selector: 'app-invoice-list', name: 'InvoiceListComponent', file: 'survey/file.ts' }]);
+    (dom.window as unknown as { ng: unknown }).ng = {
+      getComponent: () => null,
+      getOwningComponent: (el: Element) =>
+        el.closest('app-unsurveyed') ? { constructor: { name: '_UnsurveyedComponent' } } : null,
+    };
+    const described = internalOf(dom).describeElement(dom.window.document.getElementById('inner')!);
+    expect(described.component).toBe('UnsurveyedComponent');
+    expect(described.componentClass).toBe('_UnsurveyedComponent');
+    expect(described.file).toBeUndefined();
+  });
+
+  it('the loupe posts jig:ready to the bench as soon as it boots, so a bench whose survey arrived first can send it again', () => {
+    const posted: unknown[] = [];
+    loadLoupe('<div id="cell">x</div>', (dom) => {
+      dom.window.postMessage = ((message: unknown) => posted.push(message)) as typeof dom.window.postMessage;
+    });
+    expect(posted).toContainEqual({ type: 'jig:ready' });
   });
 
   it('falls back to the survey name when Angular dev-mode globals are absent', () => {
