@@ -82,4 +82,35 @@ describe('createPlateProxy — WebSocket pass-through (HMR / ng-cli-ws)', () => 
     expect(messages).toEqual(['hello-from-upstream', 'echo:ping']);
     client.close();
   }, 10000);
+
+  // #35: the upgrade handler is the plate's other door — HMR sockets are how a rebound page
+  // would reach the dev server's live-reload channel — and it gated nothing either. The bench
+  // destroys a refused upgrade socket rather than answering it (`http.ts`, #18); so does this.
+  it('refuses an upgrade whose Host does not name the plate, and the target never sees it', async () => {
+    let upstreamConnections = 0;
+    fakeUpstream = createHttpServer();
+    const port = await listen(fakeUpstream);
+    wss = new WebSocketServer({ server: fakeUpstream, path: '/ng-cli-ws' });
+    wss.on('connection', () => {
+      upstreamConnections += 1;
+    });
+
+    plate = createPlateProxy({ benchOrigin: BENCH_ORIGIN, target: `http://localhost:${port}`, port: 0 });
+    await plate.getStatus();
+
+    const client = new WebSocket(`ws://127.0.0.1:${plate.port}/ng-cli-ws`, {
+      headers: { host: `attacker.example:${plate.port}` },
+    });
+
+    const outcome = await new Promise<'open' | 'refused'>((resolve, reject) => {
+      client.on('open', () => resolve('open'));
+      client.on('error', () => resolve('refused'));
+      client.on('close', () => resolve('refused'));
+      setTimeout(() => reject(new Error('timed out waiting for the upgrade to be refused')), 8000);
+    });
+
+    expect(outcome).toBe('refused');
+    expect(upstreamConnections).toBe(0);
+    client.terminate();
+  }, 10000);
 });
