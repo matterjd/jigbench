@@ -12,7 +12,7 @@ import type { PlateProxyHandle } from './plate/proxy.js';
 import { logger } from './logger.js';
 import { JigWatcher } from './watcher.js'; // S6
 import { watchShopFreshness, SHOP_FRESHNESS_TICK_MS } from './shop-freshness.js'; // S6 fix (wave-4 finding 3)
-import { isSameOriginOrAbsent } from './same-origin.js'; // S17a — extracted so fs/route.ts can reuse it too
+import { HOST_REFUSED_MESSAGE, isAllowedHost, isSameOriginOrAbsent } from './same-origin.js'; // S17a — extracted so fs/route.ts can reuse it too
 // === S5 orders: imports (delimited block; owned by packages/server/src/orders/*) ===
 import { OrdersService } from './orders/service.js';
 import { OrderConflictError, OrderNotFoundError } from './orders/errors.js';
@@ -91,7 +91,7 @@ export interface CreateJigServerOptions {
 
 // isSameOriginOrAbsent now lives in ./same-origin.js (S17a) — re-exported here so any
 // existing import of it from './http.js' keeps working unchanged.
-export { isSameOriginOrAbsent } from './same-origin.js';
+export { isAllowedHost, isSameOriginOrAbsent } from './same-origin.js';
 
 /** Reads a numeric `status`/`statusCode` off a thrown error (the shape node's http-errors —
  * and therefore body-parser's PayloadTooLargeError — actually use) without resorting to
@@ -213,14 +213,21 @@ function buildApp(
   // (finding 2, wave-3 council).
   app.use(express.json({ limit: '64kb' }));
 
-  // Same-origin gate on every mutating /api/* request. GET is exempt (it has no side
-  // effect to forge); anything else — today just POST /api/marks, but the rule is written
-  // for whatever comes next — must either carry no Origin (a non-browser client) or an
+  // #18: Host first, on EVERY /api/* request, GET included — a request whose Host does not
+  // name this bench (a DNS name: the rebinding case, which arrives with no Origin on a GET)
+  // is refused before anything answers; `/api/state` alone hands out the survey. Then the
+  // same-origin gate on every mutating request: GET is exempt from THAT half (it has no side
+  // effect to forge); anything else must either carry no Origin (a non-browser client) or an
   // Origin that matches this request's own Host. No CORS headers are ever sent alongside
   // this: the bench is same-origin only, never a cross-origin API.
+  const boundHost = options.host;
   app.use('/api', (req, res, next) => {
+    if (!isAllowedHost(req.headers.host, boundHost)) {
+      res.status(403).json({ error: HOST_REFUSED_MESSAGE });
+      return;
+    }
     if (req.method === 'GET' || req.method === 'HEAD' || req.method === 'OPTIONS') return next();
-    if (!isSameOriginOrAbsent(req.headers.origin, req.headers.host)) {
+    if (!isSameOriginOrAbsent(req.headers.origin, req.headers.host, boundHost)) {
       res.status(403).json({ error: 'cross-origin request rejected' });
       return;
     }
@@ -402,7 +409,7 @@ function buildApp(
   // pasted URL) work whichever way the server came up. `benchView` is the narrow slice of a
   // Bench the two route contexts actually read (`SetupBenchView`/`TargetBenchView`) — this
   // path never constructs a full `Bench`.
-  attachFsRoute(app);
+  attachFsRoute(app, { host: options.host }); // #18: the fs gate accepts the bound host too
   attachTargetRoute(app, { getBench: () => benchView, getRunner: () => targetRunner });
   attachSetupRoute(app, { getBench: () => benchView, getTargetState: () => targetRunner.getState() });
   // === end S17b block ===
@@ -585,7 +592,7 @@ export async function createJigServer(options: CreateJigServerOptions): Promise<
       socket.destroy();
       return;
     }
-    if (!isSameOriginOrAbsent(req.headers.origin, req.headers.host)) {
+    if (!isSameOriginOrAbsent(req.headers.origin, req.headers.host, host)) {
       socket.destroy();
       return;
     }

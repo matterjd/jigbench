@@ -45,6 +45,14 @@ describe('validateClampPath', () => {
     if (!result.ok) expect(result.error).toContain('not a directory');
   });
 
+  it('#18: rejects a UNC path in either spelling before ever touching it', async () => {
+    for (const unc of ['\\\\evil.example\\share\\repo', '//evil.example/share/repo']) {
+      const result = await validateClampPath(unc);
+      expect(result.ok, unc).toBe(false);
+      if (!result.ok) expect(result.error).toMatch(/UNC/);
+    }
+  });
+
   it('rejects a path inside a .jig/ directory', async () => {
     const dir = await freshDir();
     const inner = join(dir, '.jig', 'work-orders');

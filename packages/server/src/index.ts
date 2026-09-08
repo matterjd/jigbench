@@ -105,5 +105,7 @@ export type { McpJsonMergeResult } from './setup/mcp-json.js';
 export { ensureGitignoreEntry } from './setup/gitignore.js';
 export { claudeDesktopConfigPath, mergeClaudeDesktopConfig, formatClaudeDesktopConfigDiff } from './setup/desktop-config.js';
 export type { ClaudeDesktopConfigPathOptions } from './setup/desktop-config.js';
-export { isSameOriginOrAbsent } from './same-origin.js';
+export { isAllowedHost, isSameOriginOrAbsent, HOST_REFUSED_MESSAGE } from './same-origin.js';
+export { isUncPath, UNC_REFUSED_MESSAGE } from './fs/unc-path.js'; // #18
+export type { FsRouteOptions } from './fs/route.js'; // #18
 // === end S17a block ===

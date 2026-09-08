@@ -4,6 +4,7 @@ import { homedir, platform } from 'node:os';
 import { dirname, join, resolve as resolvePath } from 'node:path';
 import type { Express, Request, Response } from 'express';
 import { isSameOriginOrAbsent } from '../same-origin.js';
+import { isUncPath, UNC_REFUSED_MESSAGE } from './unc-path.js';
 
 /**
  * S17a (AMENDMENT-1 §7, A6): "pick the repo folder in Jig's own folder browser (a page cannot
@@ -83,9 +84,17 @@ async function describeEntry(parentPath: string, name: string): Promise<FsListEn
   return { name, path: entryPath, hasGit, hasPackageJson, hasAngularJson, hasCsproj, hasDocs };
 }
 
-export function attachFsRoute(app: Express): void {
+export interface FsRouteOptions {
+  /** The `--host` the server was bound to, when any — #18: the gate below accepts it as a
+   * Host alongside the loopback names. Omitted: loopback only. */
+  host?: string;
+}
+
+export function attachFsRoute(app: Express, options: FsRouteOptions = {}): void {
   function refuseForeignOrigin(req: Request, res: Response): boolean {
-    if (!isSameOriginOrAbsent(req.headers.origin, req.headers.host)) {
+    // #18: Host-first (a DNS name is refused even with no Origin — the rebinding case), then
+    // Origin must match that Host. `isSameOriginOrAbsent` does both.
+    if (!isSameOriginOrAbsent(req.headers.origin, req.headers.host, options.host)) {
       res.status(403).json({ error: 'cross-origin request rejected' });
       return true;
     }
@@ -107,6 +116,13 @@ export function attachFsRoute(app: Express): void {
       const raw = req.query.path;
       if (typeof raw !== 'string' || raw.trim().length === 0) {
         res.status(400).json({ error: 'path is required' });
+        return;
+      }
+
+      // #18: a UNC value would make Windows open an SMB connection to the named host on the
+      // `stat` below — refused by its spelling, before any filesystem call.
+      if (isUncPath(raw)) {
+        res.status(400).json({ error: UNC_REFUSED_MESSAGE });
         return;
       }
 

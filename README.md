@@ -47,7 +47,10 @@ repo and the survey runs and shows what it found. Then, on the same screen:
 Run `npx jigbench` from inside a repo (a folder with a `.git`) and it clamps that repo at once,
 skipping the folder browser. A setup checklist stays one click from the status line either way.
 The plate proxies the app through `4601`; both ports are configurable with `--port` /
-`--plate-port` and bind to loopback only unless you pass `--host`.
+`--plate-port` and bind to loopback only unless you pass `--host`. The bench answers only to its
+own address as the request's Host — `localhost`, `127.0.0.1`, `[::1]`, or the `--host` you gave
+it (a wildcard bind such as `0.0.0.0` answers to any IP address, never to a DNS name — reach it by
+IP) — so a page from some other domain, even one re-pointed at your machine, gets nothing.
 
 The terminal commands stay for scripts and CI — `npx jigbench init` (write `.mcp.json`),
 `npx jigbench survey`, `npx jigbench clamp --docs <folder>`, `npx jigbench mcp install

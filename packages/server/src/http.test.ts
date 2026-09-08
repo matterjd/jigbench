@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { createServer as createHttpServer, type Server as HttpServer } from 'node:http';
+import { createServer as createHttpServer, request as httpRequest, type Server as HttpServer } from 'node:http';
 import { mkdir, mkdtemp, readFile, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -312,6 +312,86 @@ describe('same-origin protection', () => {
     });
     expect(outcome).toBe('open');
     ws.close();
+  });
+
+  // --- #18: DNS rebinding — the Host header is the gate, not just Origin-equals-Host --------
+  // A page from attacker.example, re-pointed at 127.0.0.1, reaches this socket with
+  // `Host: attacker.example:<port>`; its POSTs carry an Origin that agrees with that Host, and
+  // its same-origin GETs carry no Origin at all. `fetch` drops a caller-set Host (a forbidden
+  // header in the Fetch spec), so these speak raw `node:http`.
+  function rawRequest(
+    target: string,
+    init: { method?: string; headers?: Record<string, string>; body?: string },
+  ): Promise<{ status: number; body: string }> {
+    return new Promise((resolvePromise, reject) => {
+      const req = httpRequest(target, { method: init.method ?? 'GET', headers: init.headers ?? {} }, (res) => {
+        let data = '';
+        res.setEncoding('utf8');
+        res.on('data', (chunk: string) => (data += chunk));
+        res.on('end', () => resolvePromise({ status: res.statusCode ?? 0, body: data }));
+      });
+      req.on('error', reject);
+      if (init.body !== undefined) req.write(init.body);
+      req.end();
+    });
+  }
+
+  it("#18: refuses a rebinding POST /api/marks — Origin and Host agree on the attacker's name — and creates no work order", async () => {
+    const { url } = await freshServer();
+    const port = new URL(url).port;
+    const res = await rawRequest(`${url}/api/marks`, {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        host: `attacker.example:${port}`,
+        origin: `http://attacker.example:${port}`,
+      },
+      body: JSON.stringify({
+        target: { path: 'body > invoice-list', component: 'InvoiceListComponent' },
+        prompt: 'highlight the due date when overdue',
+      }),
+    });
+    expect(res.status).toBe(403);
+
+    const state = await (await fetch(`${url}/api/state`)).json();
+    expect(state.workOrders).toEqual([]);
+  });
+
+  it('#18: refuses a rebinding GET /api/state — a DNS-name Host with no Origin at all — so the survey never leaves', async () => {
+    const { url } = await freshServer();
+    const port = new URL(url).port;
+    const res = await rawRequest(`${url}/api/state`, { headers: { host: `attacker.example:${port}` } });
+    expect(res.status).toBe(403);
+    expect(res.body).not.toContain('"survey"');
+  });
+
+  it('#18: still answers a GET /api/state whose Host is any loopback name, and a curl-style POST with no Origin', async () => {
+    const { url } = await freshServer();
+    const port = new URL(url).port;
+    for (const host of [`localhost:${port}`, `127.0.0.1:${port}`, `[::1]:${port}`]) {
+      expect((await rawRequest(`${url}/api/state`, { headers: { host } })).status, host).toBe(200);
+    }
+    const res = await rawRequest(`${url}/api/marks`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', host: `localhost:${port}` },
+      body: JSON.stringify({
+        target: { path: 'body > invoice-list', component: 'InvoiceListComponent' },
+        prompt: 'highlight the due date when overdue',
+      }),
+    });
+    expect(res.status).toBe(201);
+  });
+
+  it('#18: refuses a WS upgrade whose Host is a DNS name, with no Origin', async () => {
+    const { url } = await freshServer();
+    const port = new URL(url).port;
+    const ws = new WebSocket(url.replace('http', 'ws') + '/ws', { headers: { host: `attacker.example:${port}` } });
+    const outcome = await new Promise<'open' | 'error-or-close'>((resolvePromise) => {
+      ws.on('open', () => resolvePromise('open'));
+      ws.on('error', () => resolvePromise('error-or-close'));
+      ws.on('close', () => resolvePromise('error-or-close'));
+    });
+    expect(outcome).toBe('error-or-close');
   });
 });
 
