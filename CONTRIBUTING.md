@@ -120,11 +120,14 @@ npm run pack:release    # npm pack -> jigbench-<version>.tgz at the repo root (g
 `npm pack --dry-run --workspace=jigbench` shows exactly what ships: `dist/bin.js` (the bundle),
 `dist/bench/` (the built bench UI), `dist/loupe.js` (the plate's injected script),
 `package.json`, and copies of the root `README.md` and `LICENSE` (npm includes both whatever
-`files` says; the copies under `packages/cli/` are gitignored and rewritten by every release
-build — edit the root files) — no `src/`, no tests, no examples. See
+`files` says; the copies under `packages/cli/` are **build artifacts** — gitignored, untracked,
+rewritten by every release build. Edit the root files; never those copies, and never commit
+them: a tracked copy makes the ignore a dead letter and a publish from a clean checkout would
+ship it instead of the root file) — no `src/`, no tests, no examples. See
 `packages/cli/tsup.config.ts` and `packages/cli/scripts/copy-release-assets.mjs` for how the
 assets land next to the bundle; `scripts/npx-control.sh` asserts the README and LICENSE are in
-the packed tarball.
+the packed tarball, that they match the root files byte for byte, and that neither copy is
+tracked in git.
 
 ## Reporting a design-floor issue
 
