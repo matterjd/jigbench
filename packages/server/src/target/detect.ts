@@ -27,10 +27,14 @@ const PACKAGE_JSON_SCRIPT_PRIORITY = ['start', 'dev', 'serve'] as const;
  * false})` throws a SYNCHRONOUS `EINVAL` on current Node (reproduced live during this slice's
  * build, Node v24.17.0), because a `.cmd`/`.bat` script isn't itself an executable image; only
  * `cmd.exe` (or `shell: true`, which spawns the identical thing internally) can run one.
- * Routing through `cmd.exe /d /s /c <bin> <args...>` — as an ARGV ARRAY, never a joined string
- * — gets the OS-level loader Windows actually requires while keeping `spawn`'s own per-arg
- * quoting, so an untrusted script/URL still can't inject shell metacharacters the way a
- * hand-built command-line string could. POSIX needs none of this — `npm`/`npx` are ordinary
+ * Routing through `cmd.exe /d /s /c <bin> <args...>` gets the OS-level loader Windows actually
+ * requires. It does NOT make the arguments safe (#17): Node joins this argv array into the ONE
+ * command line Windows hands cmd.exe, and cmd.exe re-parses that line, so `&`, `|`, `^` or `%`
+ * inside any element run as shell syntax — an argv array is no protection here the way it is
+ * for a real executable. The protection lives upstream: every argument this module emits is
+ * Jig's own literal, or a script NAME that is a key of the repo's own `package.json` `scripts`
+ * (`packageJsonScriptNames` below is what `target/route.ts` checks an explicit `{script}`
+ * against before it ever reaches here). POSIX needs none of this — `npm`/`npx` are ordinary
  * executables (or shebang scripts the kernel already knows how to exec) there. */
 export function invocation(bin: 'npm' | 'npx', args: string[]): { command: string; args: string[] } {
   if (process.platform === 'win32') {
@@ -93,18 +97,31 @@ function angularConfiguredPort(repoRoot: string): number | undefined {
   }
 }
 
-function packageJsonScript(repoRoot: string, preferred?: string): { name: string } | undefined {
+/** The names `package.json` `scripts` defines in this repo — the ONLY values
+ * `POST /api/target/start` accepts for an explicit `{script}` (#17: see `invocation` above for
+ * why the name must come from the repo and never from the request). Empty when there is no
+ * package.json, when it will not parse, or when it defines no string-valued scripts. */
+export function packageJsonScriptNames(repoRoot: string): string[] {
   const packageJsonPath = join(repoRoot, 'package.json');
-  if (!existsSync(packageJsonPath)) return undefined;
+  if (!existsSync(packageJsonPath)) return [];
   try {
-    const parsed = JSON.parse(readFileSync(packageJsonPath, 'utf8')) as { scripts?: Record<string, unknown> };
-    const scripts = parsed.scripts ?? {};
-    if (preferred && typeof scripts[preferred] === 'string') return { name: preferred };
-    for (const name of PACKAGE_JSON_SCRIPT_PRIORITY) {
-      if (typeof scripts[name] === 'string') return { name };
-    }
+    const parsed = JSON.parse(readFileSync(packageJsonPath, 'utf8')) as { scripts?: unknown };
+    const scripts = parsed.scripts;
+    if (!scripts || typeof scripts !== 'object') return [];
+    return Object.entries(scripts as Record<string, unknown>)
+      .filter(([, value]) => typeof value === 'string')
+      .map(([name]) => name);
   } catch {
-    // A corrupt package.json reads as "no script found" — the next tier still gets a chance.
+    // A corrupt package.json reads as "no scripts" — detection's next tier still gets a chance.
+    return [];
+  }
+}
+
+function packageJsonScript(repoRoot: string, preferred?: string): { name: string } | undefined {
+  const names = packageJsonScriptNames(repoRoot);
+  if (preferred && names.includes(preferred)) return { name: preferred };
+  for (const name of PACKAGE_JSON_SCRIPT_PRIORITY) {
+    if (names.includes(name)) return { name };
   }
   return undefined;
 }

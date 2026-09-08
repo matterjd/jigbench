@@ -1,5 +1,5 @@
 import type { Express } from 'express';
-import { detectDevScript, invocation } from './detect.js';
+import { detectDevScript, invocation, packageJsonScriptNames } from './detect.js';
 import type { StartTargetInput, TargetRunnerLike } from './runner.js';
 import { logger } from '../logger.js';
 
@@ -45,6 +45,23 @@ export function attachTargetRoute(app: Express, ctx: TargetRouteContext): void {
 
     let spec: StartTargetInput | null = null;
     if (typeof body.script === 'string' && body.script.trim().length > 0) {
+      // #17: on win32 `invocation` goes through cmd.exe, which re-parses its command line — an
+      // argv array does not stop `&`, `|`, `^` or `%` in a script value from running as shell
+      // syntax (see detect.ts). So an explicit script is accepted ONLY when it is a key of the
+      // clamped repo's own package.json `scripts`: the repo names what "Start the app" may
+      // run; the request only picks one of those names. Anything else is a 400, in words,
+      // before anything is spawned.
+      const scripts = packageJsonScriptNames(bench.repoRoot);
+      if (!scripts.includes(body.script)) {
+        const asked = JSON.stringify(body.script.length > 60 ? `${body.script.slice(0, 60)}…` : body.script);
+        res.status(400).json({
+          error:
+            scripts.length === 0
+              ? `${asked} cannot be run: this repo's package.json defines no scripts — Start the app runs only a script the repo itself names; use POST /api/target/url for an app you already have running`
+              : `${asked} is not a script in this repo's package.json — Start the app runs only a script the repo itself names: ${scripts.join(', ')}`,
+        });
+        return;
+      }
       spec = {
         ...invocation('npm', ['run', body.script]),
         cwd: bench.repoRoot,
