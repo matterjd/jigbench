@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import express, { type Express } from 'express';
-import { createServer as createHttpServer, type Server as HttpServer } from 'node:http';
+import { createServer as createHttpServer, request as httpRequest, type Server as HttpServer } from 'node:http';
 import { mkdtemp, mkdir, writeFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -19,9 +19,24 @@ afterEach(async () => {
   dirs = [];
 });
 
-async function boot(): Promise<{ app: Express; url: string }> {
+/** `fetch` silently drops a caller-set `Host` (a forbidden header name in the Fetch spec), so
+ * the #18 rebinding tests speak raw `node:http`, which sends whatever Host it is given. */
+function rawGet(target: string, headers: Record<string, string>): Promise<{ status: number; body: string }> {
+  return new Promise((resolve, reject) => {
+    const req = httpRequest(target, { method: 'GET', headers }, (res) => {
+      let data = '';
+      res.setEncoding('utf8');
+      res.on('data', (chunk: string) => (data += chunk));
+      res.on('end', () => resolve({ status: res.statusCode ?? 0, body: data }));
+    });
+    req.on('error', reject);
+    req.end();
+  });
+}
+
+async function boot(options: { host?: string } = {}): Promise<{ app: Express; url: string }> {
   const app = express();
-  attachFsRoute(app);
+  attachFsRoute(app, options);
   server = createHttpServer(app);
   await new Promise<void>((resolve) => server!.listen(0, '127.0.0.1', resolve));
   const address = server.address();
@@ -54,6 +69,22 @@ describe('GET /api/fs/roots', () => {
     const { url } = await boot();
     const res = await fetch(`${url}/api/fs/roots`, { headers: { origin: 'http://evil.example' } });
     expect(res.status).toBe(403);
+  });
+
+  it("#18: refuses a request whose Host is not the bench's own address (DNS rebinding) — even with no Origin at all", async () => {
+    const { url } = await boot();
+    const port = new URL(url).port;
+    const res = await rawGet(`${url}/api/fs/roots`, { host: `attacker.example:${port}` });
+    expect(res.status).toBe(403);
+    expect(res.body).not.toContain('"roots"');
+  });
+
+  it('#18: answers to the explicit host the server was bound to, and to loopback either way', async () => {
+    const { url } = await boot({ host: '192.168.1.5' });
+    const port = new URL(url).port;
+    expect((await rawGet(`${url}/api/fs/roots`, { host: `192.168.1.5:${port}` })).status).toBe(200);
+    expect((await rawGet(`${url}/api/fs/roots`, { host: `localhost:${port}` })).status).toBe(200);
+    expect((await rawGet(`${url}/api/fs/roots`, { host: `attacker.example:${port}` })).status).toBe(403);
   });
 });
 
@@ -152,5 +183,23 @@ describe('GET /api/fs/list', () => {
       headers: { origin: 'http://evil.example' },
     });
     expect(res.status).toBe(403);
+  });
+
+  it('#18: 400s a UNC path in either spelling without touching it — Windows would open an SMB connection to the named host', async () => {
+    const { url } = await boot();
+    for (const unc of ['\\\\evil.example\\share', '//evil.example/share']) {
+      const res = await fetch(`${url}/api/fs/list?path=${encodeURIComponent(unc)}`);
+      expect(res.status, unc).toBe(400);
+      expect((await res.json()).error).toMatch(/UNC/);
+    }
+  });
+
+  it("#18: refuses a listing whose Host is not the bench's own address (DNS rebinding), with no Origin at all", async () => {
+    const repoRoot = await freshDir();
+    const { url } = await boot();
+    const port = new URL(url).port;
+    const res = await rawGet(`${url}/api/fs/list?path=${encodeURIComponent(repoRoot)}`, { host: `attacker.example:${port}` });
+    expect(res.status).toBe(403);
+    expect(res.body).not.toContain('"entries"');
   });
 });

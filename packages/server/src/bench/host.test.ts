@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { mkdtemp, mkdir, readdir, rm, writeFile } from 'node:fs/promises';
+import { request as httpRequest } from 'node:http';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { BuildOutcome, BuildRunnerLike, ClaudeStatus, StartBuildInput } from '../build/types.js';
@@ -175,6 +176,76 @@ describe('POST /api/clamp', () => {
     expect(h.getBench()!.repoRoot).toBe(repoB);
     expect(h.getBench()).not.toBe(first);
     expect(closed).toHaveBeenCalledTimes(1);
+  });
+});
+
+// --- #18: the host refuses a rebound Host and a UNC repoRoot -------------------------------
+/** `fetch` drops a caller-set Host (a forbidden header in the Fetch spec) — raw `node:http`. */
+function rawRequest(
+  target: string,
+  init: { method?: string; headers?: Record<string, string>; body?: string },
+): Promise<{ status: number; body: string }> {
+  return new Promise((resolve, reject) => {
+    const req = httpRequest(target, { method: init.method ?? 'GET', headers: init.headers ?? {} }, (res) => {
+      let data = '';
+      res.setEncoding('utf8');
+      res.on('data', (chunk: string) => (data += chunk));
+      res.on('end', () => resolve({ status: res.statusCode ?? 0, body: data }));
+    });
+    req.on('error', reject);
+    if (init.body !== undefined) req.write(init.body);
+    req.end();
+  });
+}
+
+describe('#18: the Host allowlist and UNC rejection on the bench host', () => {
+  it("POST /api/clamp 400s a UNC repoRoot — in either spelling — without clamping anything", async () => {
+    const h = await boot();
+    for (const unc of ['\\\\evil.example\\share\\repo', '//evil.example/share/repo']) {
+      const res = await fetch(`${h.url}/api/clamp`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ repoRoot: unc }),
+      });
+      expect(res.status, unc).toBe(400);
+      expect((await res.json()).error).toMatch(/UNC/);
+    }
+    expect(h.getBench()).toBeNull();
+  });
+
+  it("refuses a rebinding POST /api/clamp — Host and Origin both the attacker's name — and a rebinding GET /api/state with no Origin", async () => {
+    const h = await boot();
+    const port = new URL(h.url).port;
+    const repoRoot = await freshRepo();
+
+    const clampRes = await rawRequest(`${h.url}/api/clamp`, {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        host: `attacker.example:${port}`,
+        origin: `http://attacker.example:${port}`,
+      },
+      body: JSON.stringify({ repoRoot }),
+    });
+    expect(clampRes.status).toBe(403);
+    expect(h.getBench()).toBeNull();
+
+    const stateRes = await rawRequest(`${h.url}/api/state`, { headers: { host: `attacker.example:${port}` } });
+    expect(stateRes.status).toBe(403);
+    expect(stateRes.body).not.toContain('"recent"');
+
+    // The bench's own names still answer.
+    expect((await rawRequest(`${h.url}/api/state`, { headers: { host: `localhost:${port}` } })).status).toBe(200);
+  });
+
+  it('answers to the explicit host it was bound to', async () => {
+    // `host: '127.0.0.1'` is what the test can actually bind on any runner; the allowlist
+    // logic for a LAN address is pinned in same-origin.test.ts — this proves the option is
+    // threaded through to the gate at all.
+    const h = await boot({ host: '127.0.0.1' });
+    const port = new URL(h.url).port;
+    expect((await rawRequest(`${h.url}/api/state`, { headers: { host: `127.0.0.1:${port}` } })).status).toBe(200);
+    expect((await rawRequest(`${h.url}/api/state`, { headers: { host: `attacker.example:${port}` } })).status).toBe(403);
   });
 });
 

@@ -6,7 +6,7 @@ import express, { type NextFunction, type Request, type Response, type Router } 
 import { WebSocketServer, type WebSocket } from 'ws';
 import open from 'open';
 import { JIG_FORMAT, stubSurvey, type DetectedTargetSummary, type GaugeSet } from '@jigbench/core';
-import { isSameOriginOrAbsent } from '../same-origin.js';
+import { HOST_REFUSED_MESSAGE, isAllowedHost, isSameOriginOrAbsent } from '../same-origin.js';
 import { attachBenchServing, type BenchServeMode } from '../bench-serve.js';
 import { defaultBenchDistDir } from '../default-bench-dist.js';
 import { logger } from '../logger.js';
@@ -273,10 +273,15 @@ export async function createBenchHost(options: CreateBenchHostOptions = {}): Pro
   const app = express();
   app.use(express.json({ limit: '64kb' }));
 
-  // Same-origin gate on mutating /api/* — identical rule to http.ts's own middleware.
+  // #18: Host first on every /api/* request (GET included), then the same-origin gate on
+  // mutating ones — identical rule to http.ts's own middleware; see same-origin.ts.
   app.use('/api', (req, res, next) => {
+    if (!isAllowedHost(req.headers.host, host)) {
+      res.status(403).json({ error: HOST_REFUSED_MESSAGE });
+      return;
+    }
     if (req.method === 'GET' || req.method === 'HEAD' || req.method === 'OPTIONS') return next();
-    if (!isSameOriginOrAbsent(req.headers.origin, req.headers.host)) {
+    if (!isSameOriginOrAbsent(req.headers.origin, req.headers.host, host)) {
       res.status(403).json({ error: 'cross-origin request rejected' });
       return;
     }
@@ -295,7 +300,7 @@ export async function createBenchHost(options: CreateBenchHostOptions = {}): Pro
     }
   });
 
-  attachFsRoute(app);
+  attachFsRoute(app, { host }); // #18: the fs gate accepts the bound host too
   attachTargetRoute(app, { getBench: () => currentBench, getRunner: () => targetRunner });
   attachSetupRoute(app, { getBench: () => currentBench, getTargetState: () => targetRunner.getState() });
 
@@ -349,7 +354,7 @@ export async function createBenchHost(options: CreateBenchHostOptions = {}): Pro
       socket.destroy();
       return;
     }
-    if (!isSameOriginOrAbsent(req.headers.origin, req.headers.host)) {
+    if (!isSameOriginOrAbsent(req.headers.origin, req.headers.host, host)) {
       socket.destroy();
       return;
     }

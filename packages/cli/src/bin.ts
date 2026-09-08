@@ -26,7 +26,7 @@ program
 
 program
   .option('--port <port>', 'port to serve the bench on', '4600')
-  .option('--host <host>', 'interface to bind to (default: loopback-only, 127.0.0.1)')
+  .option('--host <host>', 'interface to bind to (default: loopback-only, 127.0.0.1); the bench answers to that name as its Host too — a wildcard bind answers to any IP address, never a DNS name')
   .option('--no-open', 'do not open the browser automatically')
   .option('--target <url>', 'the target app\'s own dev server, e.g. http://localhost:4200 (S3 plate)')
   .option('--plate-port <port>', 'port the plate proxy listens on (S3)', '4601')

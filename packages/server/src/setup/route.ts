@@ -8,6 +8,7 @@ import type { TargetState } from '../target/runner.js';
 import { claudeDesktopConfigPath, formatClaudeDesktopConfigDiff, mergeClaudeDesktopConfig } from './desktop-config.js';
 import { formatMcpJsonDiff, mergeMcpJson } from './mcp-json.js';
 import { ensureGitignoreEntry } from './gitignore.js';
+import { isUncPath, UNC_REFUSED_MESSAGE } from '../fs/unc-path.js';
 
 /**
  * S17a (AMENDMENT-1 §7, A6): "A setup checklist lives one click from the status line" plus
@@ -166,6 +167,12 @@ export function attachSetupRoute(app: Express, ctx: SetupRouteContext): void {
       const folder = req.body?.folder;
       if (typeof folder !== 'string' || folder.trim().length === 0) {
         res.status(400).json({ error: 'folder is required' });
+        return;
+      }
+      // #18: the same refusal `/api/fs/list` and `/api/clamp` give a UNC value — this route
+      // walks the folder it is handed too.
+      if (isUncPath(folder)) {
+        res.status(400).json({ error: UNC_REFUSED_MESSAGE });
         return;
       }
 

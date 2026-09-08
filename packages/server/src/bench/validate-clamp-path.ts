@@ -1,6 +1,7 @@
 import { sep } from 'node:path';
 import { resolve as resolvePath } from 'node:path';
 import { stat } from 'node:fs/promises';
+import { isUncPath, UNC_REFUSED_MESSAGE } from '../fs/unc-path.js';
 
 /**
  * S17a (AMENDMENT-1 §7, A6): "`POST /api/clamp {repoRoot}` validates the path (exists, is a
@@ -14,6 +15,12 @@ export type ClampPathValidation = { ok: true; resolved: string } | { ok: false; 
 export async function validateClampPath(rawPath: string): Promise<ClampPathValidation> {
   if (typeof rawPath !== 'string' || rawPath.trim().length === 0) {
     return { ok: false, error: 'repoRoot is required' };
+  }
+
+  // #18: a UNC value would make Windows open an SMB connection to the named host on the
+  // `stat` below — refused by its spelling, before any filesystem call.
+  if (isUncPath(rawPath)) {
+    return { ok: false, error: UNC_REFUSED_MESSAGE };
   }
 
   const resolved = resolvePath(rawPath);
