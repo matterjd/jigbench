@@ -81,7 +81,31 @@ describe('GET /api/setup', () => {
       mcp: { written: false, path: undefined },
       desktop: { written: false, path: undefined },
       claude: 'none',
+      detected: null, // #20
     });
+  });
+
+  // #20 (the 0.2.0 review): the checklist one click from the status line could never start
+  // the app — `detected` existed only in the Clamp screen's local clamp result, so the drawer
+  // always showed the URL field. `GET /api/setup` now answers the same detection
+  // `POST /api/clamp` does, so the drawer can offer "Start the app".
+  it('#20: says what "Start the app" would run — `detected`, the same answer POST /api/clamp gives', async () => {
+    const repoRoot = await freshRepo();
+    await writeFile(join(repoRoot, 'package.json'), JSON.stringify({ name: 'x', scripts: { start: 'ng serve' } }), 'utf8');
+    bench = await createBench(repoRoot, { benchOrigin: 'http://localhost:0', runner: new FakeBuildRunner() });
+    const { url } = await boot({ bench });
+
+    const body = await (await fetch(`${url}/api/setup`)).json();
+    expect(body.detected).toEqual({ script: 'start', port: 4200, source: 'package.json' });
+  });
+
+  it('#20: `detected` is null for a clamped repo with nothing to run', async () => {
+    const repoRoot = await freshRepo();
+    bench = await createBench(repoRoot, { benchOrigin: 'http://localhost:0', runner: new FakeBuildRunner() });
+    const { url } = await boot({ bench });
+
+    const body = await (await fetch(`${url}/api/setup`)).json();
+    expect(body.detected).toBeNull();
   });
 
   it('reflects a clamped bench\'s real survey/docs/claude wiring', async () => {

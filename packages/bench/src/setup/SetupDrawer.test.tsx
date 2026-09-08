@@ -199,3 +199,30 @@ describe('SetupDrawer — the checklist one click from the status line', () => {
     expect(document.querySelector('[class*="ember"]')).toBeNull();
   });
 });
+
+// #20 (the 0.2.0 review): the drawer passed `detected={undefined}`, so its app step was always
+// the no-dev-script branch (a URL field) and could never `POST /api/target/start` — once past
+// "go to the bench" without starting the app there was no way back short of unclamp and
+// re-clamp. `GET /api/setup` now carries `detected`; the drawer offers "Start the app".
+describe('the app step can start the app (#20)', () => {
+  it('shows "Start the app" when the checklist detected a script, and POSTs /api/target/start on click', async () => {
+    const detected: SetupChecklist = { ...checklist, detected: { script: 'start', port: 4200, source: 'package.json' } };
+    const { fetchImpl, calls } = routeStub({
+      'GET /api/setup': { status: 200, body: detected },
+      'POST /api/target/start': { status: 202, body: { accepted: true, port: 4200 } },
+    });
+    render(<SetupDrawer {...props({ fetchImpl })} />);
+
+    const start = await screen.findByRole('button', { name: 'Start the app' });
+    expect(screen.getByText(/Start the app runs/).textContent).toBe('Start the app runs npm run start · port 4200 · from package.json');
+    fireEvent.click(start);
+    await waitFor(() => expect(calls.some((c) => c.url === '/api/target/start' && c.method === 'POST')).toBe(true));
+  });
+
+  it('keeps the URL field, and no Start button, when the checklist detected nothing', async () => {
+    const nothing: SetupChecklist = { ...checklist, detected: null };
+    render(<SetupDrawer {...props({ fetchImpl: routeStub({ 'GET /api/setup': { status: 200, body: nothing } }).fetchImpl })} />);
+    expect(await screen.findByText('read')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Start the app' })).toBeNull();
+  });
+});

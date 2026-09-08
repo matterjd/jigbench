@@ -1,5 +1,6 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import type { DetectedTargetSummary } from '@jigbench/core';
 
 /**
  * S17a (AMENDMENT-1 §7, A6): "Start the app runs the detected dev script inside the repo".
@@ -124,6 +125,19 @@ function packageJsonScript(repoRoot: string, preferred?: string): { name: string
     if (names.includes(name)) return { name };
   }
   return undefined;
+}
+
+/** S17b: a `DetectedTarget` (command/args/cwd are the runner's business) reduced to the wire
+ * shape the Clamp screen and the setup checklist render — what "Start the app" would run.
+ * `POST /api/clamp` and `GET /api/setup` (#20) both answer with this, so the drawer one click
+ * from the status line can start the app exactly as the Clamp screen can. */
+export function summarizeDetectedTarget(detected: DetectedTarget | null): DetectedTargetSummary | null {
+  if (!detected) return null;
+  return {
+    ...(detected.script === undefined ? {} : { script: detected.script }),
+    port: detected.port,
+    source: detected.source,
+  };
 }
 
 /** Never throws — an undetectable repo (no survey hint, no package.json script, no

@@ -102,7 +102,7 @@ function OpenDrawer({ onClose, state, targetLogTail, canUnclamp, fetchImpl = fet
           repoRoot={repoRoot}
           target={target}
           targetLogTail={targetLogTail}
-          detected={undefined}
+          detected={checklist?.detected ?? null} // #20: the server says what Start the app would run
           devServerGuess={devServerGuess}
           docs={{ wired: checklist?.docs ?? state?.wiring.docs === 'wired' }}
           mcp={checklist?.mcp ?? { written: false }}

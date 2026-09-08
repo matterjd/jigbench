@@ -78,6 +78,9 @@ export interface SetupChecklist {
   mcp: { written: boolean; path?: string };
   desktop: { written: boolean; path?: string };
   claude: 'installed' | 'none';
+  /** #20: what "Start the app" would run — `null` when the server found no dev script; absent
+   * from an older server, which the drawer reads the same way. */
+  detected?: DetectedTargetSummary | null;
 }
 
 export function fsRoots(fetchImpl: typeof fetch = fetch): Promise<ApiResult<{ roots: FsRoot[] }>> {
