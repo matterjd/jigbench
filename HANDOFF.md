@@ -1,6 +1,6 @@
 # HANDOFF — next-session entry point
 
-**seat:** Delivery · **branch:** `main` · **written:** 2026-09-08 01:25 UTC (the remote session, after the six fixes) · code at `e060394`, CI green on both legs at every PR head · **0.2.0 is on main and PUBLISHABLE — #17 #18 #22 are in; #19 #20 #21 are in for the desk retest; nothing tagged, nothing published, visibility untouched**
+**seat:** Delivery · **branch:** `main` · **written:** 2026-09-08 21:45 CDT (the desk, after verifying the fix round) · code at `e060394`, CI green on both legs at every PR head · **0.2.0 is on main; two small gates remain before `npm publish`: #35 (the plate proxy gets the Host allowlist) and #36 (untrack the cli README/LICENSE copies)**
 
 ## State
 
@@ -14,4 +14,6 @@ Founded 2026-09-05 from the Design seat's commission (`docs/design/COMMISSION.md
 
 **Matter owes the desk:** the rulings in #23; **the 0.2.0 publish** — `npm run build:release && npm run pack:release` (the release build now copies README.md and LICENSE into `packages/cli`; `bash scripts/npx-control.sh "$(pwd)/jigbench-0.2.0.tgz"` proves the tarball), then `cd packages/cli && npm publish --access public` (the one-time password), then the `v0.2.0` tag + GitHub release with the tarball; **the retest** per `docs/TEST-RUN.md` at 1440×900 and 1280×720 — the Ready hold, the saved prompt's `## Context` naming the component and its file (#19), **Start the app** from the checklist drawer (#20), **Polish** beside Ready with Ollama running on the Clamp-screen path (#21); delete `wo/0003-days-overdue`; start the Ollama tray app before the demo (or `JIG_NO_MODEL=1`).
 
-**→ Next session (remote or desk, PRs with CI as the gate): nothing blocks the publish — it is Matter's word. After the retest: #23's rulings as they land, each its own PR; #24's small fixes one PR each, the version test into `scripts/npx-control.sh` and `--plate-port` on the Clamp-screen path first (both are promises the docs make); root-cause the `proxy.test.ts` ubuntu flake; then `docs/ROADMAP.md`'s v0.3 stacks. Record each on #1. Tag, publish and visibility stay Matter's.**
+**Desk verification (2026-09-08, the record is issue #1):** all six fixes hold live on the Clamp-screen path — the script allowlist, the Host allowlist and UNC refusal on the bench port, the prompt file carrying component · files · gauges · route, the checklist starting and stopping the app, Polish through Ollama (2.4 s), the tarball with README + LICENSE — and the two test-race fixes are real causes. The attackers found the plate proxy ungated on its own port (#35, same class as #18) and the README copies tracked (#36); #37 holds the hardening items. Nothing tagged or published.
+
+**→ Next session (remote or desk, PRs with CI as the gate): fix #35 (apply `isAllowedHost` to the plate proxy's request and upgrade handlers, a test with a rebound Host) and #36 (`git rm --cached` the two cli copies; the control diffs the packed README against the root), record both on #1 — then 0.2.0 is Matter's to publish; #23 rulings and #37 hardening as they land, #24 one PR each.**
