@@ -23,6 +23,22 @@ function isEnoent(err: unknown): boolean {
   return typeof err === 'object' && err !== null && (err as { code?: unknown }).code === 'ENOENT';
 }
 
+/** `readdir` that reads a folder gone by the time it is read — removed between an existence
+ * check and this call — as empty: the same honest "nothing here" as a folder that never
+ * existed. Every other error still throws. The check-then-read gap is real, not theoretical:
+ * `mcp/prompt-tools.ts` starts its default store eagerly, and a test's teardown removed the
+ * temp repo under it on windows-latest twice — CI run 34161043365 in `loadAll` (PR #15), then
+ * run 34174031120 in `migrateIfNeeded` (#24, "remaining ENOENT windows"). Every listing this
+ * store makes goes through here so the third gap never gets its own run id. */
+async function readdirOrEmpty(dir: string): Promise<string[]> {
+  try {
+    return await readdir(dir);
+  } catch (err) {
+    if (isEnoent(err)) return [];
+    throw err;
+  }
+}
+
 /**
  * S11 (AMENDMENT-1 A4, commission F5 "files are the state"): the on-disk index of
  * `.jig/prompts/<id>-<slug>.md`. Same shape as `store.ts`'s work-order handling — an
@@ -91,7 +107,7 @@ export class PromptStore {
 
   private async hasAnyPromptFile(): Promise<boolean> {
     if (!(await pathExists(this.paths.prompts))) return false;
-    const entries = await readdir(this.paths.prompts);
+    const entries = await readdirOrEmpty(this.paths.prompts);
     return entries.some((e) => e.endsWith('.md'));
   }
 
@@ -106,7 +122,7 @@ export class PromptStore {
     if (!workOrdersExist) return;
     if (await this.hasAnyPromptFile()) return;
 
-    const entries = await readdir(this.paths.workOrders);
+    const entries = await readdirOrEmpty(this.paths.workOrders);
     let migrated = 0;
     for (const entry of entries) {
       if (!entry.endsWith('.md')) continue;
@@ -116,6 +132,7 @@ export class PromptStore {
         await atomicWriteFile(this.filePathFor(prompt), serializePrompt(prompt));
         migrated++;
       } catch (err) {
+        if (isEnoent(err)) continue; // gone between the listing and the read — nothing to migrate, not a failure
         const error = String(err);
         this.migrationSkips.push({ entry, error });
         logger.warn(`S11 migration: work order ${entry} failed to migrate to a prompt; skipping it`, error);
@@ -136,13 +153,7 @@ export class PromptStore {
     // first gap: `mcp/prompt-tools.ts` starts its default store eagerly, and a test's teardown
     // removed the temp repo while that store was still initialising.
     if (!(await pathExists(this.paths.prompts))) return [];
-    let entries: string[];
-    try {
-      entries = await readdir(this.paths.prompts);
-    } catch (err) {
-      if (isEnoent(err)) return [];
-      throw err;
-    }
+    const entries = await readdirOrEmpty(this.paths.prompts);
     const prompts: Prompt[] = [];
     for (const entry of entries) {
       if (!entry.endsWith('.md')) continue;
