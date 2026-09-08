@@ -67,6 +67,12 @@ serviceable prompt, we kick that prompt off."* One loop, one button, one command
   Context matches the decorated name last; #20 the setup checklist one click from the status line
   can **Start the app** (`GET /api/setup` says what it would run); #21 **Polish** appears on the
   Clamp-screen path too — the bench probes the local model at clamp and wires the drafter.
+- **The fix-round review, before publish** — #35 the **plate proxy** answers only to its own
+  Host as well: the same allowlist #18 put on the bench, applied to every request and every
+  WebSocket upgrade on the plate's own port, before any interceptor and before the target is
+  contacted. Until now that port gated nothing, so a rebound page reached the running app
+  through Jig — and the proxy's `changeOrigin` Host rewrite hid the attacker's name from the
+  dev server's own check on the way. The trial-fit mirror is a second plate and is gated with it.
 - **Docs** — `docs/TEST-RUN.md` rewritten for the loop (one `npx jigbench`, the Clamp screen,
   Point → requirement → Polish → hold Ready → Build → Built, the Advanced tour, your
   own repo); `docs/ROADMAP.md` (AMENDMENT §6: the stacks after 0.2.0); README and `docs/USING.md`

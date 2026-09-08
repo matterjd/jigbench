@@ -6,6 +6,7 @@ import { brotliDecompressSync, gunzipSync, inflateSync } from 'node:zlib';
 import httpProxy from 'http-proxy';
 import type { PlateHost } from '../seams.js';
 import { logger } from '../logger.js';
+import { HOST_REFUSED_MESSAGE, isAllowedHost } from '../same-origin.js'; // #35 — the bench's own gate (#18), applied to this port too
 import { injectLoupeScript, rewriteHeaders, type PlateHeaderChange } from './rewrite.js';
 
 /**
@@ -100,6 +101,13 @@ function noTargetPage(): string {
     '<p>No target is set. Start <code>jigbench</code> with <code>--target &lt;url&gt;</code> pointing at your ' +
       "app's dev server, e.g. <code>--target http://localhost:4200</code>.</p>",
   );
+}
+
+/** #35: the words a refused Host gets on the plate's port — `HOST_REFUSED_MESSAGE` verbatim,
+ * the same sentence the bench's `/api` gate sends, so a user who typed the wrong name reads
+ * one explanation and not two. The title says which port refused. */
+function hostRefusedPage(): string {
+  return plainPage('Jig plate — request refused', `<p>${escapeHtml(HOST_REFUSED_MESSAGE)}</p>`);
 }
 
 function unreachablePage(target: string): string {
@@ -209,6 +217,25 @@ export function createPlateProxy(options: CreatePlateProxyOptions): PlateProxyHa
   });
 
   async function handleRequest(req: IncomingMessage, res: ServerResponse): Promise<void> {
+    // #35 — the same Host gate the bench puts on `/api` and its own upgrade (#18,
+    // `same-origin.ts`), which this port never had. The plate listens on its OWN port and
+    // handed every request to the interceptors and then to the target, so a page served from
+    // a DNS name the attacker later re-points at 127.0.0.1 read and wrote the user's running
+    // dev app straight through Jig. Worse than the bench's gap was: `changeOrigin: true`
+    // (below) rewrites Host toward the target, so the dev server's own Host check — `ng serve`
+    // refuses an unknown Host — never saw the attacker's name either.
+    //
+    // The gate is FIRST: before the interceptors, the loupe route and the no-target page, so
+    // nothing on this port answers a Host that does not name this plate. `options.host` is the
+    // `--host` value the operator started with (undefined for the loopback default), passed
+    // exactly as `http.ts` passes it — a wildcard bind therefore answers IP literals only, and
+    // the loupe's own `jig:*` origin check is untouched.
+    if (!isAllowedHost(req.headers.host, options.host)) {
+      res.writeHead(403, { 'content-type': 'text/html; charset=utf-8' });
+      res.end(hostRefusedPage());
+      return;
+    }
+
     for (const interceptor of interceptors) {
       const result = await interceptor(req);
       if (result) {
@@ -235,6 +262,13 @@ export function createPlateProxy(options: CreatePlateProxyOptions): PlateProxyHa
   const upgradedSockets = new Set<Duplex>();
 
   httpServer.on('upgrade', (req, socket, head) => {
+    // #35: the plate's other door — a dev server's HMR / `ng-cli-ws` channel — gated the same
+    // way. An upgrade has no body to explain itself with, so a refused one is destroyed rather
+    // than answered, exactly as the bench's own upgrade handler does (`http.ts`).
+    if (!isAllowedHost(req.headers.host, options.host)) {
+      socket.destroy();
+      return;
+    }
     if (!currentTarget) {
       socket.destroy();
       return;

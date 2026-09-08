@@ -15,11 +15,15 @@ Jig runs locally. A few things are worth knowing if you are looking for security
   rewrites HTML responses to inject the loupe script. It handles `Content-Security-Policy` and
   `X-Frame-Options` selectively — only where needed to let the plate render the app — rather than
   stripping them outright.
-- **The bench answers only to its own Host.** Every `/api/*` request and the WebSocket must
+- **Both ports answer only to their own Host.** Every `/api/*` request and the WebSocket must
   carry a `Host` that names the bench itself — `localhost`, `127.0.0.1`, `[::1]`, or the `--host`
   it was started with (a wildcard bind accepts any IP-literal Host, never a DNS name) — and a
   browser's `Origin`, when present, must match it. That is the defence against DNS rebinding; a
   request with no `Origin` on an allowed Host is a local non-browser client (curl, an MCP client).
+  The **plate proxy listens on its own port** and applies the same Host allowlist to every
+  request and every WebSocket upgrade, before any interceptor and before the target is
+  contacted — otherwise a rebound page would reach your running app through Jig, and the
+  proxy's own `Host` rewrite would hide the attacker's name from the dev server's check too.
   Paths handed to the folder browser or to clamp are refused when they name a UNC share.
 - **The MCP server is stdio-only and local.** Jig does not expose MCP over a network transport. An
   agent talks to it over stdio, on the machine that launched it.

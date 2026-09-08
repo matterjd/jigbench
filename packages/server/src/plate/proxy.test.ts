@@ -1,6 +1,7 @@
-import { createServer as createHttpServer, type Server as HttpServer } from 'node:http';
+import { createServer as createHttpServer, request as httpRequest, type Server as HttpServer } from 'node:http';
 import { gzipSync } from 'node:zlib';
 import { afterEach, describe, expect, it } from 'vitest';
+import { HOST_REFUSED_MESSAGE } from '../same-origin.js';
 import { createPlateProxy, type CreatePlateProxyOptions, type PlateProxyHandle } from './proxy.js';
 
 const BENCH_ORIGIN = 'http://localhost:4600';
@@ -44,6 +45,32 @@ async function readyPlate(options: CreatePlateProxyOptions): Promise<PlateProxyH
     await new Promise((resolve) => setImmediate(resolve));
   }
   return handle;
+}
+
+/** A request with the `Host` header set to whatever the caller says, connected over the
+ * loopback IP the plate actually binds — `fetch` derives Host from the URL and cannot forge
+ * one, which is the whole point here. The same shape `http.test.ts` uses for #18. */
+function rawRequest(
+  target: string,
+  init: { method?: string; headers?: Record<string, string>; body?: string } = {},
+): Promise<{ status: number; body: string }> {
+  return new Promise((resolve, reject) => {
+    const req = httpRequest(target, { method: init.method ?? 'GET', headers: init.headers ?? {} }, (res) => {
+      let data = '';
+      res.setEncoding('utf8');
+      res.on('data', (chunk: string) => (data += chunk));
+      res.on('end', () => resolve({ status: res.statusCode ?? 0, body: data }));
+    });
+    req.on('error', reject);
+    if (init.body !== undefined) req.write(init.body);
+    req.end();
+  });
+}
+
+/** The plate binds `127.0.0.1` by default; addressing it by IP rather than by `plate.url`'s
+ * `localhost` keeps these tests off the resolver, so the only thing under test is the header. */
+function plateOrigin(handle: PlateProxyHandle): string {
+  return `http://127.0.0.1:${handle.port}`;
 }
 
 describe('createPlateProxy — network binding', () => {
@@ -269,6 +296,107 @@ describe('createPlateProxy — interceptor seam', () => {
 
     const passthrough = await fetch(plate.url);
     expect(await passthrough.text()).toBe('upstream body');
+  });
+});
+
+// #35 (the fix-round review, same class as #18): the bench gates /api and its own upgrade on
+// the Host header, but the plate listens on its OWN port and gated nothing — so a page served
+// from a DNS name the attacker later re-points at 127.0.0.1 reached the user's running dev app
+// straight through Jig. And because the proxy sets `changeOrigin: true`, it rewrites Host
+// toward the target, defeating the dev server's own Host check on the way (ng serve refuses an
+// unknown Host; through the plate it never saw one).
+describe('createPlateProxy — the Host gate on the plate\'s own port (#35)', () => {
+  it('refuses a rebound-Host GET in the same words as the bench, and never contacts the target', async () => {
+    let upstreamHits = 0;
+    fakeUpstream = createHttpServer((_req, res) => {
+      upstreamHits += 1;
+      res.writeHead(200, { 'content-type': 'text/html' });
+      res.end('<html><body>the user\'s app</body></html>');
+    });
+    const port = await listen(fakeUpstream);
+    plate = await readyPlate({ benchOrigin: BENCH_ORIGIN, target: `http://localhost:${port}`, port: 0 });
+
+    const res = await rawRequest(`${plateOrigin(plate)}/`, {
+      headers: { host: `attacker.example:${plate.port}` },
+    });
+
+    expect(res.status).toBe(403);
+    expect(res.body).toContain(HOST_REFUSED_MESSAGE);
+    expect(res.body).not.toContain("the user's app");
+    expect(upstreamHits).toBe(0);
+  });
+
+  it('refuses a rebound-Host POST too — nothing is written through the plate', async () => {
+    let upstreamHits = 0;
+    fakeUpstream = createHttpServer((_req, res) => {
+      upstreamHits += 1;
+      res.writeHead(201, { 'content-type': 'application/json' });
+      res.end(JSON.stringify({ created: true }));
+    });
+    const port = await listen(fakeUpstream);
+    plate = await readyPlate({ benchOrigin: BENCH_ORIGIN, target: `http://localhost:${port}`, port: 0 });
+
+    const res = await rawRequest(`${plateOrigin(plate)}/api/orders`, {
+      method: 'POST',
+      headers: {
+        host: `attacker.example:${plate.port}`,
+        origin: `http://attacker.example:${plate.port}`,
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({ amount: 1 }),
+    });
+
+    expect(res.status).toBe(403);
+    expect(upstreamHits).toBe(0);
+  });
+
+  it('refuses before any interceptor runs — a fixture route answers a rebound Host nothing', async () => {
+    let interceptorCalls = 0;
+    plate = await readyPlate({
+      benchOrigin: BENCH_ORIGIN,
+      port: 0,
+      interceptors: [
+        () => {
+          interceptorCalls += 1;
+          return new Response(JSON.stringify({ fixture: true }), {
+            status: 200,
+            headers: { 'content-type': 'application/json' },
+          });
+        },
+      ],
+    });
+
+    const res = await rawRequest(`${plateOrigin(plate)}/api/fixture`, {
+      headers: { host: `attacker.example:${plate.port}` },
+    });
+
+    expect(res.status).toBe(403);
+    expect(interceptorCalls).toBe(0);
+  });
+
+  it('refuses a rebound Host on the loupe route as well', async () => {
+    plate = await readyPlate({ benchOrigin: BENCH_ORIGIN, port: 0 });
+
+    const res = await rawRequest(`${plateOrigin(plate)}/__jig/loupe.js`, {
+      headers: { host: `attacker.example:${plate.port}` },
+    });
+
+    expect(res.status).toBe(403);
+  });
+
+  it('still answers every loopback Host a local user actually types', async () => {
+    fakeUpstream = createHttpServer((_req, res) => {
+      res.writeHead(200, { 'content-type': 'text/html' });
+      res.end('<html><body>the app</body></html>');
+    });
+    const port = await listen(fakeUpstream);
+    plate = await readyPlate({ benchOrigin: BENCH_ORIGIN, target: `http://localhost:${port}`, port: 0 });
+
+    for (const host of [`localhost:${plate.port}`, `127.0.0.1:${plate.port}`, `[::1]:${plate.port}`]) {
+      const res = await rawRequest(`${plateOrigin(plate)}/`, { headers: { host } });
+      expect(res.status, host).toBe(200);
+      expect(res.body, host).toContain('the app');
+    }
   });
 });
 
