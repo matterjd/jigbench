@@ -79,6 +79,23 @@ const loupeDest = join(distDir, 'loupe.js');
 await copyFile(loupeSrc, loupeDest);
 console.error(`copied ${loupeSrc} -> ${loupeDest}`);
 
+// #22: the tarball must carry its own README and LICENSE. npm always includes a README* and a
+// LICENSE* found next to package.json, whatever `files` says — but packages/cli has neither of
+// its own, so 0.1.0 shipped without them and the npm page for `jigbench` showed no readme. The
+// root files are the source; these copies are gitignored (`/packages/cli/README.md`,
+// `/packages/cli/LICENSE`) and rewritten on every release build, never edited here.
+// scripts/npx-control.sh asserts both in the packed tarball.
+for (const name of ['README.md', 'LICENSE']) {
+  const src = join(repoRoot, name);
+  if (!existsSync(src)) {
+    console.error(`FAIL: ${src} does not exist — the root ${name} is what the tarball ships.`);
+    process.exit(1);
+  }
+  const dest = join(cliRoot, name);
+  await copyFile(src, dest);
+  console.error(`copied ${src} -> ${dest}`);
+}
+
 // npm generally handles the executable bit for a package's own `bin` entry on install, but
 // setting it here too costs nothing and keeps `npm pack`'s own tarball entry executable on
 // POSIX regardless of how a given CI runner's checkout left the source tree. try/catch:
@@ -90,4 +107,4 @@ try {
 }
 
 mkdirSync(distDir, { recursive: true }); // no-op if it already exists; belt and suspenders
-console.error('release assets copied: dist/bench/, dist/loupe.js');
+console.error('release assets copied: dist/bench/, dist/loupe.js, README.md, LICENSE');

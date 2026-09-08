@@ -54,6 +54,13 @@ serviceable prompt, we kick that prompt off."* One loop, one button, one command
   gone; `BuildStreamEvent`, `ClaudeStatus`, `TargetState`, `RecentBenchEntry` and the host's
   `BenchState` live in core); #9 the logbook drawer is fed by the build stream and the target's
   own log (filters human · Claude · bench · app; Esc closes).
+- **The 0.2.0 review, before publish** — #17 `POST /api/target/start` runs only a script the
+  clamped repo's own `package.json` names (cmd.exe re-parses its command line on Windows; the
+  request picks a name, never supplies one); #18 the bench answers only to its own Host
+  (`localhost`, `127.0.0.1`, `[::1]`, or the `--host` it was started with) against DNS
+  rebinding, and UNC paths are refused before any filesystem call; #22 the `jigbench` tarball
+  carries `README.md` and `LICENSE` (0.1.0 shipped neither, so the npm page showed no readme)
+  and a description in the amended tongue, both asserted by `scripts/npx-control.sh`.
 - **Docs** — `docs/TEST-RUN.md` rewritten for the loop (one `npx jigbench`, the Clamp screen,
   Point → requirement → Polish → hold Ready → Build → Built, the Advanced tour, your
   own repo); `docs/ROADMAP.md` (AMENDMENT §6: the stacks after 0.2.0); README and `docs/USING.md`

@@ -2,7 +2,7 @@
   "name": "jigbench",
   "version": "0.2.0",
   "private": false,
-  "description": "Jig — a local-first benchtop that clamps an existing app repo, surveys it, and turns a marked-up change into an agent-ready work order, over MCP on stdio.",
+  "description": "Jig — a local-first benchtop for shaping a feature before Claude builds it. Clamp an app repo, survey it, Point at the running app, write the requirement as a Prompt; Build runs Claude Code in the repo with it.",
   "type": "module",
   "license": "Apache-2.0",
   "keywords": [
