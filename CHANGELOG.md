@@ -73,6 +73,12 @@ serviceable prompt, we kick that prompt off."* One loop, one button, one command
   contacted. Until now that port gated nothing, so a rebound page reached the running app
   through Jig — and the proxy's `changeOrigin` Host rewrite hid the attacker's name from the
   dev server's own check on the way. The trial-fit mirror is a second plate and is gated with it.
+  #36 the `packages/cli` `README.md` and `LICENSE` copies are **build artifacts** — untracked
+  now, so the ignore lines #22 added actually bite. Both were still tracked, which made every
+  release build dirty the tree and meant a publish from a clean checkout would have shipped the
+  committed README (frozen before #18) rather than the root one. `scripts/npx-control.sh` now
+  also fails if either copy is committed again or if the packed `README.md`/`LICENSE` differ
+  from the root files by a byte, and `release.yml` runs that control before it uploads a tarball.
 - **Docs** — `docs/TEST-RUN.md` rewritten for the loop (one `npx jigbench`, the Clamp screen,
   Point → requirement → Polish → hold Ready → Build → Built, the Advanced tour, your
   own repo); `docs/ROADMAP.md` (AMENDMENT §6: the stacks after 0.2.0); README and `docs/USING.md`

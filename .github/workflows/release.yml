@@ -32,6 +32,18 @@ jobs:
       - name: npm pack --dry-run file list (recorded in the run log)
         run: npm pack --workspace=jigbench --dry-run
 
+      # #36: the same ship gate `.github/workflows/ci.yml` runs on every pull request, run here
+      # too and BEFORE the upload — the tarball this workflow produces is the one a human
+      # downloads and publishes by hand, so it has to prove itself the same way: README.md and
+      # LICENSE present and byte-identical to the root files, the cli's copies untracked, then
+      # survey / init / serve+health / mcp from a clean directory outside this repo. A tarball
+      # that fails the control never becomes a downloadable artifact.
+      - name: npx control (survey / init / serve / mcp against the packed tarball)
+        shell: bash
+        run: |
+          TARBALL="$(ls jigbench-*.tgz | head -1)"
+          bash scripts/npx-control.sh "$(pwd)/$TARBALL"
+
       - uses: actions/upload-artifact@v4
         with:
           name: jigbench-tarball

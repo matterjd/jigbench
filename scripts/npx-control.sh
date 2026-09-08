@@ -29,6 +29,9 @@ fi
 TARBALL="$(cd "$(dirname "$TARBALL")" && pwd)/$(basename "$TARBALL")"
 TGZ_NAME="$(basename "$TARBALL")"
 
+HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "$HERE/.." && pwd)"
+
 # #22: the tarball must carry its own README and LICENSE — 0.1.0 shipped neither, so the npm
 # page for `jigbench` showed no readme. `packages/cli/scripts/copy-release-assets.mjs` copies
 # the root README.md and LICENSE next to the cli's package.json (npm always includes both,
@@ -44,8 +47,37 @@ for required in package/README.md package/LICENSE package/package.json package/d
 done
 echo "OK: tarball carries README.md, LICENSE, package.json, dist/bin.js" >&2
 
-HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-REPO_ROOT="$(cd "$HERE/.." && pwd)"
+# #36: present is not the same as right. Two things have to hold, and neither implies the other.
+#
+# First, the copies must be BUILD ARTIFACTS — untracked, so `.gitignore`'s `/packages/cli/README.md`
+# and `/packages/cli/LICENSE` lines actually bite. #22 added those lines but left both files
+# tracked at HEAD, which made them dead letters: every `build:release` dirtied the tree with a
+# newer copy, and a publish from a clean checkout (`git clone && npm ci && npm publish`, with no
+# release build in between) shipped whatever was last committed — for 0.2.0, a README frozen
+# before #18. The diff below cannot catch that on its own: it runs after `build:release` has
+# already overwritten the copy, so it would only be comparing the root file with itself.
+echo "== npx control: the cli's README/LICENSE copies are build artifacts, not tracked files ==" >&2
+for tracked in packages/cli/README.md packages/cli/LICENSE; do
+  if git -C "$REPO_ROOT" ls-files --error-unmatch "$tracked" >/dev/null 2>&1; then
+    echo "FAIL: $tracked is tracked in git -- the .gitignore line for it does nothing, and a publish from a clean checkout ships the committed copy instead of the root file. Fix: git rm --cached $tracked" >&2
+    exit 1
+  fi
+done
+echo "OK: neither copy is tracked -- .gitignore governs them" >&2
+
+# Second, what the tarball carries must BE the root file, byte for byte. `tar -xzO` reads the
+# member straight out of the artifact that ships, so this compares the published bytes against
+# the source of truth rather than trusting that the copy step ran.
+echo "== npx control: the packed README/LICENSE are the root files, byte for byte ==" >&2
+for name in README.md LICENSE; do
+  DIFF_OUT="$(tar -xzOf "$TARBALL" "package/$name" | diff -u "$REPO_ROOT/$name" - || true)"
+  if [ -n "$DIFF_OUT" ]; then
+    echo "FAIL: package/$name in $TGZ_NAME is not the root $name -- the root files are the source; run 'npm run build:release && npm run pack:release' so the release build recopies them (never edit packages/cli/$name)" >&2
+    printf '%s\n' "$DIFF_OUT" >&2
+    exit 1
+  fi
+done
+echo "OK: packed README.md and LICENSE match the root files exactly" >&2
 
 # Cross-platform "who is listening on this port" -> PID, so cleanup can stop the server by
 # port -> PID (never by process name — a `node` process-name kill is never safe on a desk
