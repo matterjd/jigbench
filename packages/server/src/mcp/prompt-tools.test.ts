@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { mkdtemp, rm } from 'node:fs/promises';
+import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
@@ -162,5 +162,39 @@ describe('registerPromptTools with no promptService override', () => {
     expect((result.structuredContent as { prompts: unknown[] }).prompts).toEqual([]);
 
     await client.close();
+  });
+});
+
+// #24 ("remaining ENOENT windows"): `registerPromptTools` starts the default store eagerly and
+// unawaited. Its init can fail for real (the repo gone under it, an unwritable `.jig/`) — that
+// must reach the first tool call as a readable tool error, never the process as an unhandled
+// rejection at registration time.
+describe('the default prompt store starts eagerly, unawaited (#24)', () => {
+  it('a failed init is never an unhandled rejection — the first tool call reports it readably instead', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'jig-mcp-prompts-badroot-'));
+    tempDirs.push(dir);
+    const file = join(dir, 'a-file');
+    await writeFile(file, 'not a directory', 'utf8');
+    const repoRoot = join(file, 'repo'); // mkdir -p under a regular file fails on every OS
+
+    const unhandled: unknown[] = [];
+    const onUnhandled = (reason: unknown): void => {
+      unhandled.push(reason);
+    };
+    process.on('unhandledRejection', onUnhandled);
+    try {
+      const mcpServer = new McpServer({ name: 'jig-test', version: '0.0.0' });
+      registerPromptTools(mcpServer, { repoRoot }); // no promptService: the default store starts here
+      await new Promise((resolve) => setTimeout(resolve, 100)); // let the init fail and any rejection surface
+      expect(unhandled).toEqual([]);
+
+      const [serverTransport, clientTransport] = InMemoryTransport.createLinkedPair();
+      const client = new Client({ name: 'Claude Code', version: '2.1.259' });
+      await Promise.all([mcpServer.connect(serverTransport), client.connect(clientTransport)]);
+      const result = await client.callTool({ name: 'jig_prompts', arguments: {} });
+      expect(result.isError).toBe(true);
+    } finally {
+      process.off('unhandledRejection', onUnhandled);
+    }
   });
 });

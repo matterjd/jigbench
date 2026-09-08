@@ -5,6 +5,7 @@ import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 import { PromptStateSchema, jigPaths, stubSurvey, type Prompt } from '@jigbench/core';
 import { describeToolError, toolErrorResult } from './errors.js';
 import { PromptStore } from '../prompts/store.js';
+import { logger } from '../logger.js';
 import { PromptService } from '../prompts/service.js';
 import type { BuildRunnerLike, ClaudeStatus } from '../build/types.js';
 
@@ -95,6 +96,13 @@ function promptSummary(repoRoot: string, prompt: Prompt) {
 
 export function registerPromptTools(mcpServer: McpServer, ctx: JigPromptMcpContext): void {
   const servicePromise: Promise<PromptService> = ctx.promptService ? Promise.resolve(ctx.promptService) : defaultPromptService(ctx.repoRoot);
+  // #24: the default store starts here, eagerly and unawaited, so a failed init (the repo gone
+  // from under it, an unwritable `.jig/`) has nothing awaiting it yet. Every tool below awaits
+  // `servicePromise` inside `safeTool` and reports the failure readably; this handler is only
+  // so the rejection is never a process-level unhandled one in between — logged, once.
+  servicePromise.catch((err: unknown) =>
+    logger.warn('prompt tools: the prompt store failed to initialise; every prompt tool call will report it', String(err)),
+  );
 
   mcpServer.registerTool(
     'jig_prompts',
