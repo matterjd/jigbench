@@ -94,17 +94,73 @@ describe('POST /api/target/start', () => {
     expect(runner.startedWith?.cwd).toBe(repoRoot);
   });
 
-  it('an explicit {script} in the body overrides detection', async () => {
+  it('an explicit {script} in the body overrides detection — when package.json defines it', async () => {
     const repoRoot = await freshRepo();
+    // #17: `start` is what detection would pick; `dev` is the explicit override, and it must be
+    // a script the repo itself names for the route to run it at all (see the three tests below).
+    await writeFile(join(repoRoot, 'package.json'), JSON.stringify({ scripts: { start: 'ng serve', dev: 'vite' } }), 'utf8');
     const { url } = await boot(fakeBench(repoRoot));
-    await fetch(`${url}/api/target/start`, {
+    const res = await fetch(`${url}/api/target/start`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ script: 'dev', port: 5173 }),
     });
+    expect(res.status).toBe(202);
     await expect.poll(() => runner.startedWith).toBeDefined();
     expect(runner.startedWith?.args.slice(-2)).toEqual(['run', 'dev']);
     expect(runner.startedWith?.port).toBe(5173);
+  });
+
+  // #17: on win32 `detect.ts`'s `invocation` routes npm through `cmd.exe /d /s /c`, and cmd.exe
+  // re-parses the joined command line — `&`, `|`, `^`, `%` inside an argv element run as shell
+  // syntax. The only defence is upstream: an explicit {script} is accepted solely when it is a
+  // key of the clamped repo's own package.json `scripts`. These three pin that on every OS.
+  async function startWithScript(url: string, script: string): Promise<Response> {
+    return fetch(`${url}/api/target/start`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ script }),
+    });
+  }
+
+  it('#17: 400s — and never spawns — on a {script} carrying cmd.exe metacharacters that package.json does not define', async () => {
+    const repoRoot = await freshRepo();
+    await writeFile(join(repoRoot, 'package.json'), JSON.stringify({ scripts: { start: 'ng serve' } }), 'utf8');
+    const { url } = await boot(fakeBench(repoRoot));
+
+    const res = await startWithScript(url, 'start & calc.exe');
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.error).toMatch(/package\.json/);
+
+    // start() is fire-and-forget after a 202 — give a wrongly-accepted spawn every chance to
+    // have registered before asserting it never did.
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(runner.startedWith).toBeUndefined();
+    expect(runner.getState()).toEqual({ status: 'none' });
+  });
+
+  it('#17: 400s on a clean-looking {script} name the package.json simply does not define', async () => {
+    const repoRoot = await freshRepo();
+    await writeFile(join(repoRoot, 'package.json'), JSON.stringify({ scripts: { start: 'ng serve' } }), 'utf8');
+    const { url } = await boot(fakeBench(repoRoot));
+
+    const res = await startWithScript(url, 'dev');
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.error).toContain('start'); // the message names what the repo does define
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(runner.startedWith).toBeUndefined();
+  });
+
+  it('#17: 400s on any {script} when the repo has no package.json at all — nothing can be a key of it', async () => {
+    const repoRoot = await freshRepo();
+    const { url } = await boot(fakeBench(repoRoot));
+
+    const res = await startWithScript(url, 'dev');
+    expect(res.status).toBe(400);
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(runner.startedWith).toBeUndefined();
   });
 
   it('409s when the target is already starting or up', async () => {

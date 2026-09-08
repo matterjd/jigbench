@@ -2,13 +2,15 @@ import { describe, expect, it, afterEach } from 'vitest';
 import { mkdtemp, rm, writeFile, mkdir } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { detectDevScript } from './detect.js';
+import { detectDevScript, packageJsonScriptNames } from './detect.js';
 
 // Windows cannot CreateProcess a `.cmd` file directly — `spawn('npm.cmd', ..., {shell:
 // false})` throws a SYNCHRONOUS `EINVAL` on current Node (reproduced live on this desk, Node
 // v24.17.0) — cmd.exe is the actual OS-level loader `.cmd`/`.bat` scripts need. `detect.ts`
-// routes every npm/npx invocation through it there, still passing an argv array (never a
-// joined string) so untrusted input still can't inject shell metacharacters.
+// routes every npm/npx invocation through it there. That argv array is NOT what keeps shell
+// metacharacters out (#17 — cmd.exe re-parses the joined command line): the script name in it
+// is always a key of the repo's own package.json, checked by `target/route.ts` for an explicit
+// {script} (`packageJsonScriptNames`, tested below) and by detection's own tiers here.
 function expectedInvocation(bin: 'npm' | 'npx', args: string[]): { command: string; args: string[] } {
   if (process.platform === 'win32') {
     return { command: process.env.ComSpec || 'cmd.exe', args: ['/d', '/s', '/c', bin, ...args] };
@@ -100,5 +102,30 @@ describe('detectDevScript', () => {
       port: 4200,
       source: 'angular.json',
     });
+  });
+});
+
+// #17: the allowlist `POST /api/target/start` checks an explicit {script} against.
+describe('packageJsonScriptNames', () => {
+  it('lists exactly the string-valued script names package.json defines, in its own order', async () => {
+    const repoRoot = await freshDir();
+    await writeFile(
+      join(repoRoot, 'package.json'),
+      JSON.stringify({ scripts: { start: 'ng serve', dev: 'vite', broken: 42, test: 'vitest' } }),
+      'utf8',
+    );
+    expect(packageJsonScriptNames(repoRoot)).toEqual(['start', 'dev', 'test']);
+  });
+
+  it('is empty with no package.json, with no scripts field, and with a package.json that will not parse', async () => {
+    expect(packageJsonScriptNames(await freshDir())).toEqual([]);
+
+    const noScripts = await freshDir();
+    await writeFile(join(noScripts, 'package.json'), JSON.stringify({ name: 'x' }), 'utf8');
+    expect(packageJsonScriptNames(noScripts)).toEqual([]);
+
+    const corrupt = await freshDir();
+    await writeFile(join(corrupt, 'package.json'), '{ not json', 'utf8');
+    expect(packageJsonScriptNames(corrupt)).toEqual([]);
   });
 });
