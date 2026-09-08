@@ -5,6 +5,7 @@ import type { Express } from 'express';
 import type { JigState } from '@jigbench/core';
 import { clampDocs } from '../docs/clamp.js';
 import type { TargetState } from '../target/runner.js';
+import { detectDevScript, summarizeDetectedTarget } from '../target/detect.js';
 import { claudeDesktopConfigPath, formatClaudeDesktopConfigDiff, mergeClaudeDesktopConfig } from './desktop-config.js';
 import { formatMcpJsonDiff, mergeMcpJson } from './mcp-json.js';
 import { ensureGitignoreEntry } from './gitignore.js';
@@ -58,6 +59,7 @@ export function attachSetupRoute(app: Express, ctx: SetupRouteContext): void {
           mcp: { written: false, path: undefined },
           desktop: { written: false, path: undefined },
           claude: 'none',
+          detected: null, // #20
         });
         return;
       }
@@ -81,6 +83,9 @@ export function attachSetupRoute(app: Express, ctx: SetupRouteContext): void {
         mcp: { written: mcpWritten, path: mcpJsonPath },
         desktop: { written: desktopWritten, path: desktopPath },
         claude: bench.claudeInstalled ? 'installed' : 'none',
+        // #20: what "Start the app" would run — the same detection `POST /api/clamp` answers,
+        // so the checklist one click from the status line can start the app too.
+        detected: summarizeDetectedTarget(detectDevScript(bench.repoRoot, state.survey)),
       });
     } catch (err) {
       next(err);

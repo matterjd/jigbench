@@ -20,7 +20,7 @@ import { attachSketchesRoute } from '../sketch/route.js';
 import { attachFsRoute } from '../fs/route.js';
 import { TargetRunner, type TargetRunnerLike } from '../target/runner.js';
 import { attachTargetRoute } from '../target/route.js';
-import { detectDevScript, type DetectedTarget } from '../target/detect.js';
+import { detectDevScript, summarizeDetectedTarget } from '../target/detect.js';
 import { attachSetupRoute } from '../setup/route.js';
 import type { BuildRunnerLike, BuildStreamEvent } from '../build/types.js';
 import type { OllamaLike } from '../orders/drafters/ollama.js';
@@ -104,17 +104,6 @@ function errorStatus(err: unknown): number | undefined {
  * a plain parameter sidesteps that entirely. */
 function repoRootOf(bench: Bench | null): string | null {
   return bench ? bench.repoRoot : null;
-}
-
-/** S17b: `target/detect.ts`'s full result (command/args/cwd are the runner's business)
- * reduced to the wire shape the Clamp screen renders — what "Start the app" would run. */
-function summarizeDetectedTarget(detected: DetectedTarget | null): DetectedTargetSummary | null {
-  if (!detected) return null;
-  return {
-    ...(detected.script === undefined ? {} : { script: detected.script }),
-    port: detected.port,
-    source: detected.source,
-  };
 }
 
 export async function createBenchHost(options: CreateBenchHostOptions = {}): Promise<BenchHostHandle> {
