@@ -8,7 +8,7 @@ import { PromptStore } from '../prompts/store.js';
 import { PromptService } from '../prompts/service.js';
 import { BuildRunner } from '../build/runner.js';
 import type { BuildRunnerLike, BuildStreamEvent } from '../build/types.js';
-import type { OllamaLike } from '../orders/drafters/ollama.js';
+import { OllamaDrafter, type OllamaLike } from '../orders/drafters/ollama.js';
 import { logger } from '../logger.js';
 
 /**
@@ -101,12 +101,24 @@ export async function createBench(repoRoot: string, opts: CreateBenchOptions): P
   const promptStore = new PromptStore(repoRoot);
   await promptStore.init();
 
+  // #21 (the 0.2.0 review): Polish is on demand when a local model exists (AMENDMENT-1 A2).
+  // `http.ts`'s --repo path has an OrdersService whose drafter probe flips `wiring.drafter`;
+  // this bundle had no Ollama client at all — `PromptService.polish()` threw "unavailable" and
+  // the store's wiring stayed 'stub', so the button never appeared on the Clamp-screen path
+  // whatever was running on the desk. The same client OrdersService builds, probed once at
+  // clamp (`JIG_NO_MODEL=1` skips the probe, as everywhere else), sets the wiring the prompt
+  // card reads; `polish()` still asks `available()` again on every call, so a model that
+  // goes away after the clamp is a readable "unavailable", never a hang.
+  const ollama: OllamaLike = opts.ollama ?? new OllamaDrafter();
+  const ollamaUp = process.env.JIG_NO_MODEL === '1' ? false : await ollama.available();
+  store.setDrafterWiring(ollamaUp ? 'wired' : 'stub');
+
   const runner: BuildRunnerLike = opts.runner ?? new BuildRunner({ repoRoot, ...opts.claude });
   const promptService = new PromptService({
     store: promptStore,
     survey: () => store.getState().survey,
     gauges: () => store.getState().gauges,
-    ollama: opts.ollama,
+    ollama,
     runner,
     notify,
     onBuildEvent: opts.onBuildEvent ?? noop,

@@ -61,6 +61,12 @@ serviceable prompt, we kick that prompt off."* One loop, one button, one command
   rebinding, and UNC paths are refused before any filesystem call; #22 the `jigbench` tarball
   carries `README.md` and `LICENSE` (0.1.0 shipped neither, so the npm page showed no readme)
   and a description in the amended tongue, both asserted by `scripts/npx-control.sh`.
+- **The 0.2.0 review, before the retest** — #19 the survey reaches the loupe on the Clamp-screen
+  path (posted again on the plate's `load` and in answer to the loupe's `jig:ready`), the survey's
+  component name wins over Angular's dev-build `_Name` (kept as `componentClass`), and the prompt's
+  Context matches the decorated name last; #20 the setup checklist one click from the status line
+  can **Start the app** (`GET /api/setup` says what it would run); #21 **Polish** appears on the
+  Clamp-screen path too — the bench probes the local model at clamp and wires the drafter.
 - **Docs** — `docs/TEST-RUN.md` rewritten for the loop (one `npx jigbench`, the Clamp screen,
   Point → requirement → Polish → hold Ready → Build → Built, the Advanced tour, your
   own repo); `docs/ROADMAP.md` (AMENDMENT §6: the stacks after 0.2.0); README and `docs/USING.md`

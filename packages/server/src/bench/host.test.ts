@@ -1,9 +1,10 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { mkdtemp, mkdir, readdir, rm, writeFile } from 'node:fs/promises';
 import { request as httpRequest } from 'node:http';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { BuildOutcome, BuildRunnerLike, ClaudeStatus, StartBuildInput } from '../build/types.js';
+import { FakeOllamaDrafter } from '../orders/drafters/fake.js';
 import { createBenchHost, type BenchHostHandle } from './host.js';
 
 class FakeBuildRunner implements BuildRunnerLike {
@@ -424,5 +425,65 @@ describe('the target URL is remembered per recent bench (S17b)', () => {
     await expect
       .poll(async () => (await (await fetch(`${h.url}/api/state`)).json()).recent[0].lastUsedTargetUrl, { timeout: 2000 })
       .toBe('http://localhost:8080');
+  });
+});
+
+// --- #21: Polish on the Clamp-screen path -------------------------------------------------
+// A2 rules Polish on demand when a local model exists. `http.ts`'s --repo path has an
+// OrdersService whose drafter probe flips `wiring.drafter`; the Bench host's bundle had no
+// Ollama client at all, so `wiring.drafter` stayed 'stub' and the card never showed the
+// button, whatever was running on the desk. Like `http.test.ts`, this block clears the
+// ambient `JIG_NO_MODEL=1` (CI's own switch, which short-circuits every probe by design) so
+// the model path is exercised — against the fake, never a real endpoint.
+describe('Polish on the Clamp-screen path (#21)', () => {
+  let priorJigNoModel: string | undefined;
+  beforeEach(() => {
+    priorJigNoModel = process.env.JIG_NO_MODEL;
+    delete process.env.JIG_NO_MODEL;
+  });
+  afterEach(() => {
+    if (priorJigNoModel === undefined) delete process.env.JIG_NO_MODEL;
+    else process.env.JIG_NO_MODEL = priorJigNoModel;
+  });
+
+  it('probes the model at clamp — wiring.drafter reads wired when it answers — and POST /api/prompts/:id/polish answers through it', async () => {
+    const ollama = new FakeOllamaDrafter({ available: true });
+    const h = await boot({ ollama });
+    const repoRoot = await freshRepo();
+    await clamp(h, repoRoot);
+
+    const state = await (await fetch(`${h.url}/api/state`)).json();
+    expect(state.wiring.drafter).toBe('wired');
+    expect(ollama.calls.some((c) => c.kind === 'available')).toBe(true);
+
+    const created = await (
+      await fetch(`${h.url}/api/prompts`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ requirement: 'show days overdue' }),
+      })
+    ).json();
+    const polished = await fetch(`${h.url}/api/prompts/${created.id}/polish`, { method: 'POST' });
+    expect(polished.status).toBe(200);
+    expect((await polished.json()).requirement).toBe('show days overdue'); // the fake echoes
+    expect(ollama.calls.some((c) => c.kind === 'rewrite')).toBe(true);
+  });
+
+  it('reads stub — no button — when no model answers at clamp', async () => {
+    const h = await boot({ ollama: new FakeOllamaDrafter({ available: false }) });
+    const repoRoot = await freshRepo();
+    await clamp(h, repoRoot);
+    const state = await (await fetch(`${h.url}/api/state`)).json();
+    expect(state.wiring.drafter).toBe('stub');
+  });
+
+  it('JIG_NO_MODEL=1 skips the probe entirely, as everywhere else — stub, and the fake is never asked', async () => {
+    process.env.JIG_NO_MODEL = '1';
+    const ollama = new FakeOllamaDrafter({ available: true });
+    const h = await boot({ ollama });
+    await clamp(h, await freshRepo());
+    const state = await (await fetch(`${h.url}/api/state`)).json();
+    expect(state.wiring.drafter).toBe('stub');
+    expect(ollama.calls.filter((c) => c.kind === 'available')).toEqual([]);
   });
 });
