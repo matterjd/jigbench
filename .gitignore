@@ -7,6 +7,10 @@ coverage/
 
 # S10 release packing (npm run pack:release)
 /jigbench-*.tgz
+# #22: build:release copies the root README.md and LICENSE next to the cli's package.json so
+# the tarball carries them — generated copies, never edited there (the root files are the source)
+/packages/cli/README.md
+/packages/cli/LICENSE
 
 # Jig
 .jig/cache/

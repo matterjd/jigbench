@@ -29,6 +29,21 @@ fi
 TARBALL="$(cd "$(dirname "$TARBALL")" && pwd)/$(basename "$TARBALL")"
 TGZ_NAME="$(basename "$TARBALL")"
 
+# #22: the tarball must carry its own README and LICENSE — 0.1.0 shipped neither, so the npm
+# page for `jigbench` showed no readme. `packages/cli/scripts/copy-release-assets.mjs` copies
+# the root README.md and LICENSE next to the cli's package.json (npm always includes both,
+# whatever `files` says); this reads the packed artifact itself — the same listing
+# `npm pack --dry-run` prints, but of the file that will actually be published.
+echo "== npx control: the tarball carries README.md and LICENSE ==" >&2
+TARBALL_LISTING="$(tar -tzf "$TARBALL")"
+for required in package/README.md package/LICENSE package/package.json package/dist/bin.js; do
+  echo "$TARBALL_LISTING" | grep -qx "$required" || {
+    echo "FAIL: $TGZ_NAME does not contain $required -- run 'npm run build:release && npm run pack:release' (the release build copies README.md and LICENSE into packages/cli)" >&2
+    exit 1
+  }
+done
+echo "OK: tarball carries README.md, LICENSE, package.json, dist/bin.js" >&2
+
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$HERE/.." && pwd)"
 
