@@ -188,7 +188,12 @@ describe('BuildRunner.start — FILES: absent falls back to a git diff', () => {
       delete process.env.FAKE_CLAUDE_MODE;
       delete process.env.FAKE_CLAUDE_DELAY_MS;
     }
-  });
+    // Five git subprocesses, a deliberate 500 ms + 800 ms of waiting, and two `git status`
+    // snapshots: 4.1 s on ubuntu-latest (run 34174031120) and past vitest's 5 s default on a
+    // loaded windows-latest — main's push run 34175827649 (at dece0fc) timed out here with
+    // the other 1675 tests passing. The budget now matches what the test actually does, the
+    // same explicit timeout the cancel test below already carries.
+  }, 20_000);
 });
 
 describe('BuildRunner.cancel', () => {
