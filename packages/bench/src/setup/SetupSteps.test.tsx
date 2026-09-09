@@ -124,16 +124,20 @@ describe('SetupSteps — the three steps after a clamp', () => {
       expect(targetWords(target)).toBe(words);
     });
 
-    it('offers "stop" only when Jig started the app (a pid), and POSTs /api/target/stop', async () => {
+    // #24 (the 0.2.0 review): "SetupSteps.tsx:251 stop button has no words". Every other control
+    // in this step names what it acts on — "Start the app", "use this URL", "clamp docs" — and
+    // this one said only "stop", beside a status word, with nothing to say what it stopped.
+    it('#24: the stop button names what it stops, the way "Start the app" does', async () => {
       const { fetchImpl, calls } = routeStub({ 'POST /api/target/stop': { status: 200, body: { ok: true } } });
       render(<SetupSteps {...props({ fetchImpl, target: { status: 'up', url: 'http://localhost:4200', pid: 4321 } })} />);
-      fireEvent.click(screen.getByRole('button', { name: 'stop' }));
+      expect(screen.queryByRole('button', { name: 'stop' })).toBeNull();
+      fireEvent.click(screen.getByRole('button', { name: 'Stop the app' }));
       await waitFor(() => expect(calls[0]).toMatchObject({ url: '/api/target/stop', method: 'POST' }));
     });
 
     it('a pasted URL is not Jig\'s to stop — says so instead of a stop button', () => {
       render(<SetupSteps {...props({ target: { status: 'up', url: 'http://localhost:4200' } })} />);
-      expect(screen.queryByRole('button', { name: 'stop' })).toBeNull();
+      expect(screen.queryByRole('button', { name: /^Stop the app$/ })).toBeNull();
       expect(screen.getByText('pointed at a running app — nothing for Jig to stop')).toBeTruthy();
     });
 

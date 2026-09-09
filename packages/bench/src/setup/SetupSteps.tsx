@@ -248,9 +248,15 @@ export function SetupSteps({
           <span className="jig-setup__word">{targetWords(target)}</span>
           {target.status === 'up' &&
             (jigStartedIt ? (
-              <button type="button" className="jig-setup__hair" disabled={busy === 'stop'} onClick={() => void stop()}>
-                stop
-              </button>
+              <>
+                {/* #24: it said only "stop", beside a status word, with nothing to say what it
+                    stopped. Every other control in this step names its object — "Start the app",
+                    "use this URL", "clamp docs" — and this is that button's other half. */}
+                <button type="button" className="jig-setup__hair" disabled={busy === 'stop'} onClick={() => void stop()}>
+                  Stop the app
+                </button>
+                {busy === 'stop' && <span className="jig-setup__say">asking the bench to stop it …</span>}
+              </>
             ) : (
               <span className="jig-setup__say">pointed at a running app — nothing for Jig to stop</span>
             ))}

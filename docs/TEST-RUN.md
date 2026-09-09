@@ -178,7 +178,8 @@ When Claude exits: `Claude · built · N files · m:ss`, the prompt moves to **b
 PASS: its **built** line reads *built · N files* and lists the files Claude touched, with
 **refine — go again** beside it (opens a new draft on the same target with the words pre-filled).
 There is no *before* switch: the plate shows the app after the build, and a snapshot at Ready is
-not kept for a prompt yet (#8, open). The change is in the working tree; Jig wrote none of it:
+not kept for a prompt yet (#8 closed by removing the switch that did nothing; the before itself is
+S27 in `docs/ROADMAP.md`). The change is in the working tree; Jig wrote none of it:
 ```bash
 git -C /c/Users/matte/source/repos/jigbench status --short examples/ledger-angular | head
 ```

@@ -114,6 +114,15 @@ describe('FolderBrowser', () => {
     expect(screen.getByRole('button', { name: /repo/ })).toBeTruthy();
   });
 
+  // #24 (the 0.2.0 review): "FolderBrowser.tsx:77 says 'nothing here but files' after a failed
+  // read". A read that failed listed nothing, and the empty branch then explained the emptiness
+  // as a folder with no folders in it — two sentences, one of them untrue, side by side.
+  it('#24: after a failed read with nothing listed, says only what went wrong', () => {
+    render(<FolderBrowser browser={browser({ status: 'failed', message: 'no such path: /nowhere', entries: [] })} onPick={vi.fn()} />);
+    expect(screen.getByText(/no such path: \/nowhere/)).toBeTruthy();
+    expect(screen.queryByText(/nothing here but files/)).toBeNull();
+  });
+
   it('never shows an ember control — the Clamp act is the screen\'s, not the browser\'s', () => {
     render(<FolderBrowser browser={browser()} onPick={vi.fn()} />);
     expect(document.querySelector('[class*="ember"]')).toBeNull();

@@ -45,6 +45,12 @@ Issue #24 — the small defects the first ten minutes of using Jig turn up, one 
 - **no `util._extend` deprecation on stderr** — the CLI drops `http-proxy@1.18.1`'s DEP0060
   warning (and only that one; every other warning still prints through Node's own path), so
   the first thing the plate proxies no longer leaves a line nobody can act on in the terminal.
+- **wording and stale citations** — the Clamp screen says so when the checklist read fails after
+  a clamp instead of showing nothing; the folder browser no longer says "nothing here but
+  files" beside the server's own words about a read that failed; the setup step's stop button
+  reads **Stop the app**, the other half of **Start the app**; `CONTRIBUTING.md` points at
+  `docs/ROADMAP.md` rather than the v0.1 execution plan, and `docs/TEST-RUN.md` no longer cites
+  #8 as open.
 
 ## [0.2.0] - 2026-09-07
 
