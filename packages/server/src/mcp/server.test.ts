@@ -20,6 +20,24 @@ import { createJigMcpServer, formatClientLabel, heartbeatRefreshMsFromEnv } from
  * still no-ops as of this commit.
  */
 
+/**
+ * Every `vi.waitFor` below waits on `.jig/cache/shop.json` — a file `atomicWriteFile` puts
+ * there (or `stop()`'s `rm()` takes away) while `heartbeat.start()` runs fire-and-forget off
+ * `oninitialized`, which is why these are waits and not reads. `vi.waitFor`'s default budget is
+ * ONE second, and that write's own transient-error backoff can spend most of it before the file
+ * ever appears: `mkdir` + `writeFile` retried up to 5 times (150 ms of sleeps) and then `rename`
+ * retried up to 8 (420 ms), all of it defence against exactly the Windows filesystem lag a CI
+ * runner has. On a loaded windows-latest runner — four vitest workers on two cores — that is how
+ * main's push run at `365ebef` went red: `AssertionError: expected null not to be null` at
+ * `server.test.ts:84`, run 34296840719, with 1682 other tests passing.
+ *
+ * So: an explicit budget, the shape `orders/service.test.ts` and `watcher.test.ts` already use,
+ * with an explicit per-test timeout above it (PR #34's shape for the same class of red). A test
+ * that is really hung still fails — it just fails on a real cause instead of on the default.
+ */
+const HEARTBEAT_WAIT = { timeout: 10_000, interval: 20 } as const;
+const HEARTBEAT_TEST_TIMEOUT_MS = 20_000;
+
 const tempDirs: string[] = [];
 
 afterEach(async () => {
@@ -83,11 +101,11 @@ describe('createJigMcpServer', () => {
       const heartbeat = await readShopHeartbeat(repoRoot);
       expect(heartbeat).not.toBeNull();
       return heartbeat!;
-    });
+    }, HEARTBEAT_WAIT);
     expect(info.client).toBe('Claude Code 2.1.259');
 
     await client.close();
-  });
+  }, HEARTBEAT_TEST_TIMEOUT_MS);
 
   it('deletes the shop heartbeat once the client disconnects', async () => {
     const { repoRoot, store, orders, fixtures } = await freshRig();
@@ -96,12 +114,12 @@ describe('createJigMcpServer', () => {
     const [serverTransport, clientTransport] = InMemoryTransport.createLinkedPair();
     const client = new Client({ name: 'test-client', version: '1.0.0' });
     await Promise.all([mcpServer.connect(serverTransport), client.connect(clientTransport)]);
-    await vi.waitFor(async () => expect(await readShopHeartbeat(repoRoot)).not.toBeNull());
+    await vi.waitFor(async () => expect(await readShopHeartbeat(repoRoot)).not.toBeNull(), HEARTBEAT_WAIT);
 
     await client.close();
 
-    await vi.waitFor(async () => expect(await readShopHeartbeat(repoRoot)).toBeNull());
-  });
+    await vi.waitFor(async () => expect(await readShopHeartbeat(repoRoot)).toBeNull(), HEARTBEAT_WAIT);
+  }, HEARTBEAT_TEST_TIMEOUT_MS);
 
   // Finding 1 (wave-4 council)'s red control needs a fast heartbeat tick to prove
   // scripts/stdout-guard.sh actually reads the WHOLE run, not just two lines — this is the
@@ -120,18 +138,18 @@ describe('createJigMcpServer', () => {
         const raw = JSON.parse(await readFile(shopHeartbeatFile(repoRoot), 'utf8'));
         expect(raw.lastSeen).toBeTruthy();
         return raw;
-      });
+      }, HEARTBEAT_WAIT);
       await vi.waitFor(async () => {
         const raw = JSON.parse(await readFile(shopHeartbeatFile(repoRoot), 'utf8'));
         expect(raw.lastSeen).not.toBe(first.lastSeen);
-      });
+      }, HEARTBEAT_WAIT);
 
       await client.close();
     } finally {
       if (prior === undefined) delete process.env.JIG_HEARTBEAT_MS;
       else process.env.JIG_HEARTBEAT_MS = prior;
     }
-  });
+  }, HEARTBEAT_TEST_TIMEOUT_MS);
 });
 
 describe('heartbeatRefreshMsFromEnv', () => {
