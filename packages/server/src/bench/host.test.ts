@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { mkdtemp, mkdir, readdir, rm, writeFile } from 'node:fs/promises';
 import { request as httpRequest } from 'node:http';
+import { createServer as createTcpServer } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { BuildOutcome, BuildRunnerLike, ClaudeStatus, StartBuildInput } from '../build/types.js';
@@ -25,6 +26,58 @@ class FakeBuildRunner implements BuildRunnerLike {
   }
 }
 
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/** #24: a build that runs until something cancels it — the fake stand-in for `claude -p`, whose
+ * real wall-clock cap is 30 minutes. `PromptService.close()` (and so `Bench.close()`, and so
+ * unclamp and re-clamp) awaits every build in flight, which is the whole defect. */
+class CancellableBuildRunner implements BuildRunnerLike {
+  readonly cancelled: string[] = [];
+  private running: { promptId: string; buildId: string } | null = null;
+  private release: (() => void) | null = null;
+
+  async isClaudeAvailable(): Promise<boolean> {
+    return true;
+  }
+  currentBuild(): { promptId: string; buildId: string } | null {
+    return this.running;
+  }
+  async start(input: StartBuildInput): Promise<BuildOutcome> {
+    this.running = { promptId: input.promptId, buildId: input.buildId };
+    await new Promise<void>((resolve) => {
+      this.release = resolve;
+      // The safety net, never reached in a passing run: a build nothing cancels still ends, so
+      // a failure here reads as an assertion rather than a hung worker.
+      setTimeout(resolve, 60_000).unref?.();
+    });
+    this.running = null;
+    return { exitCode: null, filesTouched: [], transcriptPath: '', cancelled: true };
+  }
+  cancel(promptId: string): boolean {
+    this.cancelled.push(promptId);
+    this.release?.();
+    return true;
+  }
+  status(): ClaudeStatus {
+    return this.running ? { state: 'building', id: this.running.promptId, elapsed: 0 } : { state: 'idle' };
+  }
+}
+
+/** #24: `createBench` awaits `runner.isClaudeAvailable()` on every clamp, which makes it the one
+ * place a test can hold a clamp open for a known length of time without touching production
+ * code. Used to land an unclamp squarely inside a clamp that is still being built. */
+class SlowProbeBuildRunner extends FakeBuildRunner {
+  constructor(private readonly delayMs: number) {
+    super();
+  }
+  async isClaudeAvailable(): Promise<boolean> {
+    await sleep(this.delayMs);
+    return false;
+  }
+}
+
 let handle: BenchHostHandle | undefined;
 let dirs: string[] = [];
 
@@ -36,6 +89,20 @@ afterEach(async () => {
   await Promise.all(dirs.map((d) => rm(d, { recursive: true, force: true })));
   dirs = [];
 });
+
+/** A port nothing is on right now — never a fixed number, so two CI legs on one runner (or a
+ * developer with the real 4601 in use) can run this file at the same time. */
+async function freePort(): Promise<number> {
+  return new Promise((resolve, reject) => {
+    const srv = createTcpServer();
+    srv.on('error', reject);
+    srv.listen(0, '127.0.0.1', () => {
+      const addr = srv.address();
+      const port = typeof addr === 'object' && addr ? addr.port : 0;
+      srv.close(() => resolve(port));
+    });
+  });
+}
 
 async function freshRepo(): Promise<string> {
   const d = await mkdtemp(join(tmpdir(), 'jig-host-'));
@@ -250,6 +317,50 @@ describe('#18: the Host allowlist and UNC rejection on the bench host', () => {
   });
 });
 
+// #24 (the 0.2.0 review): "`--plate-port` is ignored on the Clamp-screen path (the plate came up
+// on an OS-assigned port, 56258) while README.md:49 and docs/TEST-RUN.md:12 promise 4601." The
+// CLI parsed the number and `createBench` already knew what to do with one; nothing carried it
+// from `serve.ts` through `createJigServer` to the host, so every runtime clamp got port 0.
+describe('#24: the plate binds the port it was given (--plate-port on the Clamp path)', () => {
+  it('a clamp made at runtime binds platePort, and something really answers there', async () => {
+    const platePort = await freePort();
+    const h = await boot({ platePort });
+    const repoRoot = await freshRepo();
+
+    const res = await fetch(`${h.url}/api/clamp`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ repoRoot }),
+    });
+    expect(res.status).toBe(200);
+
+    expect(h.getBench()?.plate.port).toBe(platePort);
+    expect(h.getBench()?.plate.url).toBe(`http://localhost:${platePort}/`);
+    // `plate.port` falls back to the number it ASKED for when the socket has no address yet, so
+    // the number alone would pass even if the bind had failed. This is the half that cannot.
+    const onThePort = await fetch(`http://127.0.0.1:${platePort}/`);
+    expect(onThePort.status).toBe(200);
+  });
+
+  it('the --repo-at-boot clamp binds it too', async () => {
+    const platePort = await freePort();
+    const repoRoot = await freshRepo();
+    const h = await boot({ platePort, repoRoot });
+    expect(h.getBench()?.plate.port).toBe(platePort);
+  });
+
+  it('with no platePort a clamp still takes an OS-assigned port, so nothing collides', async () => {
+    const h = await boot();
+    const repoRoot = await freshRepo();
+    await fetch(`${h.url}/api/clamp`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ repoRoot }),
+    });
+    expect(h.getBench()?.plate.port).toBeGreaterThan(0);
+  });
+});
+
 describe('POST /api/unclamp', () => {
   it('closes the current bench and GET /api/state returns to bench:null', async () => {
     const h = await boot();
@@ -385,6 +496,89 @@ describe('the loop after a clamp (S17b) — prompts/plate/fixtures/sketches/docs
     expect(h.getBench()!.repoRoot).toBe(repoB);
     expect(await (await fetch(`${h.url}/api/prompts`)).json()).toEqual({ prompts: [] });
   });
+});
+
+// #24 (the 0.2.0 review): "unclamp and re-clamp await an in-flight `claude -p` build for up to
+// its 30-minute cap and drop the cancel route first (`bench/host.ts:206`). Cancel before
+// draining; add a generation counter so a late target-up or a late clamp cannot write into the
+// next bench."
+describe('#24: unclamp with a build in flight', () => {
+  async function readyPromptWithBuild(h: BenchHostHandle, repoRoot: string): Promise<string> {
+    await clamp(h, repoRoot);
+    const created = await fetch(`${h.url}/api/prompts`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ requirement: 'show days overdue' }),
+    });
+    expect(created.status).toBe(201);
+    const { id } = await created.json();
+    expect((await fetch(`${h.url}/api/prompts/${id}/ready`, { method: 'POST' })).status).toBe(200);
+    expect((await fetch(`${h.url}/api/prompts/${id}/build`, { method: 'POST' })).status).toBe(202);
+    return id;
+  }
+
+  it('cancels the build itself and returns at once, instead of waiting out its 30-minute cap', async () => {
+    const runner = new CancellableBuildRunner();
+    const h = await boot({ runner });
+    const repoRoot = await freshRepo();
+    const id = await readyPromptWithBuild(h, repoRoot);
+    expect(runner.currentBuild()?.promptId).toBe(id);
+
+    const startedAt = Date.now();
+    const res = await fetch(`${h.url}/api/unclamp`, { method: 'POST' });
+    const tookMs = Date.now() - startedAt;
+
+    expect(res.status).toBe(200);
+    // The host cancels the build itself — `POST /api/prompts/:id/cancel` is unmounted with the
+    // rest of the loop the moment the bench starts closing, so nothing else could have.
+    expect(runner.cancelled).toEqual([id]);
+    expect(tookMs).toBeLessThan(5_000);
+    expect(h.getBench()).toBeNull();
+  }, 20_000);
+
+  it('a re-clamp does the same — the second repo is on the bench, not blocked behind the first repo\'s build', async () => {
+    const runner = new CancellableBuildRunner();
+    const h = await boot({ runner });
+    const repoA = await freshRepo();
+    const repoB = await freshRepo();
+    const id = await readyPromptWithBuild(h, repoA);
+
+    const startedAt = Date.now();
+    await clamp(h, repoB);
+    const tookMs = Date.now() - startedAt;
+
+    expect(runner.cancelled).toEqual([id]);
+    expect(tookMs).toBeLessThan(10_000);
+    expect(h.getBench()!.repoRoot).toBe(repoB);
+  }, 25_000);
+});
+
+// #24's generation counter, the clamp half: a clamp is several awaits long (createBench, the
+// survey, the docs auto-clamp), and anything the human does in that window has to win. Without
+// a generation, a clamp that finished after an unclamp simply wrote itself in as the current
+// bench — the host was clamped to a repo the human had just let go of.
+describe('#24: a clamp the human overtook never becomes the current bench', () => {
+  it('an unclamp landing mid-clamp wins, and the superseded clamp says so instead of landing', async () => {
+    const h = await boot({ runner: new SlowProbeBuildRunner(600) });
+    const repoRoot = await freshRepo();
+
+    const clamping = fetch(`${h.url}/api/clamp`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ repoRoot }),
+    });
+    await sleep(150); // well inside createBench's own 600ms probe
+
+    expect((await fetch(`${h.url}/api/unclamp`, { method: 'POST' })).status).toBe(200);
+
+    const res = await clamping;
+    expect(res.status).toBe(409);
+    expect((await res.json()).error).toMatch(/supersed/i);
+
+    expect(h.getBench()).toBeNull();
+    expect((await (await fetch(`${h.url}/api/state`)).json()).bench).toBeNull();
+    expect((await fetch(`${h.url}/api/prompts`)).status).toBe(404); // no loop router left behind
+  }, 20_000);
 });
 
 describe('POST /api/clamp says what "Start the app" would run (S17b)', () => {
