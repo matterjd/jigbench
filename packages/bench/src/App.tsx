@@ -251,6 +251,18 @@ export function App() {
 
   const scrapCount = prompts.prompts.filter((p) => p.state === 'scrapped').length;
 
+  // #24: nothing is known until the host's first WS frame lands, so nothing of the bench is
+  // drawn. `showClampScreen` is `state?.bench === null`, which a null `state` is not — so the
+  // empty bench painted for a frame and the Clamp screen replaced it. Below every hook, so the
+  // hook order never changes with it.
+  if (state === null) {
+    return (
+      <div className="jig-app-holding" role="status">
+        Jig is starting…
+      </div>
+    );
+  }
+
   return (
     <>
       <Chassis

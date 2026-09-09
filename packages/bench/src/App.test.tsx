@@ -119,6 +119,7 @@ describe('App (S12: the quiet bench)', () => {
 
   it('renders exactly the loop: the rail (Point/Sketch/Hand), the plate, the right column\'s three tabs, and the status line', () => {
     render(<App />);
+    sendState(clampedState); // #24: the bench draws nothing until the host's first frame
 
     expect(screen.getByRole('button', { name: /^Point —/ })).toBeTruthy();
     expect(screen.getByRole('button', { name: /^Sketch —/ })).toBeTruthy();
@@ -144,11 +145,13 @@ describe('App (S12: the quiet bench)', () => {
 
   it('the status line reads "not installed" when wiring.claude is none', () => {
     render(<App />);
+    sendState(clampedState); // #24: the bench draws nothing until the host's first frame
     expect(screen.getByText(/not installed/)).toBeTruthy();
   });
 
   it('the Advanced drawer is absent by default, and appears (with the spine, rulers switch, Fixtures, Toolpath, MCP — and no mirror switch, #8) once the switch is on', async () => {
     render(<App />);
+    sendState(clampedState); // #24: the bench draws nothing until the host's first frame
     expect(screen.queryByLabelText(/rulers & guides/i)).toBeNull();
 
     fireEvent.click(screen.getByLabelText(/Advanced — everything that is not the loop/i));
@@ -163,6 +166,7 @@ describe('App (S12: the quiet bench)', () => {
   it('switching to Sketch swaps the plate for the sketch sheet', async () => {
     stubFetch((url) => (url.includes('/api/sketches') ? ({ ok: true, json: () => Promise.resolve({ sketches: [] }) } as Response) : undefined));
     render(<App />);
+    sendState(clampedState); // #24: the bench draws nothing until the host's first frame
     fireEvent.click(screen.getByRole('button', { name: /^Sketch —/ }));
     expect(await screen.findByText(/no sketches yet/i)).toBeTruthy();
     expect(screen.queryByText(/Plate — where the app renders/)).toBeNull();
@@ -170,6 +174,7 @@ describe('App (S12: the quiet bench)', () => {
 
   it('the command palette opens on Ctrl+K and lists the rail\'s tools', () => {
     render(<App />);
+    sendState(clampedState); // #24: the bench draws nothing until the host's first frame
     fireEvent.keyDown(window, { key: 'k', ctrlKey: true });
     expect(screen.getByRole('dialog')).toBeTruthy();
     expect(screen.getAllByText('Point').length).toBeGreaterThan(0);
@@ -231,9 +236,23 @@ describe('App (S17b: the Clamp screen, the logbook drawer, the setup drawer)', (
     setAdvanced(false);
   });
 
+  // #24 (the 0.2.0 review): "App.tsx:147 shows the empty bench for a frame before the Clamp
+  // screen. Gate on state === null." The gate below it is `state?.bench === null`, and a null
+  // `state` is not that — so the whole chassis painted while the first WS frame was still in
+  // the air, then vanished.
+  it('#24: draws none of the bench until the host has said something', () => {
+    render(<App />);
+
+    expect(screen.queryByRole('button', { name: /^Point —/ })).toBeNull();
+    expect(screen.queryByText(/Plate — where the app renders/)).toBeNull();
+    expect(screen.queryByRole('tab', { name: /Prompts/ })).toBeNull();
+    // Not a blank page either — if the socket never opens, this line is what there is to read.
+    expect(screen.getByRole('status').textContent).toMatch(/Jig is starting/);
+  });
+
   it('opens on the Clamp screen — recent benches, the folder browser, no rail — when the host says bench: null', async () => {
     render(<App />);
-    expect(screen.getByRole('button', { name: /^Point —/ })).toBeTruthy(); // the bench, before any state arrives
+    expect(screen.queryByRole('button', { name: /^Point —/ })).toBeNull(); // #24: nothing of the bench before the first frame
 
     sendState(clampScreenState);
 
@@ -281,6 +300,7 @@ describe('App (S17b: the Clamp screen, the logbook drawer, the setup drawer)', (
 
   it('the status line opens the logbook drawer, and a build frame lands in it as a Claude row (#9)', async () => {
     render(<App />);
+    sendState(clampedState); // #24: the bench draws nothing until the host's first frame
     act(() => {
       FakeWebSocket.instances[0]!.onmessage?.({
         data: JSON.stringify({ type: 'build', id: '0003', event: { kind: 'tool', name: 'editing', target: 'invoice-list.component.html' }, elapsedMs: 42_000 }),
@@ -295,6 +315,7 @@ describe('App (S17b: the Clamp screen, the logbook drawer, the setup drawer)', (
 
   it('a target-log frame lands in the logbook as an app row', async () => {
     render(<App />);
+    sendState(clampedState); // #24: the bench draws nothing until the host's first frame
     act(() => {
       FakeWebSocket.instances[0]!.onmessage?.({ data: JSON.stringify({ type: 'target-log', line: '** Angular Live Development Server is listening on localhost:4200 **' }) });
     });
@@ -306,6 +327,7 @@ describe('App (S17b: the Clamp screen, the logbook drawer, the setup drawer)', (
 
   it('"setup" on the status line opens the checklist drawer (A6), and only one drawer is open at a time', async () => {
     render(<App />);
+    sendState(clampedState); // #24: the bench draws nothing until the host's first frame
     fireEvent.click(screen.getByRole('button', { name: /Claude/ }));
     await screen.findByLabelText(/logbook — the record/);
 

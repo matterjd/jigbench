@@ -20,6 +20,10 @@ Issue #24 — the small defects the first ten minutes of using Jig turn up, one 
   once the host reports a clamped repo. Neither route exists on an empty host, and both were
   polled from the first frame, so the Clamp screen came with two 404s in the console and one more
   every four seconds.
+- **no empty-bench flash** — the bench draws nothing of itself until the host's first state
+  frame lands. `state` is null until then, and the Clamp screen's gate was `state.bench ===
+  null`, which that null is not — so the rail, the plate and the right column painted for a
+  frame and were replaced. One honest line holds the screen instead.
 
 ## [0.2.0] - 2026-09-07
 
