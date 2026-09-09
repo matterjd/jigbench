@@ -1,6 +1,6 @@
 # HANDOFF — next-session entry point
 
-**seat:** Delivery · **branch:** `main` · **written:** 2026-09-08 19:21 CDT (the desk, after the roadmap pass and the reviewer's edits) · code at `a34fd89`, CI green on both legs at every PR head · **both publish gates are cleared: #35 landed at `90837fe` (PR #38, head `3e67fd7`, run 34215684878) and #36 at `a34fd89` (PR #39, head `d052a74`, run 34216255045); the push runs on main are green at both shas (34216085011, 34216755707). 0.2.0 is Matter's to publish, pending the desk verification the lead is running now. The frontier is `docs/ROADMAP.md` and the paste-ready prompts under `docs/team/cloud/`.**
+**seat:** Delivery · **branch:** `main` · **written:** 2026-09-08 19:21 CDT (the desk, after the roadmap pass and the reviewer's edits) · code at `a34fd89` = **v0.2.0, SHIPPED 2026-09-08 19:09 CDT** (npm, tag, release), CI green on both legs at every PR head · **both publish gates are cleared: #35 landed at `90837fe` (PR #38, head `3e67fd7`, run 34215684878) and #36 at `a34fd89` (PR #39, head `d052a74`, run 34216255045); the push runs on main are green at both shas (34216085011, 34216755707). 0.2.0 is Matter's to publish, pending the desk verification the lead is running now. The frontier is `docs/ROADMAP.md` and the paste-ready prompts under `docs/team/cloud/`.**
 
 ## State
 
