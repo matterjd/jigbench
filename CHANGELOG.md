@@ -12,6 +12,10 @@ Issue #24 — the small defects the first ten minutes of using Jig turn up, one 
   title an OSC sequence sets, cursor moves) before it broadcasts `target-log` and before the ring
   buffer, so a dev server that believes it owns a TTY no longer shows `[33m❯[39m Building...`
   in the Clamp screen or in the logbook drawer.
+- **the folder browser hides what Windows hides** — `fs/route.ts` honours the hidden and system
+  attributes on win32 (one `attrib` per listing, parsed; fail open on any error), so
+  `$Recycle.Bin`, `$WINDOWS.~BT`, `System Volume Information` and `Recovery` no longer sit at a
+  drive root beside the repos. None of them starts with a dot, which is all the old filter knew.
 
 ## [0.2.0] - 2026-09-07
 
