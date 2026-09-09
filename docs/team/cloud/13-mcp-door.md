@@ -35,7 +35,8 @@ THE FRONTIER, in order:
    session cannot run.
 
 DOCS, in the same PR: `docs/USING.md` §Advanced and `README.md` say what the door offers and what it
-cannot do (Claude Desktop reads and marks, it does not build). `CHANGELOG.md` gets an
+cannot do (Claude Desktop reads Prompts and records one as built; it does not run a build).
+`CHANGELOG.md` gets an
 `## [Unreleased]` entry. Change the S30 row in `docs/ROADMAP.md` to say shipped when the PR merges.
 
 Do NOT: run `claude mcp add` or touch any real Claude configuration on the machine you are running

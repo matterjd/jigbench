@@ -8,7 +8,7 @@ packages/core                pure TypeScript, zero I/O.
                               data models.
 
 packages/server               MCP stdio + HTTP/WS + proxy + drafters; imports core.
-                              Source of truth for: how the bench and the shop talk to the running
+                              Source of truth for: how the bench and Claude talk to the running
                               process.
 
 packages/bench                web UI (React + Vite); imports core types only.
@@ -34,9 +34,14 @@ examples/                     a tiny Angular app + a tiny .NET 10 app; not a wor
 
 docs/                         Source of truth for: the execution plan, ADRs, the v0.1 team plan,
                               `USING.md` (the walkthrough in Jig's own words), `TEST-RUN.md`
-                              (the step-by-step run of the loop), `ROADMAP.md` (the sequenced
-                              plan after 0.2.0) and `team/cloud/` (one paste-ready cloud-session
-                              prompt per roadmap slice; see its README).
+                              (the step-by-step run of the loop) and `ROADMAP.md` (the sequenced
+                              plan after 0.2.0).
+
+docs/team/cloud/              one paste-ready prompt per roadmap slice, `00` through `17`.
+                              Source of truth for: what a cloud session is told before it starts —
+                              its seat and sandbox limits, THE FRONTIER, HOW WORK LANDS and CLOSE.
+                              `README.md` says how to use one; `docs/ROADMAP.md` names the file
+                              each row is run from.
 
 scripts/                      Source of truth for: repo-level verification scripts run by npm
                               (e.g. `check:stdout`) or directly (`npx-control.sh`,

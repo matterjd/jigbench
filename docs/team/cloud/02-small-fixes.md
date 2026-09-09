@@ -35,9 +35,12 @@ order (cheapest first, so the record grows early):
    counter so a late target-up or a late clamp cannot write into the next bench. Red first: a host
    test that clamps, starts a fake long build, unclamps, and asserts it returns quickly and that the
    late event is dropped.
-6. `packages/server/src/prompts/store.ts` lines 93 and 105 still carry the read-then-open window PR
-   #15 fixed only in `loadAll`, and `packages/server/src/mcp/prompt-tools.ts` starts the store
-   unawaited with no `.catch`. Red first: the ENOENT shape `store.enoent.test.ts` already uses.
+6. `packages/server/src/prompts/store.ts` still carries two check-then-read windows of the kind PR
+   #15 fixed only in `loadAll`: lines 109 to 110 in `hasAnyPromptFile` (`pathExists` on
+   `.jig/prompts/`, then the listing) and lines 121 to 125 in `migrateIfNeeded` (`pathExists` on
+   `.jig/work-orders/`, then `hasAnyPromptFile` and the listing). And
+   `packages/server/src/mcp/prompt-tools.ts` starts the store unawaited with no `.catch`. Red first:
+   the ENOENT shape `store.enoent.test.ts` already uses.
 7. `packages/cli/src/version.test.ts` skips in CI because `npm test` runs before `npm run build`.
    Assert `--version` in `scripts/npx-control.sh` instead, and delete the skip.
 8. The status line says "Claude · not installed" before any repo is clamped, but it means the

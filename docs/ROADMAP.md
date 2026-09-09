@@ -7,10 +7,9 @@ dev server and Point names by DOM path and tag. The tongue (`docs/design/COMMISS
 amended by AMENDMENT 1 §3) and the floor do not change. What 0.2.0 shipped is in `CHANGELOG.md`.
 
 **One row is one slice and one session**, and each names a prompt file under `docs/team/cloud/`,
-ready to paste into a new cloud session on this repo. Read `docs/team/cloud/README.md` first.
-**Tier:** `green` a cloud session may merge its own PR once both CI legs are green at the PR head;
-`amber` the PR waits for the lead's review; `ruling` Matter decides before anything is built.
-**Size:** `S` one sitting, `M` a session, `L` a session and a fix pass.
+ready to paste into a new cloud session; read its README first. **Tier:** `green` a session merges
+its own PR once both CI legs are green at the PR head; `amber` the PR waits for the lead; `ruling`
+Matter decides first. **Size:** `S` one sitting, `M` a session, `L` a session and a fix pass.
 
 ## 0 · Release 0.2.0
 
@@ -21,15 +20,22 @@ ready to paste into a new cloud session on this repo. Read `docs/team/cloud/READ
 row below assumes a published 0.2.0 and a retest that says what still bites.
 
 ```bash
+npm ci --no-audit --no-fund   # after any pull of main, before the release build
 npm run build:release && npm run pack:release && bash scripts/npx-control.sh "$(pwd)/jigbench-0.2.0.tgz"
-cd packages/cli && npm publish --access public
-gh release create v0.2.0 ./jigbench-0.2.0.tgz --title "Jig v0.2.0 — one loop" --notes-file CHANGELOG.md
+cd packages/cli && npm login && npm publish --access public
 ```
 
+**Two lessons from the first attempt**, in full in `00-release-0-2-0.md`. Skip the `npm ci` after a
+pull and a stale `node_modules` has no `@jigbench/adapter-web` workspace, so the server build dies
+with `Cannot find module '@jigbench/adapter-web'`. And `404 Not Found - PUT
+https://registry.npmjs.org/jigbench` on publish means the npm token has expired: `npm login` first,
+then publish. The one-time password prompt is Matter's alone; once he confirms `+ jigbench@0.2.0` an
+Opus session may tag, cut the GitHub release and run the `npx` registry check, recorded on issue #1.
+
 **Acceptance.**
-- `scripts/npx-control.sh` green on the 0.2.0 tarball (packed README and LICENSE identical to the
-  root files, neither copy tracked, `--version` right).
-- The npm page for `jigbench@0.2.0` shows the readme.
+- `scripts/npx-control.sh` green on the 0.2.0 tarball: README and LICENSE packed and identical to
+  the root files, neither copy tracked, `--version` right.
+- The npm page for `jigbench@0.2.0` shows the readme; `npx --yes jigbench@0.2.0 --version` answers.
 - The `v0.2.0` tag and the GitHub release carry the tarball.
 - The desk retest per `docs/TEST-RUN.md` at 1440x900 and 1280x720 is run, every defect filed.
 
@@ -50,32 +56,28 @@ retest is the first drive of the shipped package, so its list is the truest defe
 **M · green · after R0 · prompt** `02-small-fixes.md`
 
 **Goal.** Close #24's list, one PR each. **Why now.** Eleven small defects sit in the first ten
-minutes of using Jig. **The list:** raw ANSI escapes in the app's own log; hidden and system folders
-at a drive root in the folder browser; the two 404s the bench logs before a clamp; `--plate-port`
-ignored on the Clamp path; unclamp waiting on an in-flight build; the two remaining read windows in
-`prompts/store.ts` and the unawaited store start in `mcp/prompt-tools.ts`; `cli/src/version.test.ts`
-skipped in CI; the status line saying "not installed" before a clamp; the empty bench shown for a
-frame; the `util._extend` deprecation on stderr; the wording and stale citations in `ClampScreen`,
-`FolderBrowser`, `SetupSteps` and `CONTRIBUTING.md`. Plus the `write EPIPE` from `build/runner.ts`
-recorded on issue #1 under #35.
+minutes of using Jig: raw ANSI escapes in the app's own log; hidden and system folders at a drive
+root; the two 404s the bench logs before a clamp; `--plate-port` ignored on the Clamp path; unclamp
+waiting on an in-flight build; the two remaining read windows in `prompts/store.ts` and the
+unawaited store start in `mcp/prompt-tools.ts`; `version.test.ts` skipped in CI; "not installed"
+before a clamp; the empty-bench frame; the `util._extend` deprecation; the wording and stale
+citations. Plus the `write EPIPE` from `build/runner.ts` recorded on issue #1 under #35.
 
 **Acceptance.**
 - One PR per item, each red-first, or a note in the PR saying what was checked by hand instead.
-- `README.md` and `docs/TEST-RUN.md` name plate port 4601 only if `--plate-port` is honoured on the
-  Clamp path.
+- `README.md` and `docs/TEST-RUN.md` name plate port 4601 only if `--plate-port` is honoured there.
 - #24 closes with every box ticked, or the leftovers refiled as their own issues.
 
 ### S20 · issue #37, the hardening items
 **M · amber (two items touch the Host and Origin gates) · after R0 · prompt** `03-hardening.md`
 
 **Goal.** Close #37's eight items. **Why now.** They came out of the fix-round verification, none
-blocking, each small, and two of them sit on the gates that hold the publish. **The list:**
-`SECURITY.md:21` overstates the Origin gate (both gates skip Origin on GET, HEAD and OPTIONS), so
-enforce it or correct the sentence; bound `port` to an integer 1 to 65535 in `POST /api/target/start`
-and `/api/clamp`; route the survey-hint tier of `target/detect.ts` through `packageJsonScriptNames`;
-charset-check accepted script names on win32; realpath before stat in `fs/route.ts` and
-`bench/validate-clamp-path.ts`; give `build/git-diff.ts` the runner's timeout; narrow the ENOENT
-guard in `prompts/store.ts` to the read; close the five named test gaps.
+blocking, each small, and two of them sit on the gates that hold the publish: `SECURITY.md:21`
+overstates the Origin gate (both gates skip Origin on GET, HEAD and OPTIONS); `port` unbounded on
+`POST /api/target/start` and `/api/clamp`; the survey-hint tier of `target/detect.ts`; a win32
+charset check on script names; realpath before stat in `fs/route.ts` and
+`bench/validate-clamp-path.ts`; the runner's timeout on `build/git-diff.ts`; the ENOENT guard in
+`prompts/store.ts`; five named test gaps. `03-hardening.md` carries each in full.
 
 **Acceptance.**
 - One PR per item, or one per pair where the tests share a fixture, each red-first.
@@ -88,15 +90,14 @@ guard in `prompts/store.ts` to the read; close the five named test gaps.
 **Goal.** Get Matter's three answers, then write them into the docs and the build. **Why now.** One
 of the three makes a `docs/TEST-RUN.md` step impossible to pass.
 
-1. **Advanced on the Clamp path.** `bench/host.ts` does not mount toolpath, orders or trialfit,
-   while the Advanced drawer still renders the Toolpath panel. Mount the three (the stores exist),
-   or hide the panels in words there and cut the TEST-RUN step, or say Advanced needs `--repo`.
+1. **Advanced on the Clamp path.** `bench/host.ts` does not mount toolpath, orders or trialfit while
+   the Advanced drawer still renders the Toolpath panel. Mount the three (the stores exist), hide
+   the panels in words there and cut the TEST-RUN step, or say Advanced needs `--repo`.
 2. **The step into the bench.** AMENDMENT 1 §7 and `docs/team/v0.2/REMOTE-KICKOFF.md` use "Open",
    the build says "go to the bench", the tongue bans "open". Ratify the build and amend the two doc
    lines, or change the build.
 3. **The before controls.** #8 closed by removing them, while AMENDMENT 1 §3 and §4 and
-   `docs/team/v0.2/CHASSIS.md` still rule them on. Annotate the amendment (they return with S27),
-   or reopen #8 and build it now.
+   `docs/team/v0.2/CHASSIS.md` still rule them on. Annotate it (S27 returns them) or build #8 now.
 
 **Acceptance.**
 - The session prints the three questions and their options on #23 and builds nothing.
@@ -125,8 +126,8 @@ Tauri with React and Angular, so this is the adapter that makes Jig useful on hi
 ### S23 · Vue and Svelte
 **L · green · after S22 · prompt** `06-adapter-vue-svelte.md`
 
-**Goal.** Components and files for Vue and Svelte repos. **Why now.** The loupe already names Vue
-components at runtime, so the survey side is the half that is missing.
+**Goal.** Components and files for Vue and Svelte repos. **Why now.** Point already names Vue
+components (the plate's runtime resolver), so the survey side is the half that is missing.
 
 **Acceptance.**
 - Vue components carry name and file, from the adapter's own fixtures.

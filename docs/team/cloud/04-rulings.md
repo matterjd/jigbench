@@ -7,11 +7,6 @@ Windows desk, no .NET SDK, no Ollama, no real Claude Code binary. Never attempt 
 walkthrough or a real `claude -p`. Run every server test with `JIG_NO_MODEL=1
 JIG_OLLAMA_URL=http://127.0.0.1:9`; the Build-runner tests use the repo's fake `claude` on PATH.
 
-**STEP ONE, BEFORE ANY CODE: this is a ruling slice. Print the questions and build nothing.** Read
-first, then post one comment on issue #23 laying out the three questions and their options, each
-with what it costs and what it breaks, and stop there. If issue #23 already carries Matter's
-answers, skip to step two.
-
 READ, in order: `HANDOFF.md` · `docs/ROADMAP.md` (your row is S21) · **issue #23, the whole body** ·
 `docs/design/AMENDMENT-1-the-simplification.md` §3, §4 and §7 · `docs/design/COMMISSION.md` §3 (the
 words; "seed", "recording", "work order" and "open the bench" are banned on any surface) ·
@@ -19,6 +14,15 @@ words; "seed", "recording", "work order" and "open the bench" are banned on any 
 `packages/server/src/bench/host.ts` (what a runtime bench mounts, and what it does not) ·
 `packages/cli/src/commands/serve.ts` · `packages/bench/src/chassis/AdvancedDrawer.tsx` · closed
 issue #8.
+
+THE FRONTIER.
+
+1. **Stop and print the ruling questions for Matter; do not build until they are answered in the
+   issue.** No branch, no PR, no code. Read the files above, then post one comment on issue #23
+   laying out the three questions below and their options, each with what it costs and what it
+   breaks, and stop there. Say in your final message that the questions are posted and nothing was
+   built. If issue #23 already carries Matter's answers when you open, go straight to step 2 and
+   work under HOW WORK LANDS below.
 
 THE THREE QUESTIONS, with the options as the code has them today:
 
@@ -39,17 +43,17 @@ THE THREE QUESTIONS, with the options as the code has them today:
    before returns with roadmap slice S27 and leave the build alone; (b) reopen #8 and build it now,
    which is S27 brought forward.
 
-STEP TWO, only after Matter has answered in issue #23. One branch and one PR per ruling,
-`fix/ruling-<n>-<slug>`:
-- The ruled words land in the docs they contradict AND in the code they name. A doc that still says
-  the old thing is the defect this slice exists to remove.
-- `packages/bench/src/tongue.test.ts` and the `floor-*.test.ts` files stay green. If ruling 2 goes
-  to option (a), add the case that would have caught `serve.ts` line 95.
-- If ruling 1 goes to option (a), the mount is test-first: a host test asserting the three routes
-  answer on a runtime bench. If it goes to (b) or (c), the TEST-RUN step goes with it, and the
-  drawer says why in words.
-- `CHANGELOG.md` gets an `## [Unreleased]` line per ruling. Close #23 when all three have landed,
-  and change the S21 row in `docs/ROADMAP.md` to say shipped.
+2. **Only after Matter has answered in issue #23**, one branch and one PR per ruling,
+   `fix/ruling-<n>-<slug>`:
+   - The ruled words land in the docs they contradict AND in the code they name. A doc that still
+     says the old thing is the defect this slice exists to remove.
+   - `packages/bench/src/tongue.test.ts` and the `floor-*.test.ts` files stay green. If ruling 2
+     goes to option (a), add the case that would have caught `serve.ts` line 95.
+   - If ruling 1 goes to option (a), the mount is test-first: a host test asserting the three routes
+     answer on a runtime bench. If it goes to (b) or (c), the TEST-RUN step goes with it, and the
+     drawer says why in words.
+   - `CHANGELOG.md` gets an `## [Unreleased]` line per ruling. Close #23 when all three have landed,
+     and change the S21 row in `docs/ROADMAP.md` to say shipped.
 
 Do NOT: guess an answer; build any part of a ruling Matter has not given; change the tongue on your
 own; touch `examples/` source, `QUALITY.md` or `docs/quality/`; rewrite pushed history.
@@ -60,6 +64,6 @@ how it was verified, what you did not do). Both CI legs, Windows and Ubuntu, gre
 then merge. Record every merge on issue #1 with the sha and the CI run id. Never `npm link`,
 `claude mcp add`, `npm publish`, tag, or change repository visibility.
 
-CLOSE: a docs PR refreshing `HANDOFF.md`. If you stopped at step one, say so plainly and refresh
+CLOSE: a docs PR refreshing `HANDOFF.md`. If you stopped at step 1, say so plainly and refresh
 nothing. The last line of your final message is a one-sentence handoff for the next hand.
 ----8<---- to here ----8<----

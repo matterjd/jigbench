@@ -41,9 +41,9 @@ line. `CHANGELOG.md` gets an `## [Unreleased]` entry per stack. When both merge,
 in `docs/ROADMAP.md` to say shipped.
 
 Do NOT: change the `SurveyAdapter` interface; import `server` from an adapter; put fixtures under
-`examples/` or edit anything in `examples/`, `QUALITY.md` or `docs/quality/`; touch the loupe's
-runtime naming, which already handles Vue; make the loop depend on either adapter; rewrite pushed
-history.
+`examples/` or edit anything in `examples/`, `QUALITY.md` or `docs/quality/`; touch the plate's
+runtime component naming (`packages/server/src/plate/loupe.js`), which already handles Vue; make the
+loop depend on either adapter; rewrite pushed history.
 
 HOW WORK LANDS: one branch per stack (`delegate/build-adapter-vue`, `delegate/build-adapter-svelte`),
 test-first with the red line quoted in the commit body, `git commit -s` (DCO), push, open a PR whose

@@ -1,24 +1,42 @@
 # 00 · R0 · release 0.2.0 (the desk, not a session)
 **Tier** ruling (Matter's hands only) · **Depends on** nothing · **Expected PRs** 0 · **Roadmap row** R0
 
-This is the one file in this folder that is not pasted into a cloud session. No session may publish,
-tag, or change visibility. The block below is for your own terminal on the desk, in Git Bash, from
-the repo root.
+This is the one file in this folder that is not pasted into a cloud session. **No session may
+publish or change repository visibility** — that stays your hands. The block below is for your own
+terminal on the desk, in Git Bash, from the repo root.
 
 ----8<---- paste from here ----8<----
+npm ci --no-audit --no-fund
 npm run build:release && npm run pack:release && bash scripts/npx-control.sh "$(pwd)/jigbench-0.2.0.tgz"
-cd packages/cli && npm publish --access public
-gh release create v0.2.0 ./jigbench-0.2.0.tgz --title "Jig v0.2.0 — one loop" --notes-file CHANGELOG.md
+cd packages/cli && npm login && npm publish --access public
 ----8<---- to here ----8<----
 
-Notes on those three lines:
+Notes on those three lines, two of them learned the hard way on the first attempt:
 
-- `npm publish` asks for your one-time password.
+- **`npm ci` first, after any pull of `main`.** A stale `node_modules` does not carry the
+  `@jigbench/adapter-web` workspace, and the server build then dies with `Cannot find module
+  '@jigbench/adapter-web'`. Run it before `build:release`, every time you have pulled.
+- **`npm login` first.** A publish answering `404 Not Found - PUT
+  https://registry.npmjs.org/jigbench` does not mean the name is taken or the package is missing: it
+  means the npm token has expired. Log in, then publish. The one-time password prompt is yours
+  alone — no session may answer it.
 - `packages/cli/README.md` and `LICENSE` do not exist in a fresh checkout. `build:release` writes
   them, and `scripts/npx-control.sh` fails loudly if a pack goes out without it. Run the control
   before the publish, every time.
-- `gh release create` makes the `v0.2.0` tag from the current commit if the tag is not there yet.
-  Run it from `main` at the sha you published.
+
+## The tag, the release and the registry check — a session may do these
+
+Once you confirm `+ jigbench@0.2.0` came back from the publish, the rest is an Opus session's to
+run, on `main` at the sha you published. This is the one exception to the "never tag" rule every
+other block in this folder carries, and it opens only on your word that 0.2.0 is on npm:
+
+```bash
+git tag -a v0.2.0 -m "Jig v0.2.0 — one loop" && git push origin v0.2.0
+gh release create v0.2.0 ./jigbench-0.2.0.tgz --title "Jig v0.2.0 — one loop" --notes-file CHANGELOG.md
+npx --yes jigbench@0.2.0 --version   # the registry check, from an empty folder
+```
+
+All three go on issue #1: the tag, the release URL, and the version `npx` answered.
 
 ## Then the retest, per `docs/TEST-RUN.md`
 
