@@ -55,6 +55,13 @@ export interface CreateBenchHostOptions {
    * runtime `POST /api/clamp` is; an invalid path here is a startup failure (thrown), not a
    * 400 (there is no HTTP response to send yet). */
   repoRoot?: string;
+  /** #24: the plate proxy's listening port, for every bench this host clamps — the CLI's
+   * `--plate-port` (default 4601, the number `README.md` and `docs/TEST-RUN.md` promise). The
+   * Clamp path had no way to hear it, so every runtime clamp took an OS-assigned port instead.
+   * Omitted, that stays the behaviour: port 0, so nothing can collide. Safe as a fixed number
+   * because `clampTo` closes the previous bench — and with it the previous plate's listening
+   * socket — before it creates the next one. */
+  platePort?: number;
   /** Test-only override for where `recordRecentBench`/`readRecentBenches` read and write.
    * Defaults to `~/.jig/recent.json`. */
   recentBenchesFile?: string;
@@ -118,6 +125,12 @@ export async function createBenchHost(options: CreateBenchHostOptions = {}): Pro
    * the app (below) through a thunk that dispatches into whichever router is current, or
    * falls through to express's own 404 when nothing is clamped. */
   let currentRouter: Router | null = null;
+  /** #24: every bench this host holds gets a number, bumped by `closeCurrentBench` — which
+   * every clamp and every unclamp goes through. Anything started for an earlier bench checks
+   * its own number before it writes: a `TargetRunner` still probing a port after the bench it
+   * belonged to was let go, and a `clampTo` that a newer clamp (or an unclamp) overtook while
+   * it was awaiting `createBench`. Neither can then land in the bench that came after it. */
+  let generation = 0;
   const wss = new WebSocketServer({ noServer: true });
 
   function broadcastRaw(payload: unknown): void {
@@ -127,10 +140,19 @@ export async function createBenchHost(options: CreateBenchHostOptions = {}): Pro
     }
   }
 
-  function makeTargetRunner(): TargetRunnerLike {
+  function makeTargetRunner(runnerGeneration: number): TargetRunnerLike {
     return new TargetRunner({
-      onLog: (line) => broadcastRaw({ type: 'target-log', line }),
+      onLog: (line) => {
+        // #24: a line from the app of a bench that is gone is not this bench's log.
+        if (runnerGeneration !== generation) return;
+        broadcastRaw({ type: 'target-log', line });
+      },
       onStateChange: (state) => {
+        // #24: a probe that answers after this bench was let go — the port took its time, or
+        // the human unclamped mid-start — belongs to a bench that no longer exists. Acting on
+        // it here is what wired the NEXT bench's plate to the previous bench's app, and wrote
+        // that app's URL onto the next bench's recent entry.
+        if (runnerGeneration !== generation) return;
         if (state.status === 'up' && currentBench) {
           // `PlateHost.start` returns `Promise<string> | string` (a real proxy is always
           // async; `StubPlateHost` — never used here, but the interface is shared — is
@@ -152,7 +174,7 @@ export async function createBenchHost(options: CreateBenchHostOptions = {}): Pro
     });
   }
 
-  let targetRunner: TargetRunnerLike = makeTargetRunner();
+  let targetRunner: TargetRunnerLike = makeTargetRunner(generation);
 
   async function composeState(): Promise<Record<string, unknown>> {
     const recent = await readRecentBenches(recentBenchesFile);
@@ -193,12 +215,24 @@ export async function createBenchHost(options: CreateBenchHostOptions = {}): Pro
   }
 
   async function closeCurrentBench(): Promise<void> {
+    generation += 1; // #24 — everything started for the bench being let go is now stale
     currentRouter = null; // S17b — the loop stops answering before the bench it served closes
-    await targetRunner.stop();
-    if (currentBench) {
-      await currentBench.close();
-      currentBench = null;
-    }
+    const bench = currentBench;
+    const runner = targetRunner;
+    // Claimed synchronously, before the first await: a second unclamp (or a clamp racing one)
+    // then finds nothing to close rather than closing the same bench twice.
+    currentBench = null;
+
+    // #24: cancel BEFORE draining. `Bench.close()` awaits every build in flight through
+    // `PromptService.close()`, and a `claude -p` build's own cap is 30 minutes — so unclamp and
+    // re-clamp used to block for up to that long, with `POST /api/prompts/:id/cancel` already
+    // unmounted on the line above, leaving the human nothing to end the wait with. The host
+    // asks the runner directly, so there is no route to reach and nothing to race.
+    const running = bench?.runner.currentBuild();
+    if (running) bench?.runner.cancel(running.promptId);
+
+    await runner.stop();
+    if (bench) await bench.close();
   }
 
   /** S17b: the loop, for one bench — see `currentRouter`. Every attach function here is the
@@ -222,18 +256,30 @@ export async function createBenchHost(options: CreateBenchHostOptions = {}): Pro
     repoRoot: string,
   ): Promise<{ survey: unknown; docsClamped: boolean; recent: unknown; detected: DetectedTargetSummary | null }> {
     await closeCurrentBench();
+    const myGeneration = generation; // #24 — this clamp's own number, taken after the bump
 
     const bench = await createBench(repoRoot, {
       benchOrigin,
+      host: options.host,
+      platePort: options.platePort,
       claude: options.claude,
       runner: options.runner,
       ollama: options.ollama,
       notify: broadcastState,
       onBuildEvent: (id: string, event: BuildStreamEvent, elapsedMs: number) => broadcastRaw({ type: 'build', id, event, elapsedMs }),
     });
+
+    // #24: a clamp is several awaits long, and an unclamp (or a second clamp) that landed in
+    // that window has already bumped the generation. This bench was never the current one, so
+    // it is closed here rather than written over whatever the human asked for last.
+    if (generation !== myGeneration) {
+      await bench.close();
+      throw Object.assign(new Error(`clamp of ${repoRoot} was superseded before it finished`), { status: 409 });
+    }
+
     currentBench = bench;
     currentRouter = buildLoopRouter(bench); // S17b
-    targetRunner = makeTargetRunner();
+    targetRunner = makeTargetRunner(myGeneration);
 
     const surveyResult = await runSurveyAndWrite(repoRoot);
     await bench.store.reload();

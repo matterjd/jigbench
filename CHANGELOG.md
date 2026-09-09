@@ -16,6 +16,19 @@ Issue #24 — the small defects the first ten minutes of using Jig turn up, one 
   attributes on win32 (one `attrib` per listing, parsed; fail open on any error), so
   `$Recycle.Bin`, `$WINDOWS.~BT`, `System Volume Information` and `Recovery` no longer sit at a
   drive root beside the repos. None of them starts with a dot, which is all the old filter knew.
+- **no 404s before a clamp** — the bench asks for `GET /api/plate` and `GET /api/prompts` only
+  once the host reports a clamped repo. Neither route exists on an empty host, and both were
+  polled from the first frame, so the Clamp screen came with two 404s in the console and one more
+  every four seconds.
+- **`--plate-port` (and `--host`) reach the Clamp path** — the CLI parsed both and then dropped
+  them for a bench clamped from the Clamp screen, so the plate came up on an OS-assigned port
+  bound to loopback. It now binds the port `README.md` and `docs/TEST-RUN.md` promise, 4601, and
+  the interface `--host` names, on every clamp.
+- **unclamp no longer waits out a build** — the host cancels an in-flight `claude -p` build
+  before it drains, so unclamp and re-clamp return at once instead of blocking for up to the
+  build's 30-minute cap with the cancel route already unmounted. A generation counter on every
+  bench keeps a late target-up, and a clamp the human overtook, out of the bench that came
+  after; `TargetRunner` no longer reports a target `stop()` already let go of as up.
 - **`--version` is checked where it ships** — `scripts/npx-control.sh` asserts that
   `jigbench --version` answers the packed `package.json`'s own version, against the tarball that
   is actually published. The `version.test.ts` case that used to hold this was guarded on
