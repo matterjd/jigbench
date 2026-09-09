@@ -34,8 +34,9 @@ examples/                     a tiny Angular app + a tiny .NET 10 app; not a wor
 
 docs/                         Source of truth for: the execution plan, ADRs, the v0.1 team plan,
                               `USING.md` (the walkthrough in Jig's own words), `TEST-RUN.md`
-                              (the step-by-step run of the loop) and `ROADMAP.md` (what comes
-                              after 0.2.0).
+                              (the step-by-step run of the loop), `ROADMAP.md` (the sequenced
+                              plan after 0.2.0) and `team/cloud/` (one paste-ready cloud-session
+                              prompt per roadmap slice; see its README).
 
 scripts/                      Source of truth for: repo-level verification scripts run by npm
                               (e.g. `check:stdout`) or directly (`npx-control.sh`,
