@@ -4,6 +4,11 @@ import './StatusLine.css';
 export interface StatusLineProps {
   /** wiring.claude === 'installed' */
   wired: boolean;
+  /** #24: whether a repo is on the bench at all. `wiring.claude` is the `claude`-on-PATH probe,
+   * and that probe only runs when a bench is created — so before a clamp `wired: false` is not a
+   * finding, it is a question nobody has asked yet, and the line said "not installed" anyway.
+   * Defaults true, so every existing caller (and test) reads exactly as it did. */
+  clamped?: boolean;
   status: ClaudeStatus | undefined;
   /** The most recent build-stream line for the prompt `status` names — status.claude itself
    * carries no per-step text (only id/elapsed), so the caller derives this from the live stream
@@ -30,16 +35,21 @@ function duration(ms: number): string {
   return `${Math.floor(s / 60)}m ${String(s % 60).padStart(2, '0')}s`;
 }
 
-/** "One status line at the bottom" (AMENDMENT-1 §3/§4) — Claude's one sentence: idle, not
- * installed, building with elapsed time and the latest step, or built with a file count and
- * duration. Nothing else on the line; a click opens the logbook drawer over it. The one
- * addition (AMENDMENT-1 A6): when the caller wires `onToggleSetup`, the word "setup" sits at
- * the far right and opens the checklist — otherwise the line stays exactly as it was. */
-export function StatusLine({ wired, status, lastEventText, logbookOpen, onToggleLogbook, onToggleSetup, setupOpen, setupWord }: StatusLineProps) {
+/** "One status line at the bottom" (AMENDMENT-1 §3/§4) — Claude's one sentence: nothing clamped
+ * (the probe has not run — #24), not installed, idle, building with elapsed time and the latest
+ * step, or built with a file count and duration. Nothing else on the line; a click opens the
+ * logbook drawer over it. The one addition (AMENDMENT-1 A6): when the caller wires
+ * `onToggleSetup`, the word "setup" sits at the far right and opens the checklist — otherwise
+ * the line stays exactly as it was. */
+export function StatusLine({ wired, clamped = true, status, lastEventText, logbookOpen, onToggleLogbook, onToggleSetup, setupOpen, setupWord }: StatusLineProps) {
   let text: string;
   let pipClass = 'jig-status-line__pip';
 
-  if (!wired) {
+  if (!clamped) {
+    // #24: nothing has been probed yet, so nothing is claimed. The word "Claude" stays — the
+    // logbook has to be reachable from every screen, and this is the one line that is.
+    text = '· nothing clamped';
+  } else if (!wired) {
     text = '· not installed';
   } else if (status?.state === 'building') {
     pipClass += ' jig-status-line__pip--live';

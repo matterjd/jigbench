@@ -71,7 +71,9 @@ the centre with the app, clean: no rulers, no guides, until Advanced says so. Th
 three tabs: **Prompts**, **Inspect**, **Design system**. The **status line** at the bottom is
 Claude's one sentence — `Claude · idle`, `· building · 00:42 · editing invoice-list.html`, `· built
 · 3 files · 1m 12s`, or `· not installed` — and a click opens the **logbook**; **setup** at its
-right end opens the checklist.
+right end opens the checklist. Before you clamp anything it reads `Claude · nothing clamped`:
+whether `claude` is on your PATH is only checked when a repo goes on the bench, so until then the
+line has nothing to report.
 
 ## Point and the prompt card
 

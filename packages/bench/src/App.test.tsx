@@ -145,8 +145,18 @@ describe('App (S12: the quiet bench)', () => {
 
   it('the status line reads "not installed" when wiring.claude is none', () => {
     render(<App />);
-    sendState(clampedState); // #24: the bench draws nothing until the host's first frame
+    // #24, twice over: the bench draws nothing until the host's first frame, and "not installed"
+    // is the claude-on-PATH probe, which only runs at a clamp.
+    sendState(clampedState);
     expect(screen.getByText(/not installed/)).toBeTruthy();
+  });
+
+  // #24: before a clamp the probe has not run, so the line must not report its answer.
+  it('#24: the status line says nothing about Claude on the Clamp screen', () => {
+    render(<App />);
+    sendState(clampScreenState);
+    expect(screen.queryByText(/not installed/)).toBeNull();
+    expect(screen.getByText(/nothing clamped/)).toBeTruthy();
   });
 
   it('the Advanced drawer is absent by default, and appears (with the spine, rulers switch, Fixtures, Toolpath, MCP — and no mirror switch, #8) once the switch is on', async () => {
