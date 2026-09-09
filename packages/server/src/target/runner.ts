@@ -214,6 +214,14 @@ export class TargetRunner implements TargetRunnerLike {
     probing = false;
 
     if (outcome.kind === 'up') {
+      // #24: `stop()` claims `this.child` synchronously and only then waits out its kill tree,
+      // so it can land while this race is still running — and the probe answering a moment
+      // later would report a process this runner no longer owns as "up". `bench/host.ts` acts
+      // on that: a late "up" wires the plate of whatever bench is current BY THEN, which is
+      // how an unclamped bench's target ended up on the next bench's plate.
+      if (this.child !== child) {
+        throw new Error(`target was stopped before it answered at ${url}`);
+      }
       this.setState({ status: 'up', url, pid: child.pid });
       return;
     }

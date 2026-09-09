@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import { createServer } from 'node:net';
+import { createServer as createTcpServer } from 'node:net';
+import { createServer } from 'node:http';
 import { copyFile, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
@@ -11,10 +12,11 @@ const fixturesDir = fileURLToPath(new URL('./__fixtures__', import.meta.url));
 const SERVER_FIXTURE = join(fixturesDir, 'fake-target-server.mjs');
 const EXIT1_FIXTURE = join(fixturesDir, 'fake-target-exit1.mjs');
 const ANSI_FIXTURE = join(fixturesDir, 'fake-target-ansi.mjs');
+const IGNORES_SIGTERM_FIXTURE = join(fixturesDir, 'fake-target-ignores-sigterm.mjs');
 
 async function freePort(): Promise<number> {
   return new Promise((resolve, reject) => {
-    const srv = createServer();
+    const srv = createTcpServer();
     srv.on('error', reject);
     srv.listen(0, '127.0.0.1', () => {
       const addr = srv.address();
@@ -22,6 +24,10 @@ async function freePort(): Promise<number> {
       srv.close(() => resolve(port));
     });
   });
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 let runner: TargetRunner | undefined;
@@ -123,6 +129,46 @@ describe('TargetRunner', () => {
     expect(lines.some((l) => /[\x1B\x07]/.test(l))).toBe(false);
     expect(runner.getLogTail().some((l) => /[\x1B\x07]/.test(l))).toBe(false);
   });
+
+  // #24 (`runner.ts:199` in the issue): the probe answering and `stop()` landing are two
+  // independent races inside `start()`. When the probe wins, `setState({status:'up'})` fires for
+  // a process this runner no longer owns — and in `bench/host.ts` that late "up" wires the plate
+  // of whatever bench is current BY THEN. Forced deterministically: the child is given time to
+  // boot and install its own SIGTERM handler (so `killTree` has to wait out its 300ms before
+  // SIGKILL), the port is answered by a server the TEST owns and only opens at the last moment,
+  // and `stop()` is called the instant it does — so the very next probe, ~25ms later, lands well
+  // inside the window where the runner has already let this process go.
+  it('never reports "up" for a target that stop() already let go of', async () => {
+    const port = await freePort();
+    const states: string[] = [];
+    runner = new TargetRunner({
+      onLog: () => {},
+      onStateChange: (s) => states.push(s.status),
+      probeIntervalMs: 25,
+      probeTimeoutMs: 10_000,
+    });
+
+    const started = runner.start({ command: process.execPath, args: [IGNORES_SIGTERM_FIXTURE], cwd: fixturesDir, port });
+    // Nothing is listening yet, so every probe so far has failed — and the child has had time to
+    // boot node and register its handler. A SIGTERM sent before that lands on the default action.
+    await sleep(500);
+    expect(states).toEqual(['starting']);
+
+    // Bound the way `fake-target-server.mjs` binds — no explicit host, so a probe of
+    // `http://localhost:PORT` reaches it whether the name resolves to 127.0.0.1 or ::1.
+    const answering = createServer((_req, res) => res.end('ok'));
+    await new Promise<void>((resolve) => answering.listen(port, resolve));
+    try {
+      const stopped = runner.stop(); // claims `this.child` synchronously, then waits out the kill
+
+      await expect(started).rejects.toThrow(/stopped/i);
+      expect(states).not.toContain('up');
+      await stopped;
+      expect(runner.getState()).toEqual({ status: 'none' });
+    } finally {
+      await new Promise<void>((resolve) => answering.close(() => resolve()));
+    }
+  }, 20_000);
 
   // #10 (S17a follow-up): "verify the win32 `cmd.exe /d /s /c npm run <script>` invocation on
   // the CI runner's Node". Every other test here spawns `node` directly; this one goes through

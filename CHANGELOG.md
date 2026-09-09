@@ -12,6 +12,11 @@ Issue #24 — the small defects the first ten minutes of using Jig turn up, one 
   title an OSC sequence sets, cursor moves) before it broadcasts `target-log` and before the ring
   buffer, so a dev server that believes it owns a TTY no longer shows `[33m❯[39m Building...`
   in the Clamp screen or in the logbook drawer.
+- **unclamp no longer waits out a build** — the host cancels an in-flight `claude -p` build
+  before it drains, so unclamp and re-clamp return at once instead of blocking for up to the
+  build's 30-minute cap with the cancel route already unmounted. A generation counter on every
+  bench keeps a late target-up, and a clamp the human overtook, out of the bench that came
+  after; `TargetRunner` no longer reports a target `stop()` already let go of as up.
 - **the folder browser hides what Windows hides** — `fs/route.ts` honours the hidden and system
   attributes on win32 (one `attrib` per listing, parsed; fail open on any error), so
   `$Recycle.Bin`, `$WINDOWS.~BT`, `System Volume Information` and `Recovery` no longer sit at a
