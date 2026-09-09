@@ -23,7 +23,7 @@ you press **Build** — and only then.
 | **Rail** | the narrow strip on the far left | three tools top to bottom: **Point**, **Sketch**, **Hand** (`P` · `S` · `H`; `Esc` → Hand). Hover one to read its pairing, e.g. *Point — click a component to open the prompt card*. The **Advanced** switch sits at the rail's foot. |
 | **Plate** | the centre | the app you clamped, running live, clean — no rulers or guides unless Advanced is on. The **prompt card** opens here, beside your selection. |
 | **Right column** | 340px on the right | tabs **Prompts · Inspect · Design system** |
-| **Status line** | the one line at the very bottom | `Claude · idle` / `· building · 00:42 · …` / `· built · 3 files · 1m 12s` / `· not installed` (click → the logbook drawer) and **setup** at the right end (click → the checklist drawer) |
+| **Status line** | the one line at the very bottom | `Claude · nothing clamped` (before any clamp — the `claude`-on-PATH probe runs at the clamp, so there is nothing to report yet) / `Claude · idle` / `· building · 00:42 · …` / `· built · 3 files · 1m 12s` / `· not installed` (click → the logbook drawer) and **setup** at the right end (click → the checklist drawer) |
 
 One rule from v0.1 is gone: you never need `--repo .` any more. The Clamp screen sends the
 absolute path of the folder you picked; nothing walks up to a parent `.git`.
@@ -38,7 +38,8 @@ node --version && npm --version && dotnet --version && git --version && claude -
 ```
 PASS: Node `v22`+ (this desk: v24), .NET `10.x`, git present, and a Claude Code version — Build
 needs `claude` on PATH. No `claude`? Everything up to Build still works and the status line says
-`Claude · not installed`; Build is the one step that stops.
+`Claude · not installed` **once a repo is clamped** (before that it reads `Claude · nothing
+clamped` — the probe runs at the clamp); Build is the one step that stops.
 
 **2. Ollama (optional — Polish).** It usually starts with Windows; check:
 ```bash
