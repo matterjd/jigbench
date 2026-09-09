@@ -1,7 +1,10 @@
 # Contributing to Jig
 
 Thanks for looking at this. Jig is a young project (0.2.0, the loop) — read
-`docs/EXECUTION-PLAN.md` for the current plan before picking up a slice.
+`docs/ROADMAP.md` for the current plan before picking up a slice: it is one row per slice,
+with the goal, the acceptance, what it depends on and who may merge it. `AGENTS.md` is the
+entry point for any agent working here. (`docs/EXECUTION-PLAN.md` is the v0.1 plan and stays
+as the record of how 0.1.0 was built; it is not the frontier.)
 
 ## Running the monorepo
 

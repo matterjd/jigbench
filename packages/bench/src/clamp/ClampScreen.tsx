@@ -85,8 +85,13 @@ export function ClampScreen({ state, targetLogTail, fetchImpl = fetch, onToBench
     onLog?.('human', `clamp · ${data.repoRoot}`, 'bench');
     const s = data.survey;
     onLog?.('bench', `survey · ${s.components.length} components · ${s.routes.length} routes · ${s.endpoints.length} endpoints`, 'survey');
+    // #24: a failed checklist read used to be swallowed — the screen simply showed no
+    // checklist, and the human was left to wonder whether the clamp itself had half-worked.
+    // The clamp above already landed and still says so; this only reports the read.
     const setup = await getSetup(fetchImpl);
-    if (mounted.current && setup.ok) setChecklist(setup.data);
+    if (!mounted.current) return;
+    if (setup.ok) setChecklist(setup.data);
+    else setMessage(`clamped · the setup checklist did not answer · ${setup.message}`);
   }
 
   async function unclampNow(): Promise<void> {

@@ -73,7 +73,10 @@ export function FolderBrowser({ browser, onPick }: FolderBrowserProps) {
 
       {browser.status === 'reading' ? (
         <p className="jig-folder__say">{`reading ${browser.pending ?? browser.path ?? ''} …`}</p>
-      ) : browser.entries.length === 0 ? (
+      ) : browser.entries.length === 0 && browser.status !== 'failed' ? (
+        // #24: a read that FAILED listed nothing either, and this line then explained the
+        // emptiness as a folder with no folders in it — two sentences side by side, one of them
+        // untrue. The server's own words above are the only honest reading in that case.
         <p className="jig-folder__say">
           nothing here but files — a repo folder carries a git, package.json, angular.json or .csproj badge
         </p>
