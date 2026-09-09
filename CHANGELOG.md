@@ -20,6 +20,10 @@ Issue #24 — the small defects the first ten minutes of using Jig turn up, one 
   once the host reports a clamped repo. Neither route exists on an empty host, and both were
   polled from the first frame, so the Clamp screen came with two 404s in the console and one more
   every four seconds.
+- **`--plate-port` (and `--host`) reach the Clamp path** — the CLI parsed both and then dropped
+  them for a bench clamped from the Clamp screen, so the plate came up on an OS-assigned port
+  bound to loopback. It now binds the port `README.md` and `docs/TEST-RUN.md` promise, 4601, and
+  the interface `--host` names, on every clamp.
 
 ## [0.2.0] - 2026-09-07
 

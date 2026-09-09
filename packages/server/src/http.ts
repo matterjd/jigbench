@@ -66,6 +66,10 @@ export interface CreateJigServerOptions {
   /** S3's plate proxy, when the CLI has one running. Wires `GET /api/plate` and flips
    * `wiring.proxy` to `'wired'`. Absent (S1's default): neither happens. */
   plate?: PlateProxyHandle;
+  /** #24: the NO-repoRoot path's counterpart to `plate` — the port every bench the host clamps
+   * at runtime should bind (the CLI's `--plate-port`). On the repoRoot path the CLI builds the
+   * plate itself and passes it as `plate` above, so this is read only by `bench/host.ts`. */
+  platePort?: number;
   /** Test-only override hook (wave-3 council): lets a caller inject a deterministic
    * drafter instead of the real `OllamaDrafter`/`AgentDrafter` `OrdersService` would
    * otherwise construct for itself. Production callers (the CLI's `serve` command,

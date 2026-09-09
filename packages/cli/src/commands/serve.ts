@@ -91,6 +91,10 @@ export async function runServeCommand(options: ServeCommandOptions): Promise<Ser
       port,
       host: options.host,
       openBrowser: options.open ?? true,
+      // #24: `--plate-port` was parsed and then dropped on this path — the plate came up on an
+      // OS-assigned port while README.md and docs/TEST-RUN.md both promise 4601. The host binds
+      // it on every clamp the Clamp screen makes.
+      platePort: options.platePort,
     });
     const message = [`Jig is on the bench: ${handle.url}`, 'No repo clamped yet — open the bench to pick one.'].join('\n');
     return { message, url: handle.url, close: () => handle.close() };
