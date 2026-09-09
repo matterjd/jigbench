@@ -29,6 +29,10 @@ Issue #24 — the small defects the first ten minutes of using Jig turn up, one 
   build's 30-minute cap with the cancel route already unmounted. A generation counter on every
   bench keeps a late target-up, and a clamp the human overtook, out of the bench that came
   after; `TargetRunner` no longer reports a target `stop()` already let go of as up.
+- **a `claude` that exits before reading stdin no longer takes the server down** (from issue
+  #1, not #24) — `build/runner.ts` listens for `child.stdin`'s own errors, so the EPIPE that
+  write lands on is a logged note rather than an uncaught exception. The build's outcome comes
+  from the exit code and the transcript either way.
 
 ## [0.2.0] - 2026-09-07
 

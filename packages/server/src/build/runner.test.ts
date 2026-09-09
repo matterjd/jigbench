@@ -161,6 +161,40 @@ describe('BuildRunner.start — failure exit 1', () => {
   });
 });
 
+// Issue #1 (recorded there under #35): "the unhandled `write EPIPE` from
+// `packages/server/src/build/runner.ts` when the child exits before reading stdin". The runner
+// pipes the prompt into `child.stdin` and never listened for that stream's own errors, so a
+// child that exits first turned an ordinary EPIPE into a process-level uncaught exception —
+// the bench server going down over a prompt whose `claude` never read a byte.
+describe("BuildRunner.start — a child that exits before reading stdin (issue #1's write EPIPE)", () => {
+  it('finishes the build with the child\'s own exit code instead of throwing EPIPE at the process', async () => {
+    process.env.FAKE_CLAUDE_MODE = 'exit-before-stdin';
+    const uncaught: unknown[] = [];
+    const onUncaught = (err: unknown): void => {
+      uncaught.push(err);
+    };
+    process.on('uncaughtException', onUncaught);
+    try {
+      const runner = makeRunner();
+      // Larger than any OS pipe buffer (64KB on Linux, 4KB-64KB elsewhere), so the write is
+      // certainly still in flight when the child goes and the pipe really does close under it.
+      const promptText = 'x'.repeat(1_000_000);
+      const { outcome } = await collectEvents(runner, 'p-epipe', 'b-epipe', promptText);
+
+      expect(outcome.exitCode).toBe(1);
+      expect(outcome.cancelled).toBe(false);
+      // A late EPIPE lands a tick or two after the child's own close — give it room to arrive
+      // inside this test rather than after it.
+      await new Promise((resolve) => setTimeout(resolve, 250));
+      expect(uncaught).toEqual([]);
+      expect(runner.status()).toEqual({ state: 'idle' });
+    } finally {
+      process.off('uncaughtException', onUncaught);
+      delete process.env.FAKE_CLAUDE_MODE;
+    }
+  }, 20_000);
+});
+
 describe('BuildRunner.start — FILES: absent falls back to a git diff', () => {
   it('reports files touched between before/after git status snapshots when no FILES: line is present', async () => {
     await execFileAsync('git', ['init'], { cwd: repoRoot });
