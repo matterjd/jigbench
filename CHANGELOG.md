@@ -16,6 +16,11 @@ Issue #24 — the small defects the first ten minutes of using Jig turn up, one 
   attributes on win32 (one `attrib` per listing, parsed; fail open on any error), so
   `$Recycle.Bin`, `$WINDOWS.~BT`, `System Volume Information` and `Recovery` no longer sit at a
   drive root beside the repos. None of them starts with a dot, which is all the old filter knew.
+- **`--version` is checked where it ships** — `scripts/npx-control.sh` asserts that
+  `jigbench --version` answers the packed `package.json`'s own version, against the tarball that
+  is actually published. The `version.test.ts` case that used to hold this was guarded on
+  `dist/bin.js` existing, and CI runs `npm test` before `npm run build`, so it was skipped on
+  every run.
 
 ## [0.2.0] - 2026-09-07
 
