@@ -24,6 +24,9 @@ Issue #24 — the small defects the first ten minutes of using Jig turn up, one 
   them for a bench clamped from the Clamp screen, so the plate came up on an OS-assigned port
   bound to loopback. It now binds the port `README.md` and `docs/TEST-RUN.md` promise, 4601, and
   the interface `--host` names, on every clamp.
+- **no `util._extend` deprecation on stderr** — the CLI drops `http-proxy@1.18.1`'s DEP0060
+  warning (and only that one; every other warning still prints through Node's own path), so
+  the first thing the plate proxies no longer leaves a line nobody can act on in the terminal.
 
 ## [0.2.0] - 2026-09-07
 
