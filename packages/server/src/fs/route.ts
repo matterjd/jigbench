@@ -5,6 +5,7 @@ import { dirname, join, resolve as resolvePath } from 'node:path';
 import type { Express, Request, Response } from 'express';
 import { isSameOriginOrAbsent } from '../same-origin.js';
 import { isUncPath, UNC_REFUSED_MESSAGE } from './unc-path.js';
+import { hiddenOrSystemNames } from './win32-hidden.js';
 
 /**
  * S17a (AMENDMENT-1 §7, A6): "pick the repo folder in Jig's own folder browser (a page cannot
@@ -145,11 +146,16 @@ export function attachFsRoute(app: Express, options: FsRouteOptions = {}): void 
       }
 
       const dirEntries = await readdir(target, { withFileTypes: true });
-      const names = dirEntries
+      const visible = dirEntries
         .filter((e) => e.isDirectory())
         .map((e) => e.name)
-        .filter((name) => !name.startsWith('.') && !SKIP_DIR_NAMES.has(name))
-        .sort((a, b) => a.localeCompare(b));
+        .filter((name) => !name.startsWith('.') && !SKIP_DIR_NAMES.has(name));
+
+      // #24: a dot prefix is a POSIX convention. Windows keeps the same idea as two bits on the
+      // directory entry, which is why `$Recycle.Bin`, `$WINDOWS.~BT`, `System Volume Information`
+      // and `Recovery` came back at a drive root. Off win32 this is a no-op with no spawn.
+      const flagged = await hiddenOrSystemNames(target, visible);
+      const names = visible.filter((name) => !flagged.has(name)).sort((a, b) => a.localeCompare(b));
 
       const entries = await Promise.all(names.map((name) => describeEntry(target, name)));
       const parentPath = dirname(target);
