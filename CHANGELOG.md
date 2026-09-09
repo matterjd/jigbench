@@ -4,6 +4,15 @@ All notable changes to this project are documented in this file. The format foll
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this project does not yet follow
 semantic versioning strictly (pre-1.0).
 
+## [Unreleased]
+
+Issue #24 — the small defects the first ten minutes of using Jig turn up, one PR each.
+
+- **the app's own log is clean** — `target/runner.ts` strips ANSI escapes (colour, the window
+  title an OSC sequence sets, cursor moves) before it broadcasts `target-log` and before the ring
+  buffer, so a dev server that believes it owns a TTY no longer shows `[33m❯[39m Building...`
+  in the Clamp screen or in the logbook drawer.
+
 ## [0.2.0] - 2026-09-07
 
 The simplification — `docs/design/AMENDMENT-1-the-simplification.md` (rulings A1–A6, Matter,
