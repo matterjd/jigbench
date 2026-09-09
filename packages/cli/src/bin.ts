@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { quietHttpProxyDeprecation } from './quiet-deprecations.js';
 import { Command } from 'commander';
 import { runServeCommand } from './commands/serve.js';
 import { runInitCommand } from './commands/init.js';
@@ -17,6 +18,11 @@ import { logger } from '@jigbench/server';
 // parent and a child to the PARENT's opts — declaring it twice silently drops the value on
 // the child's own `.opts()`, which is the bug this comment is here to stop someone
 // reintroducing.
+// #24: before anything else, so `http-proxy`'s `util._extend` deprecation never reaches a
+// reader who can do nothing about it. See `quiet-deprecations.ts` — it drops that one warning
+// code and leaves every other warning on Node's own path.
+quietHttpProxyDeprecation();
+
 const program = new Command();
 program
   .name('jigbench')

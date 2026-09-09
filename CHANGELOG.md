@@ -42,6 +42,9 @@ Issue #24 — the small defects the first ten minutes of using Jig turn up, one 
   frame lands. `state` is null until then, and the Clamp screen's gate was `state.bench ===
   null`, which that null is not — so the rail, the plate and the right column painted for a
   frame and were replaced. One honest line holds the screen instead.
+- **no `util._extend` deprecation on stderr** — the CLI drops `http-proxy@1.18.1`'s DEP0060
+  warning (and only that one; every other warning still prints through Node's own path), so
+  the first thing the plate proxies no longer leaves a line nobody can act on in the terminal.
 
 ## [0.2.0] - 2026-09-07
 
