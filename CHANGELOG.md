@@ -29,6 +29,11 @@ Issue #24 — the small defects the first ten minutes of using Jig turn up, one 
   build's 30-minute cap with the cancel route already unmounted. A generation counter on every
   bench keeps a late target-up, and a clamp the human overtook, out of the bench that came
   after; `TargetRunner` no longer reports a target `stop()` already let go of as up.
+- **`--version` is checked where it ships** — `scripts/npx-control.sh` asserts that
+  `jigbench --version` answers the packed `package.json`'s own version, against the tarball that
+  is actually published. The `version.test.ts` case that used to hold this was guarded on
+  `dist/bin.js` existing, and CI runs `npm test` before `npm run build`, so it was skipped on
+  every run.
 - **wording and stale citations** — the Clamp screen says so when the checklist read fails after
   a clamp instead of showing nothing; the folder browser no longer says "nothing here but
   files" beside the server's own words about a read that failed; the setup step's stop button
