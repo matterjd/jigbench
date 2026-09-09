@@ -10,6 +10,23 @@ describe('StatusLine', () => {
     expect(screen.getByText(/not installed/)).toBeTruthy();
   });
 
+  // #24 (the 0.2.0 review): "the status line reads 'Claude · not installed' before any repo is
+  // clamped". `wiring.claude` is the `claude`-on-PATH probe, and that probe only runs when a
+  // bench is created — so before a clamp the line was not reporting a finding, it was reporting
+  // a question nobody had asked yet. The empty host's `EMPTY_WIRING.claude` is 'none' for
+  // exactly that reason.
+  it('#24: says nothing about Claude before a repo is clamped — the probe has not run', () => {
+    render(<StatusLine wired={false} clamped={false} status={undefined} logbookOpen={false} onToggleLogbook={vi.fn()} />);
+    expect(screen.queryByText(/not installed/)).toBeNull();
+    expect(screen.getByText(/nothing clamped/)).toBeTruthy();
+    expect(screen.getByRole('button', { name: /Claude/ })).toBeTruthy(); // the line is on every screen
+  });
+
+  it('#24: once a repo is clamped, "not installed" means the binary again', () => {
+    render(<StatusLine wired={false} clamped status={undefined} logbookOpen={false} onToggleLogbook={vi.fn()} />);
+    expect(screen.getByText(/not installed/)).toBeTruthy();
+  });
+
   it('shows "Claude · idle" at rest when installed', () => {
     render(<StatusLine wired status={{ state: 'idle' }} logbookOpen={false} onToggleLogbook={vi.fn()} />);
     expect(screen.getByText(/idle/)).toBeTruthy();

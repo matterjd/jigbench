@@ -34,6 +34,10 @@ Issue #24 — the small defects the first ten minutes of using Jig turn up, one 
   is actually published. The `version.test.ts` case that used to hold this was guarded on
   `dist/bin.js` existing, and CI runs `npm test` before `npm run build`, so it was skipped on
   every run.
+- **the status line stops guessing before a clamp** — `wiring.claude` is the `claude`-on-PATH
+  probe, and that probe only runs when a bench is created, so `Claude · not installed` on the
+  Clamp screen was an answer to a question nobody had asked. It reads `Claude · nothing clamped`
+  until a repo is on the bench; `docs/USING.md` and `docs/TEST-RUN.md` say so.
 - **no `util._extend` deprecation on stderr** — the CLI drops `http-proxy@1.18.1`'s DEP0060
   warning (and only that one; every other warning still prints through Node's own path), so
   the first thing the plate proxies no longer leaves a line nobody can act on in the terminal.
