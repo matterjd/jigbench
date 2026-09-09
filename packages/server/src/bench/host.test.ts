@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { mkdtemp, mkdir, readdir, rm, writeFile } from 'node:fs/promises';
 import { request as httpRequest } from 'node:http';
+import { createServer as createTcpServer } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { BuildOutcome, BuildRunnerLike, ClaudeStatus, StartBuildInput } from '../build/types.js';
@@ -36,6 +37,20 @@ afterEach(async () => {
   await Promise.all(dirs.map((d) => rm(d, { recursive: true, force: true })));
   dirs = [];
 });
+
+/** A port nothing is on right now — never a fixed number, so two CI legs on one runner (or a
+ * developer with the real 4601 in use) can run this file at the same time. */
+async function freePort(): Promise<number> {
+  return new Promise((resolve, reject) => {
+    const srv = createTcpServer();
+    srv.on('error', reject);
+    srv.listen(0, '127.0.0.1', () => {
+      const addr = srv.address();
+      const port = typeof addr === 'object' && addr ? addr.port : 0;
+      srv.close(() => resolve(port));
+    });
+  });
+}
 
 async function freshRepo(): Promise<string> {
   const d = await mkdtemp(join(tmpdir(), 'jig-host-'));
@@ -247,6 +262,50 @@ describe('#18: the Host allowlist and UNC rejection on the bench host', () => {
     const port = new URL(h.url).port;
     expect((await rawRequest(`${h.url}/api/state`, { headers: { host: `127.0.0.1:${port}` } })).status).toBe(200);
     expect((await rawRequest(`${h.url}/api/state`, { headers: { host: `attacker.example:${port}` } })).status).toBe(403);
+  });
+});
+
+// #24 (the 0.2.0 review): "`--plate-port` is ignored on the Clamp-screen path (the plate came up
+// on an OS-assigned port, 56258) while README.md:49 and docs/TEST-RUN.md:12 promise 4601." The
+// CLI parsed the number and `createBench` already knew what to do with one; nothing carried it
+// from `serve.ts` through `createJigServer` to the host, so every runtime clamp got port 0.
+describe('#24: the plate binds the port it was given (--plate-port on the Clamp path)', () => {
+  it('a clamp made at runtime binds platePort, and something really answers there', async () => {
+    const platePort = await freePort();
+    const h = await boot({ platePort });
+    const repoRoot = await freshRepo();
+
+    const res = await fetch(`${h.url}/api/clamp`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ repoRoot }),
+    });
+    expect(res.status).toBe(200);
+
+    expect(h.getBench()?.plate.port).toBe(platePort);
+    expect(h.getBench()?.plate.url).toBe(`http://localhost:${platePort}/`);
+    // `plate.port` falls back to the number it ASKED for when the socket has no address yet, so
+    // the number alone would pass even if the bind had failed. This is the half that cannot.
+    const onThePort = await fetch(`http://127.0.0.1:${platePort}/`);
+    expect(onThePort.status).toBe(200);
+  });
+
+  it('the --repo-at-boot clamp binds it too', async () => {
+    const platePort = await freePort();
+    const repoRoot = await freshRepo();
+    const h = await boot({ platePort, repoRoot });
+    expect(h.getBench()?.plate.port).toBe(platePort);
+  });
+
+  it('with no platePort a clamp still takes an OS-assigned port, so nothing collides', async () => {
+    const h = await boot();
+    const repoRoot = await freshRepo();
+    await fetch(`${h.url}/api/clamp`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ repoRoot }),
+    });
+    expect(h.getBench()?.plate.port).toBeGreaterThan(0);
   });
 });
 
