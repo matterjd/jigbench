@@ -29,6 +29,11 @@ Issue #24 — the small defects the first ten minutes of using Jig turn up, one 
   build's 30-minute cap with the cancel route already unmounted. A generation counter on every
   bench keeps a late target-up, and a clamp the human overtook, out of the bench that came
   after; `TargetRunner` no longer reports a target `stop()` already let go of as up.
+- **`--version` is checked where it ships** — `scripts/npx-control.sh` asserts that
+  `jigbench --version` answers the packed `package.json`'s own version, against the tarball that
+  is actually published. The `version.test.ts` case that used to hold this was guarded on
+  `dist/bin.js` existing, and CI runs `npm test` before `npm run build`, so it was skipped on
+  every run.
 - **no empty-bench flash** — the bench draws nothing of itself until the host's first state
   frame lands. `state` is null until then, and the Clamp screen's gate was `state.bench ===
   null`, which that null is not — so the rail, the plate and the right column painted for a
