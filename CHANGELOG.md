@@ -38,6 +38,10 @@ Issue #24 — the small defects the first ten minutes of using Jig turn up, one 
   probe, and that probe only runs when a bench is created, so `Claude · not installed` on the
   Clamp screen was an answer to a question nobody had asked. It reads `Claude · nothing clamped`
   until a repo is on the bench; `docs/USING.md` and `docs/TEST-RUN.md` say so.
+- **no empty-bench flash** — the bench draws nothing of itself until the host's first state
+  frame lands. `state` is null until then, and the Clamp screen's gate was `state.bench ===
+  null`, which that null is not — so the rail, the plate and the right column painted for a
+  frame and were replaced. One honest line holds the screen instead.
 - **no `util._extend` deprecation on stderr** — the CLI drops `http-proxy@1.18.1`'s DEP0060
   warning (and only that one; every other warning still prints through Node's own path), so
   the first thing the plate proxies no longer leaves a line nobody can act on in the terminal.
