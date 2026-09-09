@@ -29,6 +29,11 @@ Issue #24 — the small defects the first ten minutes of using Jig turn up, one 
   build's 30-minute cap with the cancel route already unmounted. A generation counter on every
   bench keeps a late target-up, and a clamp the human overtook, out of the bench that came
   after; `TargetRunner` no longer reports a target `stop()` already let go of as up.
+- **`--version` is checked where it ships** — `scripts/npx-control.sh` asserts that
+  `jigbench --version` answers the packed `package.json`'s own version, against the tarball that
+  is actually published. The `version.test.ts` case that used to hold this was guarded on
+  `dist/bin.js` existing, and CI runs `npm test` before `npm run build`, so it was skipped on
+  every run.
 - **the status line stops guessing before a clamp** — `wiring.claude` is the `claude`-on-PATH
   probe, and that probe only runs when a bench is created, so `Claude · not installed` on the
   Clamp screen was an answer to a question nobody had asked. It reads `Claude · nothing clamped`

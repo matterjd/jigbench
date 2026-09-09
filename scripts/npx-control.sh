@@ -139,6 +139,27 @@ cp "$TARBALL" "$STAGE/$TGZ_NAME"
     -m "seed: npx-control fixture (ledger-angular + ledger-api)"
 )
 
+# #24: `packages/cli/src/version.test.ts` guarded its `jigbench --version` case with
+# `it.skipIf(!existsSync(dist/bin.js))`, and ci.yml runs `npm test` BEFORE `npm run build` — so
+# on every CI run that case was skipped and nothing ever checked that the shipped binary answers
+# its own package.json version. That check belongs here anyway: this control runs after the
+# release build, against the artifact that will actually be published. The expected value is read
+# out of the TARBALL's own package.json, so no release ever has to edit this line.
+echo "== npx control: --version answers the packed package.json's own version ==" >&2
+PACKED_VERSION="$(tar -xzOf "$TARBALL" package/package.json | node -e 'let s="";process.stdin.on("data",(d)=>{s+=d}).on("end",()=>{process.stdout.write(JSON.parse(s).version??"")})')"
+if [ -z "$PACKED_VERSION" ]; then
+  echo "FAIL: could not read a version out of package/package.json in $TGZ_NAME" >&2
+  exit 1
+fi
+# `tr -d '\r'` for Git Bash on windows-latest; `tail -1` so an npm notice on the way in cannot
+# be mistaken for the answer.
+VERSION_OUT="$(cd "$STAGE" && npx --yes "./$TGZ_NAME" --version 2>/dev/null | tr -d '\r' | tail -1)"
+if [ "$VERSION_OUT" != "$PACKED_VERSION" ]; then
+  echo "FAIL: 'jigbench --version' printed '$VERSION_OUT'; package/package.json in $TGZ_NAME says '$PACKED_VERSION'" >&2
+  exit 1
+fi
+echo "OK: --version answers $PACKED_VERSION" >&2
+
 echo "== npx control: survey ==" >&2
 SURVEY_OUT="$(cd "$STAGE" && npx --yes "./$TGZ_NAME" survey 2>&1)"
 echo "$SURVEY_OUT" >&2
