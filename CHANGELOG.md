@@ -24,6 +24,11 @@ Issue #24 — the small defects the first ten minutes of using Jig turn up, one 
   them for a bench clamped from the Clamp screen, so the plate came up on an OS-assigned port
   bound to loopback. It now binds the port `README.md` and `docs/TEST-RUN.md` promise, 4601, and
   the interface `--host` names, on every clamp.
+- **unclamp no longer waits out a build** — the host cancels an in-flight `claude -p` build
+  before it drains, so unclamp and re-clamp return at once instead of blocking for up to the
+  build's 30-minute cap with the cancel route already unmounted. A generation counter on every
+  bench keeps a late target-up, and a clamp the human overtook, out of the bench that came
+  after; `TargetRunner` no longer reports a target `stop()` already let go of as up.
 - **no `util._extend` deprecation on stderr** — the CLI drops `http-proxy@1.18.1`'s DEP0060
   warning (and only that one; every other warning still prints through Node's own path), so
   the first thing the plate proxies no longer leaves a line nobody can act on in the terminal.
