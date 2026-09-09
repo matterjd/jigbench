@@ -39,6 +39,10 @@ export interface PlateBenchProps {
   /** S12 (AMENDMENT-1 §4): "no rulers or guides by default" — the app fills the plate. Off by
    * default; the Advanced drawer's "rulers & guides" switch is the only way to turn this on. */
   showRulers?: boolean;
+  /** #24: false while the host reports no clamped repo — `GET /api/plate` does not exist on an
+   * empty host, and polling it logged a 404 every four seconds before anything was clamped.
+   * Defaults true, so every existing caller (and test) that never heard of it is unaffected. */
+  poll?: boolean;
 }
 
 export interface PlateBenchHandle {
@@ -58,12 +62,12 @@ export interface PlateBenchHandle {
  * `usePlateBridge` postMessage wiring; the Loupe readout itself now lives in the Properties
  * column (`onPick`/`onModeChange` mirror the bridge's state up there). */
 export const PlateBench = forwardRef<PlateBenchHandle, PlateBenchProps>(function PlateBench(
-  { survey, gauges, fetchImpl, onPick, onModeChange, iframeRef: externalIframeRef, onPlateOriginChange, onEvent, showRulers = false },
+  { survey, gauges, fetchImpl, onPick, onModeChange, iframeRef: externalIframeRef, onPlateOriginChange, onEvent, showRulers = false, poll = true },
   ref,
 ) {
   const internalIframeRef = useRef<HTMLIFrameElement>(null);
   const iframeRef = externalIframeRef ?? internalIframeRef;
-  const status = usePlatePoll(fetchImpl);
+  const status = usePlatePoll(fetchImpl, poll);
   const plateOrigin = status.status === 'up' ? `http://localhost:${status.port}` : null;
 
   const selectors: SurveySelector[] = useMemo(

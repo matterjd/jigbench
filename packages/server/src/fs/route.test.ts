@@ -4,7 +4,15 @@ import { createServer as createHttpServer, request as httpRequest, type Server a
 import { mkdtemp, mkdir, writeFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { execFile } from 'node:child_process';
+import { promisify } from 'node:util';
 import { attachFsRoute } from './route.js';
+
+const execFileAsync = promisify(execFile);
+
+/** #24's hidden/system filter is a win32 attribute — there is nothing to set anywhere else, so
+ * this skips off Windows and runs for real on CI's windows-latest leg. */
+const itOnWin32 = process.platform === 'win32' ? it : it.skip;
 
 let server: HttpServer | undefined;
 let url = '';
@@ -113,6 +121,29 @@ describe('GET /api/fs/list', () => {
     expect(myApp.hasAngularJson).toBe(false);
     expect(myApp.hasCsproj).toBe(false);
     expect(myApp.hasDocs).toBe(true);
+  });
+
+  // #24 (the 0.2.0 review): "the folder browser lists Windows hidden and system folders at a
+  // drive root ($Recycle.Bin, $WINDOWS.~BT, System Volume Information, Recovery). The filter is
+  // dot-prefix only". None of those names starts with a dot, so nothing above could see them.
+  itOnWin32('#24: excludes folders carrying the Windows hidden or system attribute, which no dot prefix catches', async () => {
+    const repoRoot = await freshDir();
+    for (const name of ['plain-app', 'hidden-one', 'system-one', 'both-one']) {
+      await mkdir(join(repoRoot, name), { recursive: true });
+    }
+    // The same tool the route reads back with, used here to make the fixture — an `attrib` that
+    // could not set the bits would leave the folders visible and fail this test loudly.
+    await execFileAsync('attrib', ['+h', '/d', join(repoRoot, 'hidden-one')]);
+    await execFileAsync('attrib', ['+s', '/d', join(repoRoot, 'system-one')]);
+    await execFileAsync('attrib', ['+h', '+s', '/d', join(repoRoot, 'both-one')]);
+
+    const { url } = await boot();
+    const res = await fetch(`${url}/api/fs/list?path=${encodeURIComponent(repoRoot)}`);
+    expect(res.status).toBe(200);
+    const body = await res.json();
+
+    const names = body.entries.map((e: { name: string }) => e.name).sort();
+    expect(names).toEqual(['plain-app']);
   });
 
   it('never returns file contents — only directory metadata', async () => {

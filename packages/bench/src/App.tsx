@@ -82,7 +82,19 @@ export function App() {
   const [localText, setLocalText] = useState('');
   const [localAcceptance, setLocalAcceptance] = useState<string[]>([]);
 
-  const prompts = usePrompts({ buildEvent: lastBuildEvent, claudeStatus: state?.status?.claude, benchKey: state?.bench?.repoRoot ?? null });
+  // #24: the two polls wait for a bench. `state === null` is "the host has not said yet" (the
+  // WS frame has not landed) and `state.bench === null` is "there is nothing clamped" — neither
+  // has a `/api/plate` or `/api/prompts` to answer, and the review found the bench logging a 404
+  // to each before the human had picked a folder. `bench: undefined` (a server older than S17b)
+  // stays enabled: it never says there is no bench, so nothing here may assume one.
+  const benchClamped = state !== null && state.bench !== null;
+
+  const prompts = usePrompts({
+    buildEvent: lastBuildEvent,
+    claudeStatus: state?.status?.claude,
+    benchKey: state?.bench?.repoRoot ?? null,
+    enabled: benchClamped,
+  });
 
   // Measures the plate's own box (the outer chassis region, not the cross-origin iframe inside
   // it) so the card can place itself against a plate-local rect it never had to walk the DOM
@@ -267,6 +279,7 @@ export function App() {
                 iframeRef={plateIframeRef}
                 onPlateOriginChange={setPlateOrigin}
                 showRulers={rulersOn}
+                poll={benchClamped}
               />
             )}
             {cardTarget && (
