@@ -10,6 +10,7 @@ import { TargetRunner } from './runner.js';
 const fixturesDir = fileURLToPath(new URL('./__fixtures__', import.meta.url));
 const SERVER_FIXTURE = join(fixturesDir, 'fake-target-server.mjs');
 const EXIT1_FIXTURE = join(fixturesDir, 'fake-target-exit1.mjs');
+const ANSI_FIXTURE = join(fixturesDir, 'fake-target-ansi.mjs');
 
 async function freePort(): Promise<number> {
   return new Promise((resolve, reject) => {
@@ -95,6 +96,32 @@ describe('TargetRunner', () => {
       runner.start({ command: process.execPath, args: [SERVER_FIXTURE, String(port + 1)], cwd: fixturesDir, port }),
     ).rejects.toThrow(/did not answer/i);
     expect(runner.getState().status).toBe('none');
+  });
+
+  // #24 (the 0.2.0 review): the app's own log showed `\x1B[33m❯\x1B[39m Building...` verbatim in
+  // the Clamp screen and in the logbook drawer, because a dev server that believes it owns a TTY
+  // writes colour. The runner is the one place both readers pass through, so it strips there —
+  // before `onLog` AND before the ring buffer, so the tail folded into a `start()` failure is clean
+  // too.
+  it('strips ANSI escapes from the lines it broadcasts and retains — the app log carries no [33m', async () => {
+    const port = await freePort();
+    const lines: string[] = [];
+    runner = new TargetRunner({
+      onLog: (l) => lines.push(l),
+      onStateChange: () => {},
+      probeIntervalMs: 50,
+      probeTimeoutMs: 5_000,
+    });
+
+    await expect(
+      runner.start({ command: process.execPath, args: [ANSI_FIXTURE], cwd: fixturesDir, port }),
+    ).rejects.toThrow(/exited/i);
+
+    // Colour (CSI), a window title (OSC ... BEL) and a reset all gone; the words survive intact.
+    expect(lines).toContain('❯ Building...');
+    expect(lines).toContain('compiled successfully');
+    expect(lines.some((l) => /[\x1B\x07]/.test(l))).toBe(false);
+    expect(runner.getLogTail().some((l) => /[\x1B\x07]/.test(l))).toBe(false);
   });
 
   // #10 (S17a follow-up): "verify the win32 `cmd.exe /d /s /c npm run <script>` invocation on

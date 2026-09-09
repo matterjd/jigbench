@@ -62,6 +62,22 @@ function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+/** #24 (the 0.2.0 review): a dev server that believes it owns a TTY writes colour, so the app's
+ * own log arrived in the Clamp screen and the logbook drawer as `\x1B[33m\u276F\x1B[39m
+ * Building...`. Three shapes cover everything `ng serve`, `vite` and npm itself emit:
+ *   - CSI  `ESC [` params intermediates final  — colour, bold, cursor moves
+ *   - OSC  `ESC ]` ... `BEL` or `ESC \`        — the window title `ng serve` sets
+ *   - the two-character escapes in between (`ESC c`, `ESC 7`, ...)
+ * Stripped in `log()` — before `onLog` and before the ring buffer — because the broadcast, the
+ * tail `getLogTail()` returns and the tail folded into a `start()` failure all read the same
+ * lines, and none of them is a terminal. */
+const ANSI_ESCAPE =
+  /\u001B(?:\[[0-?]*[ -/]*[@-~]|\][^\u0007\u001B]*(?:\u0007|\u001B\\)|[@-Z\\-_])/g;
+
+export function stripAnsi(line: string): string {
+  return line.replace(ANSI_ESCAPE, '');
+}
+
 async function probeOnce(url: string, requestTimeoutMs: number): Promise<boolean> {
   try {
     // Any HTTP response — even a 404 or 500 — proves something is listening and speaking
@@ -130,7 +146,8 @@ export class TargetRunner implements TargetRunnerLike {
     this.opts.onStateChange(next);
   }
 
-  private log(line: string): void {
+  private log(raw: string): void {
+    const line = stripAnsi(raw);
     this.ring.push(line);
     if (this.ring.length > this.ringBufferSize) this.ring.shift();
     this.opts.onLog(line);
