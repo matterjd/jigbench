@@ -361,6 +361,7 @@ export function App() {
         statusLine={
           <StatusLine
             wired={state?.wiring.claude === 'installed'}
+            clamped={benchClamped}
             status={state?.status?.claude}
             lastEventText={lastEventText}
             logbookOpen={logbookOpen}
