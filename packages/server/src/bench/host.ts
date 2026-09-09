@@ -55,6 +55,13 @@ export interface CreateBenchHostOptions {
    * runtime `POST /api/clamp` is; an invalid path here is a startup failure (thrown), not a
    * 400 (there is no HTTP response to send yet). */
   repoRoot?: string;
+  /** #24: the plate proxy's listening port, for every bench this host clamps — the CLI's
+   * `--plate-port` (default 4601, the number `README.md` and `docs/TEST-RUN.md` promise). The
+   * Clamp path had no way to hear it, so every runtime clamp took an OS-assigned port instead.
+   * Omitted, that stays the behaviour: port 0, so nothing can collide. Safe as a fixed number
+   * because `clampTo` closes the previous bench — and with it the previous plate's listening
+   * socket — before it creates the next one. */
+  platePort?: number;
   /** Test-only override for where `recordRecentBench`/`readRecentBenches` read and write.
    * Defaults to `~/.jig/recent.json`. */
   recentBenchesFile?: string;
@@ -253,6 +260,8 @@ export async function createBenchHost(options: CreateBenchHostOptions = {}): Pro
 
     const bench = await createBench(repoRoot, {
       benchOrigin,
+      host: options.host,
+      platePort: options.platePort,
       claude: options.claude,
       runner: options.runner,
       ollama: options.ollama,
