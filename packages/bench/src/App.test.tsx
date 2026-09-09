@@ -72,6 +72,11 @@ const clampScreenState = {
   recent: [{ repoRoot: '/home/you/ledger-angular', clampedAt: new Date().toISOString() }],
 };
 
+/** A clamped host: the same frame with a real `bench`. #24 gates the bench's own polls on it —
+ * `GET /api/plate` and `GET /api/prompts` exist only once a repo is clamped — so a test that
+ * expects either to be asked for says so by sending this first. */
+const clampedState = { ...clampScreenState, bench: { repoRoot: '/home/you/ledger-angular' } };
+
 function sendState(state: unknown): void {
   act(() => {
     FakeWebSocket.instances[0]!.onmessage?.({ data: JSON.stringify({ type: 'state', state }) });
@@ -133,6 +138,7 @@ describe('App (S12: the quiet bench)', () => {
 
   it('the Prompts tab says so in words when /api/prompts 404s (no repo clamped on this server)', async () => {
     render(<App />);
+    sendState(clampedState); // #24: the list is asked for only once the host reports a bench
     await waitFor(() => expect(screen.getByText(/no prompts route on this server — clamp a repo first/i)).toBeTruthy());
   });
 
@@ -176,6 +182,7 @@ describe('App (S12: the quiet bench)', () => {
         : undefined,
     );
     render(<App />);
+    sendState(clampedState); // #24: the plate poll runs only once the host reports a bench
     const dialog = await pickOnPlate({
       path: 'app-invoice-list',
       tag: 'app-invoice-list',
@@ -194,6 +201,7 @@ describe('App (S12: the quiet bench)', () => {
         : undefined,
     );
     render(<App />);
+    sendState(clampedState); // #24: the plate poll runs only once the host reports a bench
     await pickOnPlate({ path: 'x', tag: 'div', text: '', component: 'InvoiceListComponent', file: 'x.ts', rect: { x: 0, y: 0, width: 10, height: 10 } });
 
     fireEvent.change(screen.getByPlaceholderText(/what should change here/i), { target: { value: 'show days overdue' } });
@@ -235,6 +243,28 @@ describe('App (S17b: the Clamp screen, the logbook drawer, the setup drawer)', (
     expect(screen.queryByRole('button', { name: /^Point —/ })).toBeNull();
     // the status line stays — it is the one line on every screen
     expect(screen.getByRole('button', { name: /Claude/ })).toBeTruthy();
+  });
+
+  // #24 (the 0.2.0 review): "before a clamp the bench polls GET /api/plate and GET /api/prompts
+  // and logs two 404s to the console. Gate those hooks on state.bench." Neither route exists on
+  // an empty host — there is no bench to answer for — so both wait for one.
+  it('#24: asks for neither /api/plate nor /api/prompts while the host reports bench: null', async () => {
+    render(<App />);
+    sendState(clampScreenState);
+    await screen.findByRole('heading', { name: /Clamp/ });
+
+    // Both hooks fire once the moment their effect runs — that is the 404 pair the review saw —
+    // and neither even installs its interval while the gate is shut, so the mount is the whole
+    // question. One flush past the state frame is enough to see it.
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    const asked = vi.mocked(fetch).mock.calls.map((call) => String(call[0]));
+    expect(asked.filter((url) => url.includes('/api/plate'))).toEqual([]);
+    expect(asked.filter((url) => url.includes('/api/prompts'))).toEqual([]);
+    // The Clamp screen's own reads still happen — this gates the bench's polls, not the screen.
+    expect(asked.some((url) => url.includes('/api/fs/roots'))).toBe(true);
   });
 
   it('a repo clamped elsewhere while the screen is up offers "go to the bench", and the bench comes back', async () => {

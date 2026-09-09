@@ -22,11 +22,19 @@ export type FetchLike = typeof fetch;
 /** Polls `GET /api/plate` (S3) so the plate region can show an honest "no target" / "target
  * unreachable" message instead of an iframe that would just fail to load. A 404 (no plate
  * proxy configured at all — older `jigbench` builds, or `serve` started with no plate)
- * degrades to the same honest "none" state rather than an error. */
-export function usePlatePoll(fetchImpl: FetchLike = fetch): PlateApiStatus {
+ * degrades to the same honest "none" state rather than an error.
+ *
+ * #24: `enabled` false asks nothing at all — no first poll, no interval. An empty host has no
+ * plate to answer for, and the review found the bench logging a 404 every four seconds before
+ * anything was clamped. The resting `NONE_STATUS` is the same answer that 404 produced. */
+export function usePlatePoll(fetchImpl: FetchLike = fetch, enabled = true): PlateApiStatus {
   const [status, setStatus] = useState<PlateApiStatus>(NONE_STATUS);
 
   useEffect(() => {
+    if (!enabled) {
+      setStatus(NONE_STATUS);
+      return;
+    }
     let cancelled = false;
 
     async function poll(): Promise<void> {
@@ -51,7 +59,7 @@ export function usePlatePoll(fetchImpl: FetchLike = fetch): PlateApiStatus {
       cancelled = true;
       clearInterval(id);
     };
-  }, [fetchImpl]);
+  }, [fetchImpl, enabled]);
 
   return status;
 }
