@@ -13,7 +13,7 @@ Matter decides first. **Size:** `S` one sitting, `M` a session, `L` a session an
 
 ## 0 · Release 0.2.0
 
-### R0 · release 0.2.0 · Matter's hands only
+### R0 · release 0.2.0 · Matter's hands only · SHIPPED 2026-09-08 19:09 CDT (jigbench@0.2.0 on npm, tag v0.2.0 → a34fd89, GitHub release with the tarball)
 **S · ruling · after nothing (both gates are on `main`) · prompt** `00-release-0-2-0.md` (a desk runbook, not a paste block)
 
 **Goal.** `jigbench@0.2.0` on npm, tagged, released, and retested on this desk. **Why now.** Every
