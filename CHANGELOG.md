@@ -29,6 +29,11 @@ Issue #24 — the small defects the first ten minutes of using Jig turn up, one 
   build's 30-minute cap with the cancel route already unmounted. A generation counter on every
   bench keeps a late target-up, and a clamp the human overtook, out of the bench that came
   after; `TargetRunner` no longer reports a target `stop()` already let go of as up.
+- **`--version` is checked where it ships** — `scripts/npx-control.sh` asserts that
+  `jigbench --version` answers the packed `package.json`'s own version, against the tarball that
+  is actually published. The `version.test.ts` case that used to hold this was guarded on
+  `dist/bin.js` existing, and CI runs `npm test` before `npm run build`, so it was skipped on
+  every run.
 - **a `claude` that exits before reading stdin no longer takes the server down** (from issue
   #1, not #24) — `build/runner.ts` listens for `child.stdin`'s own errors, so the EPIPE that
   write lands on is a logged note rather than an uncaught exception. The build's outcome comes
