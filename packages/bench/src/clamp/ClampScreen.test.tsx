@@ -178,6 +178,26 @@ describe('ClampScreen', () => {
     expect(document.querySelectorAll('[class*="ember"]')).toHaveLength(0);
   });
 
+  // #24 (the 0.2.0 review): "ClampScreen.tsx:89 swallows a failed setup read". The clamp lands
+  // and then the checklist is fetched; when that fetch failed the screen just showed no
+  // checklist, with nothing said about why, and the human was left to wonder whether the clamp
+  // itself had half-worked.
+  it('#24: says so when the checklist read fails after a clamp, instead of showing nothing', async () => {
+    const { fetchImpl } = routeStub({
+      ...fsRoutes,
+      'POST /api/clamp': { status: 200, body: clampResult({ repoRoot: REPO }) },
+      'GET /api/setup': { status: 500, body: { error: 'the setup route fell over' } },
+    });
+    render(<ClampScreen {...props({ fetchImpl })} />);
+    fireEvent.change(screen.getByLabelText('the repo folder — picked above or pasted'), { target: { value: REPO } });
+    fireEvent.click(screen.getByRole('button', { name: 'Clamp' }));
+
+    expect(await screen.findByText(/the setup checklist did not answer · the setup route fell over/)).toBeTruthy();
+    // The clamp itself still happened, and the screen still moves on to what the survey found —
+    // only the checklist read failed, and only that is what the line reports.
+    expect(screen.getByText('what the survey found')).toBeTruthy();
+  });
+
   it('typing a path and clicking Clamp POSTs it — and that button is the ONE ember on the screen', async () => {
     const { fetchImpl, calls } = routeStub({
       ...fsRoutes,
