@@ -52,21 +52,25 @@ retest is the first drive of the shipped package, so its list is the truest defe
 - Each PR is test-first, with the red line quoted in the commit body.
 - `CHANGELOG.md`'s Unreleased section names each fix in one line.
 
-### S19 · issue #24, the small fixes
+### S19 · issue #24, the small fixes · SHIPPED 2026-09-09 (main at `ab89f7b`; record on issue #1)
 **M · green · after R0 · prompt** `02-small-fixes.md`
 
-**Goal.** Close #24's list, one PR each. **Why now.** Eleven small defects sit in the first ten
-minutes of using Jig: raw ANSI escapes in the app's own log; hidden and system folders at a drive
-root; the two 404s the bench logs before a clamp; `--plate-port` ignored on the Clamp path; unclamp
-waiting on an in-flight build; the two remaining read windows in `prompts/store.ts` and the
-unawaited store start in `mcp/prompt-tools.ts`; `version.test.ts` skipped in CI; "not installed"
-before a clamp; the empty-bench frame; the `util._extend` deprecation; the wording and stale
-citations. Plus the `write EPIPE` from `build/runner.ts` recorded on issue #1 under #35.
+**Goal.** Close #24's list, one PR each. **Why now.** Eleven small defects sat in the first ten
+minutes of using Jig.
 
-**Acceptance.**
-- One PR per item, each red-first, or a note in the PR saying what was checked by hand instead.
-- `README.md` and `docs/TEST-RUN.md` name plate port 4601 only if `--plate-port` is honoured there.
-- #24 closes with every box ticked, or the leftovers refiled as their own issues.
+**Shipped.** Eleven PRs, each merged with both CI legs green at its head, in #24's own order:
+#41 ANSI in the app's own log · #42 the win32 hidden/system attributes · #43 the pre-clamp 404s ·
+#44 `--plate-port` and `--host` on the Clamp path · #46 unclamp cancels before it drains (plus a
+generation counter per bench, and `TargetRunner` no longer reporting a target `stop()` let go of
+as up) · #47 `--version` in `scripts/npx-control.sh` · #48 the status line before a clamp ·
+#49 the empty-bench frame · #50 the `util._extend` deprecation · #51 wording and stale citations ·
+#52 the `write EPIPE` (from issue #1, not #24). One item needed no PR: #24's ENOENT windows and
+the unawaited MCP store were already closed by PR #27 (`4228cb9`) — the citation predates it.
+main's one red push run, at `365ebef`, was root-caused the same day as its own PR (#45).
+
+**Acceptance.** All three met: one PR per item, each red-first with the red line quoted;
+`README.md` and `docs/TEST-RUN.md` name 4601 and #44 makes it true on that path; #24 closed with
+every box ticked and nothing refiled.
 
 ### S20 · issue #37, the hardening items
 **M · amber (two items touch the Host and Origin gates) · after R0 · prompt** `03-hardening.md`

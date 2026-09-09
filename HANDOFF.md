@@ -1,21 +1,106 @@
 # HANDOFF — next-session entry point
 
-**seat:** Delivery · **branch:** `main` · **written:** 2026-09-08 19:21 CDT (the desk, after the roadmap pass and the reviewer's edits) · code at `a34fd89` = **v0.2.0, SHIPPED 2026-09-08 19:09 CDT** (npm, tag, release), CI green on both legs at every PR head · **both publish gates are cleared: #35 landed at `90837fe` (PR #38, head `3e67fd7`, run 34215684878) and #36 at `a34fd89` (PR #39, head `d052a74`, run 34216255045); the push runs on main are green at both shas (34216085011, 34216755707). 0.2.0 is Matter's to publish, pending the desk verification the lead is running now. The frontier is `docs/ROADMAP.md` and the paste-ready prompts under `docs/team/cloud/`.**
+**seat:** Delivery (remote — no Browser pane, no Windows desk, no .NET SDK, no Ollama, no real
+`claude` binary; CI is the only gate) · **branch:** `main` · **written:** 2026-09-09 · code at
+`ab89f7b` · **S19 is shipped: issue #24's whole list is on `main`, one PR per item, each merged
+with both CI legs green at its head. `docs/ROADMAP.md`'s S19 row says so and issue #1 carries
+every sha and run id. 0.2.0 is on npm (`a34fd89`, tag `v0.2.0`); nothing new is tagged or
+published. The frontier is the next `docs/team/cloud/` prompt in sequence: S20 (issue #37) or
+S21 (issue #23's rulings).**
 
 ## State
 
-Founded 2026-09-05 from the Design seat's commission (`docs/design/COMMISSION.md`, F1–F22; the plan is #1, APPROVED 13:05 with blanket merge for verified green slices). **v0.1.0** (`f5c385c`, tag + release + `jigbench@0.1.0` on npm, repo PUBLIC). Matter's first live test → **AMENDMENT 1** (`docs/design/AMENDMENT-1-the-simplification.md`, rulings A1–A6, binding): one loop, a Build button that runs `claude -p`, Polish on demand, the loop-only default view, the artifact is a Prompt; any app with a dev server (A5); setup happens in the app (A6). Concept D · The Quiet Bench ruled CHASSIS as is.
+Founded 2026-09-05 from the Design seat's commission (`docs/design/COMMISSION.md`, F1–F22; the
+plan is #1, APPROVED with blanket merge for verified green slices). **v0.1.0** shipped, then
+Matter's first live test → **AMENDMENT 1** (`docs/design/AMENDMENT-1-the-simplification.md`,
+rulings A1–A6, binding): one loop, a Build button that runs `claude -p`, Polish on demand, the
+loop-only default view, the artifact is a Prompt; any app with a dev server (A5); setup happens
+in the app (A6). **v0.2.0 shipped 2026-09-08 19:09 CDT** — `jigbench@0.2.0` on npm, tag `v0.2.0`
+→ `a34fd89`, GitHub release with the tarball.
 
-**On `main` at `a34fd89` — the record with shas, PRs and CI run ids is issue #1:** everything the previous baton listed at `8232298` (S11 · S16 · S12 · S17a · S17b · S15 · #10 · #8 · the PromptStore race) · the desk's review (`b732b7e`, filing #17–#24) · then this session, **one PR per issue, each merged with both CI legs green at its head, in the order the last baton set:** **#17** an explicit `{script}` on `POST /api/target/start` must be a key of the repo's own `package.json` scripts — cmd.exe re-parses its command line, the argv array never protected anything (`3ac1d36`, PR #25) · **#18** the gate is Host-first against DNS rebinding — `localhost`, `127.0.0.1`, `[::1]` or the `--host` value, a wildcard bind answers to IP literals only; UNC paths refused before any `stat` (`85cf154`, PR #26) · **#22** the tarball carries README.md + LICENSE (gitignored copies made by `build:release`), the description in the amended tongue, `scripts/npx-control.sh` asserts both (`84f2cd5`, PR #28) · **#24's ENOENT windows** — one `readdirOrEmpty` behind every PromptStore listing, the MCP prompt tools' eager store never an unhandled rejection; taken in the gap because it had just turned PR #25's Windows leg red (`4228cb9`, PR #27) · **#19** the survey reaches the plate's runtime resolver on the Clamp path (posted again on the iframe's `load` and in answer to `loupe.js`'s new `jig:ready`), the survey's name wins over Angular's `_Name` (kept as `componentClass`), `prompts/context.ts` matches the decorated name last (`3939bc0`, PR #29) · **#20** `GET /api/setup` answers `detected`, the checklist drawer can Start the app (`bb9ed20`, PR #30) · **#21** the Bench host probes the local model at clamp and wires the drafter — Polish on the Clamp-screen path (`dece0fc`, PR #31). Two push runs on main went red — both windows-latest, both test-only, both root-caused the same day as their own PR: `3939bc0`, the single-dispatch race in `PlateBench.test.tsx` (PR #15's `App.test.tsx` race, one file over) — each event now dispatched inside the wait's retry (`4da2597`, PR #32, run 34175838243); and `dece0fc`, the git-status fallback test in `build/runner.test.ts` timing out at vitest's 5 s default (4.1 s on ubuntu: five git subprocesses and two snapshots) — an explicit 20 s budget, the shape its cancel test already had (`e060394`, PR #34, run 34176071688). Not live-verified from the cloud: the whole retest — the saved prompt's Context read with eyes, Start the app from the drawer, Polish with Ollama up, the Ready hold. The narrative above runs to `e060394`; the two merges after it are the desk's own review round — **#35** at `90837fe` and **#36** at `a34fd89`, which is where `main` stands (the header's sha, and the verification paragraph below).
+**On `main` at `ab89f7b` — the record with shas, PRs and CI run ids is issue #1.** Everything the
+last baton listed at `a34fd89`, plus **S19 · issue #24, eleven PRs**, each merged with both legs
+green at its head, in #24's own order:
 
-**The plan of record (new, 2026-09-08):** `docs/ROADMAP.md` is rewritten as a sequenced plan, one row per slice, each with a goal, acceptance, depends-on, size, tier (green = a cloud session may merge on green CI; amber = the PR waits for the lead; ruling = Matter decides first) and the file name of its cloud prompt. The prompts live under `docs/team/cloud/`, `00` through `17`, each self-contained for an Opus cloud session that has never seen this repo; `docs/team/cloud/README.md` says how to use one. The sequence: R0 publish 0.2.0 (Matter's hands) → v0.2.1 (S18 the retest fixes, S19 issue #24, S20 issue #37, S21 the #23 rulings) → v0.3 the stacks (S22 React/Next/Vite first, then S23 Vue/Svelte, S24 Expo web, S25 server-rendered, S26 OpenAPI) → v0.3 the loop deepens (S27 a real before, S28 the stream and the logbook, S29 refine and build again, S30 the MCP door) → v0.4, four ruling rows and no commitments.
+| # | on main | PR | PR head · run |
+|---|---|---|---|
+| ANSI escapes out of the app's own log | `365ebef` | #41 | `bf1cfd4` · 34296047881 |
+| win32 hidden/system folders at a drive root | `7405c5f` | #42 | `711faed` · 34296911806 |
+| the two 404s before a clamp | `0850cee` | #43 | `d3ce7c5` · 34298494551 |
+| `--plate-port` (and `--host`) on the Clamp path | `fe2edbe` | #44 | `53ce0ce` · 34298940429 |
+| unclamp cancels before it drains; a generation per bench | `b9c50b5` | #46 | `7135abf` · 34299515323 |
+| `--version` asserted in `scripts/npx-control.sh` | `5f75945` | #47 | `3e1dc4b` · 34300222042 |
+| the status line before a clamp | `2a62399` | #48 | `8fcf62b` · 34301075396 |
+| the empty-bench frame | `7b7d781` | #49 | `7f20461` · 34301618521 |
+| the `util._extend` deprecation | `29deacb` | #50 | `0c4cf76` · 34302052427 |
+| wording and stale citations | `c5646a2` | #51 | `19b435a` · 34302457741 |
+| the `write EPIPE` (**issue #1**, not #24) | `ab89f7b` | #52 | `c8ca6d3` · 34302896828 |
 
-**Debt:** **#23** the rulings Matter owes (Advanced routes on the host path; "Open" vs "go to the bench"; #8 vs AMENDMENT-1 §3) · **#24** the small fixes still open (ANSI in the app log, system folders at the drive root, pre-clamp 404s, `--plate-port` ignored on the Clamp path, unclamp waits on a build, the version test skipped in CI, the status line's "not installed" before a clamp, the empty-bench frame, the `util._extend` deprecation, wording) · older: #2 pdf-parse native · #3 trial-fit e2e flake · #4 esbuild advisory · #5 karma qs · #6 work-order log on round-trip. Seen once in CI and not root-caused: `plate/proxy.test.ts` *lets an interceptor short-circuit the proxy entirely* on ubuntu (run 34174031120 attempt 1 — a fetch to `localhost` landing on `::1` at another test's port, `other side closed`; green on the re-run). A candidate for #24.
+Plus **#45** (`fcf2bab`, head `57f5070` · run 34297512800), which root-caused main's one red push
+run of the round — `365ebef`, windows-latest, `src/mcp/server.test.ts:84` — the same day, as its
+own PR: the shop heartbeat is written fire-and-forget from `oninitialized`, and `vi.waitFor`'s
+default one-second budget has to cover `atomicWriteFile`'s own ~570 ms of transient-error backoff
+on a loaded runner. Test-only: an explicit 10 s wait and a 20 s test timeout, the shape
+`orders/service.test.ts`, `watcher.test.ts` and PR #34 already use. Third of that class after
+`3939bc0`→#32 and `dece0fc`→#34. **Every push run on `main` in this round was green apart from
+that one.**
 
-**Rules of record:** a slice is a branch (`delegate/build-sN` or `fix/<slug>`), test-first with the red line quoted in the commit body, `git commit -s`, a PR in the worker-report shape, both CI legs green at the PR head, then a merge commit (a `Signed-off-by:` trailer in its message) — never rewrite pushed history; record every merge on #1 with the sha and the run id. A red push run on main is root-caused the same day, as its own PR. On the desk: integrate only in a detached worktree, push `HEAD:main`, verify `origin/main`; while the desk is Matter's, no local test control — CI decides. Never edit `examples/` source, `QUALITY.md`, `docs/quality/`; no real `claude -p`, `npm link`, or `claude mcp add` in tests; publish and visibility are Matter's.
+**One of #24's items needed no PR.** It cites `prompts/store.ts:109-110` and `:121-125` as still
+carrying check-then-read windows, and `mcp/prompt-tools.ts:97` as starting the store unawaited.
+Read at this head, PR #27 (`4228cb9`) had already closed all three — `readdirOrEmpty` sits behind
+every listing the store makes, and `prompt-tools.ts:103` has the `.catch`; `store.enoent.test.ts`
+and `prompt-tools.test.ts:173` cover both. The citation predates that merge. Ticked, no code moved.
 
-**Matter owes the desk:** the rulings in #23; **the 0.2.0 publish** — `npm run build:release && npm run pack:release` (the release build now copies README.md and LICENSE into `packages/cli`; `bash scripts/npx-control.sh "$(pwd)/jigbench-0.2.0.tgz"` proves the tarball), then `cd packages/cli && npm publish --access public` (the one-time password), then the `v0.2.0` tag + GitHub release with the tarball; **the retest** per `docs/TEST-RUN.md` at 1440×900 and 1280×720 — the Ready hold, the saved prompt's `## Context` naming the component and its file (#19), **Start the app** from the checklist drawer (#20), **Polish** beside Ready with Ollama running on the Clamp-screen path (#21); delete `wo/0003-days-overdue`; start the Ollama tray app before the demo (or `JIG_NO_MODEL=1`).
+**Two things worth knowing before you touch this code again.**
+- **Node exposes neither win32 file attribute.** `fs.Stats` has no `flags` field with or without
+  `bigint`, and `fs.Dirent` carries only the entry type. `fs/win32-hidden.ts` therefore runs one
+  `attrib /d <dir>\*` per listing and parses it, **failing open** on every error — hiding a repo
+  the human is reaching for is the worse and quieter failure. Its parse half is pure and tested on
+  every platform, because the route-level test can only run on windows-latest.
+- **`http-proxy@1.18.1` is unmaintained** (no release since 2020) and is where the `util._extend`
+  DEP0060 warning comes from. `packages/cli/src/quiet-deprecations.ts` drops that one code by
+  wrapping the public `process.emitWarning`; everything else still prints through Node's own path.
+  A real upgrade means swapping the library under `plate/proxy.ts` — which carries #35's Host
+  gate, `selfHandleResponse`, the interceptors and the ws upgrade — and is its own slice.
 
-**Desk verification (2026-09-08, the record is issue #1):** all six fixes hold live on the Clamp-screen path — the script allowlist, the Host allowlist and UNC refusal on the bench port, the prompt file carrying component · files · gauges · route, the checklist starting and stopping the app, Polish through Ollama (2.4 s), the tarball with README + LICENSE — and the two test-race fixes are real causes. The attackers found the plate proxy ungated on its own port (#35, same class as #18) and the README copies tracked (#36); #37 holds the hardening items. **Both #35 and #36 are now fixed and merged (see the header), so the publish gate is clear; the desk's own verification of those two is what the lead is running now.** Nothing tagged or published.
+**The plan of record:** `docs/ROADMAP.md`, one row per slice, each with a goal, acceptance,
+depends-on, size, tier (green = a cloud session may merge on green CI; amber = the PR waits for
+the lead; ruling = Matter decides first) and the file name of its cloud prompt under
+`docs/team/cloud/`; read that folder's README first. R0 (publish 0.2.0) and **S19** are shipped.
+Next in sequence: **S20** issue #37, the hardening items (amber — two touch the Host and Origin
+gates) → **S21** issue #23, the three rulings (ruling — Matter answers first) → v0.3, the stacks
+(S22 React/Next/Vite, S23 Vue/Svelte, S24 Expo web, S25 server-rendered, S26 OpenAPI) → v0.3, the
+loop deepens (S27 a real before, S28 the stream and the logbook, S29 refine and build again,
+S30 the MCP door) → v0.4.
 
-**→ Next session: after Matter publishes 0.2.0 and runs the desk retest (`docs/team/cloud/00-release-0-2-0.md`), take the next `docs/team/cloud/` prompt in sequence, paste it into a fresh Opus cloud session, and let CI be the gate.**
+**Debt:** **#23** the three rulings Matter owes (Advanced routes on the host path; "Open" vs "go
+to the bench"; #8 vs AMENDMENT-1 §3) · **#37** the eight hardening items · older: #2 pdf-parse
+native · #3 trial-fit e2e flake · #4 esbuild advisory · #5 karma qs · #6 work-order log on
+round-trip. Seen once in CI and never root-caused: `plate/proxy.test.ts` *lets an interceptor
+short-circuit the proxy entirely* on ubuntu (run 34174031120 attempt 1 — a fetch to `localhost`
+landing on `::1` at another test's port; green on the re-run). **#24 is closed.**
+
+**Rules of record:** a slice is a branch (`delegate/build-sN` or `fix/<slug>`), test-first with the
+red line quoted in the commit body, `git commit -s`, a PR in the worker-report shape, both CI legs
+green at the PR head, then a merge commit (a `Signed-off-by:` trailer in its message) — never
+rewrite pushed history; record every merge on #1 with the sha and the run id. A red push run on
+main is root-caused the same day, as its own PR, and "flake" is not a root cause. Every server test
+runs with `JIG_NO_MODEL=1 JIG_OLLAMA_URL=http://127.0.0.1:9`; the Build-runner tests use the repo's
+fake `claude` on PATH. Never edit `examples/` source, `QUALITY.md` or `docs/quality/`; no real
+`claude -p`, `npm link` or `claude mcp add` in tests; publish, tags and visibility are Matter's.
+**A remote seat has no browser and no Windows desk: it never claims a live UI walkthrough.**
+
+**Matter owes the desk:** the three rulings in #23 (S21 cannot start without them) · **the retest
+of the published 0.2.0** per `docs/TEST-RUN.md` at 1440×900 and 1280×720 — the Ready hold, the
+saved prompt's `## Context` naming the component and its file (#19), **Start the app** from the
+checklist drawer (#20), **Polish** beside Ready with Ollama running on the Clamp-screen path (#21)
+— which is what S18 exists to fix; delete `wo/0003-days-overdue`; start the Ollama tray app before
+the demo (or `JIG_NO_MODEL=1`). **Worth an eye on the desk this round:** the plate now really does
+bind 4601 on the Clamp path (#44), the status line reads `Claude · nothing clamped` before a clamp
+(#48), and the folder browser at `C:\` should show no `$Recycle.Bin`, `$WINDOWS.~BT`,
+`System Volume Information` or `Recovery` (#42) — the last of those is the one fix on this list
+that only a Windows machine can really judge.
+
+**→ Next session: take the next `docs/team/cloud/` prompt in sequence — `03-hardening.md` (S20,
+issue #37) unless Matter has answered #23, in which case `04-rulings.md` (S21) goes first — paste
+it into a fresh Opus cloud session, and let CI be the gate.**
