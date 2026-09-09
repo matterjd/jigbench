@@ -51,6 +51,10 @@ Issue #24 — the small defects the first ten minutes of using Jig turn up, one 
   reads **Stop the app**, the other half of **Start the app**; `CONTRIBUTING.md` points at
   `docs/ROADMAP.md` rather than the v0.1 execution plan, and `docs/TEST-RUN.md` no longer cites
   #8 as open.
+- **a `claude` that exits before reading stdin no longer takes the server down** (from issue
+  #1, not #24) — `build/runner.ts` listens for `child.stdin`'s own errors, so the EPIPE that
+  write lands on is a logged note rather than an uncaught exception. The build's outcome comes
+  from the exit code and the transcript either way.
 
 ## [0.2.0] - 2026-09-07
 

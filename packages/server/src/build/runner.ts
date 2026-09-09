@@ -224,6 +224,15 @@ export class BuildRunner implements BuildRunnerLike {
       // nothing to kill yet — honor it now that a real process exists.
       if (running.cancelRequested) child.kill('SIGTERM');
 
+      // Issue #1 (recorded there under #35): a child that exits before reading a byte of stdin
+      // leaves this write landing on a closed pipe — EPIPE. A stream with no `'error'` listener
+      // throws that at the process, so an ordinary "claude refused the invocation" took the
+      // whole bench server down with an uncaught exception. The build's own outcome comes from
+      // the exit code and the transcript, both of which arrive regardless, so a prompt that
+      // could not be written is a logged note here and nothing more.
+      child.stdin?.on('error', (err: unknown) =>
+        logger.warn('build runner: could not write the prompt to claude stdin', String(err)),
+      );
       child.stdin?.write(input.promptText);
       child.stdin?.end();
 

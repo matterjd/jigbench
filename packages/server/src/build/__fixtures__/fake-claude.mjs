@@ -8,6 +8,7 @@
 //
 // Env knobs:
 //   FAKE_CLAUDE_MODE            'success' (default) | 'fail' | 'crash' | 'slow' | 'no-files'
+//                               | 'exit-before-stdin' (exits without reading stdin at all)
 //   FAKE_CLAUDE_FILES           comma list for the FILES: line, default "README.md"
 //   FAKE_CLAUDE_DELAY_MS        ms between each streamed line (default 0; 'slow' mode ignores
 //                               this and instead waits FAKE_CLAUDE_SLOW_MS before its first
@@ -32,6 +33,16 @@ const files = process.env.FAKE_CLAUDE_FILES ?? 'README.md';
 const delayMs = Number(process.env.FAKE_CLAUDE_DELAY_MS ?? '0');
 const slowMs = Number(process.env.FAKE_CLAUDE_SLOW_MS ?? '5000');
 const sessionId = process.env.FAKE_CLAUDE_SESSION_ID ?? 'fake-session';
+
+// Issue #1 (recorded there under #35): a child that exits before reading a byte of stdin —
+// what a real `claude` does when it refuses the invocation outright. `BuildRunner` writes the
+// prompt into a pipe nobody will ever read, and the write lands on a closed one: EPIPE. This
+// exits BEFORE `main()` ever touches `process.stdin`, so the runner's write is still in flight
+// when the pipe goes; a prompt larger than the OS pipe buffer makes that certain.
+if (mode === 'exit-before-stdin') {
+  process.stderr.write('fake-claude: exiting before reading a byte of stdin\n');
+  process.exit(1);
+}
 
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
