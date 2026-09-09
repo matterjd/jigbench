@@ -30,6 +30,10 @@ export interface UsePromptsOptions {
   /** The clamped repo root (`state.bench.repoRoot`, S17b) — the list is refetched whenever it
    * changes, since a re-clamp swaps the whole `.jig/prompts/` tree underneath the bench. */
   benchKey?: string | null;
+  /** #24: false while the host reports no clamped repo at all — `GET /api/prompts` does not
+   * exist on an empty host, and asking anyway logged a 404 before the human had picked a folder.
+   * Defaults true, so a caller (or a test) that never heard of it behaves as it always did. */
+  enabled?: boolean;
 }
 
 export interface UsePromptsResult {
@@ -54,7 +58,7 @@ export interface UsePromptsResult {
 const UNAVAILABLE_MESSAGE = 'no prompts route on this server — clamp a repo first';
 
 export function usePrompts(options: UsePromptsOptions = {}): UsePromptsResult {
-  const { fetchImpl = fetch, buildEvent, claudeStatus, benchKey } = options;
+  const { fetchImpl = fetch, buildEvent, claudeStatus, benchKey, enabled = true } = options;
   const [status, setStatus] = useState<PromptsStatus>('loading');
   const [prompts, setPrompts] = useState<Prompt[]>([]);
   const [handId, setHandId] = useState<string | null>(null);
@@ -63,6 +67,7 @@ export function usePrompts(options: UsePromptsOptions = {}): UsePromptsResult {
   const settledBuildRef = useRef<string | null>(null); // the last claudeStatus id we already reconciled
 
   async function refresh(): Promise<void> {
+    if (!enabled) return;
     const result = await api.listPrompts(fetchImpl);
     if (result.ok) {
       setPrompts(result.data);
@@ -75,7 +80,7 @@ export function usePrompts(options: UsePromptsOptions = {}): UsePromptsResult {
   useEffect(() => {
     void refresh();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [benchKey]);
+  }, [benchKey, enabled]);
 
   // Accumulate a NEW build-event frame (identity-compared, since useJigState hands back the
   // same object reference until the next message arrives) into that prompt's live stream.

@@ -12,6 +12,10 @@ Issue #24 — the small defects the first ten minutes of using Jig turn up, one 
   title an OSC sequence sets, cursor moves) before it broadcasts `target-log` and before the ring
   buffer, so a dev server that believes it owns a TTY no longer shows `[33m❯[39m Building...`
   in the Clamp screen or in the logbook drawer.
+- **no 404s before a clamp** — the bench asks for `GET /api/plate` and `GET /api/prompts` only
+  once the host reports a clamped repo. Neither route exists on an empty host, and both were
+  polled from the first frame, so the Clamp screen came with two 404s in the console and one more
+  every four seconds.
 
 ## [0.2.0] - 2026-09-07
 
