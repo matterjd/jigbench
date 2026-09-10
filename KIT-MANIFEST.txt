@@ -1,0 +1,126 @@
+AEDL kit — built 2026-09-09 from matter-notes @ 5a48582
+Source manifest: aedl-kit/manifest.yml (entries copied: 39)
+Re-provision after control-plane upgrades in the source repo — this is a snapshot.
+
+Enforcement fingerprint — is this repo's armor current?
+  In the SOURCE repo run:  git rev-parse HEAD:.claude/hooks
+  Equal to hooks-tree-sha below = current. Different = STALE, re-provision.
+  Or, in THIS repo:        bash .claude/aedl-kit-check.sh
+hooks-tree-sha: b3280d8fedc097f8c18faf8a101b88899c94e85c
+payload-line-endings: LF — portable
+sha256:
+  91dd9f2321ef047b905f086deff15e8e0a8b5d47a878bd48a180a9ea77d83c43  .claude/hooks/activate-lock.sh
+  bbb5f978b8beef1b918dde6b034ddead7d5d05bedcabe176cb3a1e1072a542e1  .claude/hooks/close-loop-reminder.sh
+  6d3393d64c52fe5675eaa50628baf6d8629c8bac82ca25eb31d6cdec93e1f985  .claude/hooks/delegation-guard-bash.sh
+  97e162b833c5e2b9c6b81232b249c1d20d2dc659eb7c8756e621587b1f8c055c  .claude/hooks/delegation-guard-write.sh
+  e552b92cf73954972937d8d8b927cf0aa05edaf4702059e21b995f4af73641a9  .claude/hooks/lib/classify-write.js
+  dedb6b91807170b13152e0a4ac0d75883622648824f5cea2b949bf0c72eb95fd  .claude/hooks/lib/destr-targets.js
+  fa33bd46438c87cd9c3f03de1843694f5176a954153f0b7040378f45404216fe  .claude/hooks/lib/locks.js
+  36609a1cf35ad7c493c5b374f059dce09e3bbe8dfe37bdafea9c498eed638bed  .claude/hooks/lib/package.json
+  35357b83c7091a79509dbffb31f3547cd0c201f4fa7b097553b4516560f33b0f  .claude/hooks/lib/write-targets.js
+  4581772579f1e87aaaefe5ff43ea597629c4bb52f9406713b81f904033637fe8  .claude/hooks/preflight-check.sh
+  d96146c70bcac5a20aba2ef84d9c7942dec7059af2099a84e409d1a162c95a20  .claude/hooks/qa-gate.sh
+  e13174f77896b343bd4ec6b3e407db294ba308f251be3e8e8bbfce56387f2a65  .claude/hooks/redact-secrets.sh
+  8fdcc3eaf025cdc173bcb8a26f7a134cba5f5c6a9abf970df4c7fb126e9a50c8  .claude/hooks/release-lock.sh
+  a44653a20950ba344b3bdb3df8430f0de9942de2a1855227f8c803d4e98de86c  .claude/hooks/session-open-ritual.sh
+  2ca7879b2e0d1661c82d0eae7ca10494c48562eed634a2601c21fb82636e381f  .claude/hooks/tests/verify-close-reminder.sh
+  bf122cec0b1da69d045dfffc3d2b2f84ac296708fd727fe8cfd586b266efb08e  .claude/hooks/tests/verify-guards.sh
+  11b5abd8d16d0522503b8dc3a6b8e1a659bd4bd016a476cdd0f7bab3bb78f99d  .claude/hooks/tests/verify-qa-gate.sh
+  58e964e87fbb62b569d406c38c7846e18b12aad402099fc6398eafe364beb8de  .claude/hooks/tests/verify-usage-row.sh
+  eb0bff27043005bc36560ab69531d8b87900634d44c31312e47b50620f1b3150  .claude/hooks/tests/verify-worklog.sh
+  2733ace0b265a69e2866b2bda13cd7fbf4e9648586c5b7e9d0bbe78b4b8b9748  .claude/hooks/usage-row-gate.sh
+  6587bd2c22de236f6c8c0ca8709f378c35d050d341a7f208d8b3f6092589d5d3  .claude/hooks/worklog-append.sh
+  55ab6d0d9489b89664b1c902e0dce060b24dd605a24bbb33d3e16ae8ceb9b883  .claude/hooks/worklog-render.sh
+
+Payload:
+./.claude/aedl-kit-check.sh
+./.claude/commands/aedl-close.md
+./.claude/commands/aedl-delegate.md
+./.claude/commands/aedl-discovery.md
+./.claude/commands/aedl-lifecycle.md
+./.claude/commands/aedl-maintain.md
+./.claude/commands/aedl-observe.md
+./.claude/commands/aedl-review-cycle.md
+./.claude/commands/aedl-roadmap.md
+./.claude/commands/aedl-skill.md
+./.claude/commands/aedl-verify.md
+./.claude/hooks/activate-lock.sh
+./.claude/hooks/close-loop-reminder.sh
+./.claude/hooks/delegation-guard-bash.sh
+./.claude/hooks/delegation-guard-write.sh
+./.claude/hooks/lib/classify-write.js
+./.claude/hooks/lib/destr-targets.js
+./.claude/hooks/lib/locks.js
+./.claude/hooks/lib/package.json
+./.claude/hooks/lib/write-targets.js
+./.claude/hooks/preflight-check.sh
+./.claude/hooks/qa-gate.sh
+./.claude/hooks/redact-secrets.sh
+./.claude/hooks/release-lock.sh
+./.claude/hooks/session-open-ritual.sh
+./.claude/hooks/tests/verify-close-reminder.sh
+./.claude/hooks/tests/verify-guards.sh
+./.claude/hooks/tests/verify-qa-gate.sh
+./.claude/hooks/tests/verify-usage-row.sh
+./.claude/hooks/tests/verify-worklog.sh
+./.claude/hooks/usage-row-gate.sh
+./.claude/hooks/worklog-append.sh
+./.claude/hooks/worklog-render.sh
+./.claude/settings.fragment.json
+./.claude/skills/adapters/issue-tracker/ADAPTER.md
+./.claude/skills/adapters/issue-tracker/field-map.example.yml
+./.claude/skills/adapters/issue-tracker/github-gh.field-map.example.yml
+./.claude/skills/adapters/issue-tracker/github-gh.md
+./.claude/skills/adapters/issue-tracker/jira-atlassian.example.md
+./.claude/skills/aedl-command-scaffold/SKILL.md
+./.claude/skills/aedl-discovery/SKILL.md
+./.claude/skills/aedl-observation-layer/SKILL.md
+./.claude/skills/aedl-observation-layer/templates/OBSERVE.md
+./.claude/skills/aedl-observation-layer/templates/observe.example.yml
+./.claude/skills/aedl-roadmap/SKILL.md
+./.claude/skills/aedl-roadmap/references/snapshot-contract.md
+./.claude/skills/aedl-roadmap/references/snapshot-example.json
+./.claude/skills/aedl-roadmap/scripts/tests/run-tests.sh
+./.claude/skills/aedl-roadmap/scripts/write-snapshot.sh
+./.claude/skills/aedl-verify/SKILL.md
+./.claude/skills/agentic-development-lifecycle/SKILL.md
+./.claude/skills/harness-maintenance/SKILL.md
+./.claude/skills/pr-review-cycle/SKILL.md
+./.claude/skills/pr-review-cycle/scripts/copilot-review.sh
+./.claude/skills/session-close-workflow/SKILL.md
+./.claude/skills/subagent-delegation-workflow/SKILL.md
+./.claude/skills/subagent-delegation-workflow/references/roles/README.md
+./.claude/skills/subagent-delegation-workflow/references/roles/architect.md
+./.claude/skills/subagent-delegation-workflow/references/roles/art-director.md
+./.claude/skills/subagent-delegation-workflow/references/roles/design-reviewer.md
+./.claude/skills/subagent-delegation-workflow/references/roles/principal-engineer.md
+./.claude/skills/subagent-delegation-workflow/references/roles/prototyper.md
+./.claude/skills/subagent-delegation-workflow/references/roles/qa-engineer.md
+./.claude/skills/subagent-delegation-workflow/references/roles/senior-engineer.md
+./.claude/skills/subagent-delegation-workflow/references/roles/technical-writer.md
+./.claude/skills/subagent-delegation-workflow/references/worker-report-schema.md
+./.claude/skills/tdd/SKILL.md
+./.claude/skills/tdd/agents/openai.yaml
+./.claude/skills/tdd/mocking.md
+./.claude/skills/tdd/tests.md
+./.claude/skills/to-spec/SKILL.md
+./.claude/skills/to-spec/agents/openai.yaml
+./.claude/skills/to-tickets/SKILL.md
+./.claude/skills/to-tickets/agents/openai.yaml
+./AEDL-INSTALL.md
+./KIT-MANIFEST.txt
+./SUBAGENT-AUTHORIZATION.md
+./config/delegation-lock.example.yml
+./config/workspace.example.yml
+./docs/DESIGN-TEAM.md
+./docs/aedl-v2/stage-skill-contract.md
+./docs/aedl-v2/templates/stack-profile.md
+./docs/design-floor.md
+./scripts/design-floor-baseline.sh
+./templates/QUALITY.md
+./templates/execution-plan.md
+./templates/quality-closing-report.md
+./templates/team/PLAN.md
+./templates/team/RETRO.md
+./templates/team/STANDUPS.md
+./templates/team/demo.md

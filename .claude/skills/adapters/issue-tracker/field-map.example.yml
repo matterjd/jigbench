@@ -1,0 +1,63 @@
+# ---------------------------------------------------------------------------
+# field-map.yml — issue-tracker ids for the ACTIVE adapter (LOCAL, untracked)
+# ---------------------------------------------------------------------------
+# Copy this file to `field-map.yml` (the path in workspace.yml ->
+# issue_tracker.field_map) and replace every placeholder with the real id from
+# YOUR tracker instance.
+#
+# RULES:
+#   - This *.example.yml contains placeholders ONLY — never real ids.
+#   - The real `field-map.yml` should be git-ignored. Field ids are
+#     instance-specific and must NOT be committed to a shared/portable repo.
+#   - Never put credentials or tokens in this file.
+#
+# To find a field id in Jira: open an issue, use the field configuration / the
+# "get issue type metadata with fields" API, or the create-meta endpoint, and
+# read the `customfield_XXXXX` keys. Set each below to your tracker's field id.
+# ---------------------------------------------------------------------------
+
+# Instance + project ----------------------------------------------------------
+base_url: "<TRACKER_BASE_URL>"      # set to your tracker's base url
+project_key: "<PROJECT_KEY>"        # set to your project key (e.g. the issue prefix)
+
+# Team filter as a tracker-query clause. For Jira this is a JQL fragment like
+#   cf[<team_field_id>] = "<your-team-value>"
+team_filter_jql: '<TEAM_FILTER_JQL>'   # set to your team's filter clause
+
+# Custom-field ids ------------------------------------------------------------
+# Set each to your tracker's field id (e.g. customfield_XXXXX). For fields that
+# take an option (team, reviewed, refinement state), also set the option id/value
+# your instance uses.
+
+# Epic link field on a story.
+CUSTOM_FIELD_EPIC_LINK: "<set to your tracker's epic-link field id>"
+
+# Story points. Leave the value side empty; default behavior is null unless the
+# caller supplies a value.
+CUSTOM_FIELD_STORY_POINTS: "<set to your tracker's story-points field id>"
+
+# % velocity (or your team's equivalent capacity field) + its default value.
+CUSTOM_FIELD_PERCENT_VELOCITY:
+  id: "<set to your tracker's %-velocity field id>"
+  default: "<set to your team's default value>"
+
+# Team field + the option id/value for your team.
+CUSTOM_FIELD_TEAM:
+  id: "<set to your tracker's team field id>"
+  option: "<set to your team's option id or value>"
+
+# Refinement state field + the "to be refined / groomed" option.
+CUSTOM_FIELD_REFINEMENT_STATE:
+  id: "<set to your tracker's refinement-state field id>"
+  option: "<set to your 'to be refined / groomed' option id>"
+
+# Reviewed flag field + the "reviewed = no" option.
+CUSTOM_FIELD_REVIEWED:
+  id: "<set to your tracker's reviewed field id>"
+  option: "<set to your 'reviewed = no' option id>"
+
+# Acceptance criteria (rich-text) field — kept OUT of the description body.
+CUSTOM_FIELD_ACCEPTANCE_CRITERIA: "<set to your tracker's acceptance-criteria field id>"
+
+# Technical notes (rich-text) field — kept OUT of the description body.
+CUSTOM_FIELD_TECHNICAL_NOTES: "<set to your tracker's technical-notes field id>"
