@@ -1,0 +1,19 @@
+# observe.yml — AEDL observation-kit configuration (local to this machine).
+# Created by the setup wizard; edit by hand any time. Contains no secrets.
+
+# Who and where (labels only — used in status output and memory frontmatter).
+user: "<your name>"
+machine: "<a label for this machine, e.g. personal-desktop | work-laptop>"
+created: "<YYYY-MM-DD>"
+
+# The agent(s) you usually log for. Free-form labels; used in the time-log 'agent' column.
+default_agent: "claude"
+
+# Repos/projects this kit may be pointed at for READ-ONLY status context.
+# Optional — the kit works fine with an empty list. Paths are exact, on-disk.
+observed_repos: []
+#  - name: "example-repo"
+#    path: "C:\\path\\to\\example-repo"
+
+# Time-log defaults.
+timezone_note: "times are local to this machine"

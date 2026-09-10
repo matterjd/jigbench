@@ -1,0 +1,39 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-08-15T21:07:44Z",
+  "repos": [
+    {
+      "repo": "owner/example-repo",
+      "open": 2,
+      "unreachable": false,
+      "issues": [
+        {
+          "number": 23,
+          "title": "Pin *.sh to LF so every vendored kit builds portable",
+          "state": "OPEN",
+          "repo": "owner/example-repo",
+          "labels": ["debt"]
+        },
+        {
+          "number": 15,
+          "title": "Emit a dated snapshot artifact on every reconciliation run",
+          "state": "OPEN",
+          "repo": "owner/example-repo",
+          "labels": []
+        }
+      ]
+    },
+    {
+      "repo": "owner/example-clean",
+      "open": 0,
+      "unreachable": false,
+      "issues": []
+    },
+    {
+      "repo": "owner/example-offline",
+      "open": null,
+      "unreachable": true,
+      "issues": []
+    }
+  ]
+}

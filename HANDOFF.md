@@ -3,9 +3,10 @@
 > **S19 is shipped and 0.2.0 is on npm; the frontier is the next `docs/team/cloud/` prompt in
 > sequence — `03-hardening.md` (S20, issue #37), unless Matter has answered #23, in which case
 > `04-rulings.md` (S21) goes first.** The plan of record is `docs/ROADMAP.md`, one row per slice
-> with a paste-ready cloud prompt beside it; issue #1 carries every sha and CI run id. This repo
-> has no AEDL kit (no `.claude/`, no `config/workspace.yml`), so a session launched here has no
-> close loop — record the window in matter-notes.
+> with a paste-ready cloud prompt beside it; issue #1 carries every sha and CI run id. **This repo
+> is now AEDL-provisioned (2026-09-09):** the guards run here, `@aedl -close` completes on the
+> project profile, and `bash scripts/qa-gate.sh` is the fast set a landed commit triggers.
+> `SUBAGENT-AUTHORIZATION.md` is unsigned, so delegation grants nothing until Matter signs one.
 
 **seat:** Delivery (remote — no Browser pane, no Windows desk, no .NET SDK, no Ollama, no real
 `claude` binary; CI is the only gate) · **branch:** `main` · **written:** 2026-09-09 · code at

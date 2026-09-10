@@ -1,0 +1,15 @@
+# Example delegation lock file (multi-lock era). Live locks are written ONLY by
+# .claude/hooks/activate-lock.sh as config/delegation-locks/<delegation_id>.yml
+# (gitignored) and deleted by release-lock.sh <delegation_id> <release_token>.
+# Never hand-write a lock — activation enforces the invariants the guards assume:
+# single grant PER WORK REPO, one lock PER SESSION, mandatory future expiry.
+active: true
+schema: 2
+delegation_id: ""        # <YYYY-MM-DD>-<slug> — also the filename stem
+tier: ""                 # T1 | T2 | T3 | T4
+repo_path: ""            # CONTROL-plane repo (lock dir + guards live here) = $CLAUDE_PROJECT_DIR; never re-spell
+work_repo_path: ""       # WORK repo the worker writes in; BLANK = same as repo_path. If set, MUST be a registered sibling (workspace.yml repos:); it is the ONLY place this delegation's writes are allowed.
+work_branch: ""          # local branch the worker uses
+expiry: ""               # ISO8601 UTC (e.g. 2026-07-05T18:00:00Z); MANDATORY (auto-prune backstop)
+owner_session: ""        # the activating brain's $CLAUDE_CODE_SESSION_ID; its worker inherits it. Guards confine the OWNING session to work_repo_path; sessions owning no lock are fenced only OUT of locked zones + the control plane.
+release_hash: ""         # sha256 of the brain's release token; release-lock.sh requires the matching token

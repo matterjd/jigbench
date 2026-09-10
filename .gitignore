@@ -34,3 +34,10 @@ obj/
 
 # Vite
 .vite/
+
+# AEDL harness — local and runtime, never committed (AEDL-INSTALL.md step 4).
+config/workspace.yml
+config/field-map.yml
+config/delegation-locks/
+delegations/*/worklog*.jsonl
+review-cycles/

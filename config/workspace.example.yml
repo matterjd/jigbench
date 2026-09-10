@@ -1,0 +1,79 @@
+# ---------------------------------------------------------------------------
+# workspace.yml — minimal AEDL configuration for an INDIVIDUAL repo install.
+# Copy to config/workspace.yml and fill in. Local + gitignored; NO secrets —
+# tokens live in the gh CLI / OS credential store, never here.
+# ---------------------------------------------------------------------------
+
+company: "<org or personal — label only>"
+team: "<team — label only>"
+
+# Kept for schema compatibility with skills that read it.
+standup_label: "Standup"
+products: []
+
+# Identity used when authoring issues/comments.
+user:
+  name: "<your name>"
+  email: "<your email>"
+
+# EXACT on-disk path to this repository's root (verbatim — never re-spelled).
+repo_path: "<ABSOLUTE ON-DISK PATH TO THIS REPO>"
+
+# Command prefix for the AEDL commands (see the routing note in AEDL-INSTALL.md).
+notes_cmd: "@aedl"
+
+calendar_enabled: false
+
+# ---------------------------------------------------------------------------
+# Issue tracker — GitHub Issues via the gh CLI (see .claude/skills/adapters/).
+# ---------------------------------------------------------------------------
+issue_tracker:
+  adapter: "github-gh"
+  # Local, untracked map of repo + label/field conventions. Start from
+  # .claude/skills/adapters/issue-tracker/github-gh.field-map.example.yml.
+  field_map: "config/field-map.yml"
+
+# ---------------------------------------------------------------------------
+# Sibling repos (optional) — only needed if you use cross-repo delegation.
+# ---------------------------------------------------------------------------
+repos: []
+
+# ---------------------------------------------------------------------------
+# Session close (@aedl -close) — PROJECT profile: the vault-less close for a
+# provisioned repo (see the session-close-workflow skill's "Project-Repo
+# Profile" table: journal/usage unavailable, parking lot -> HANDOFF open
+# threads, sync = plain git on the current branch, --merge -> PR flow).
+# Absent block ⇒ -close declines politely.
+# ---------------------------------------------------------------------------
+session_close:
+  enabled: true
+  profile: "project"
+  journal: false        # unavailable outside a notes vault
+  usage_log: false      # unavailable outside a notes vault
+  # observe_kit: "<exact on-disk path to your aedl-observe kit>"   # optional; omit to skip
+
+# ---------------------------------------------------------------------------
+# QA gate (DELIVERY-TEAM.md §10.2) — the PostToolUse qa-gate.sh hook runs
+# `command` when a commit lands (fresh HEAD, once per sha). Point it at THIS
+# repo's real fast suite; keep slow legs (browser/native) behind an explicit
+# flag inside that script. Absent/disabled block ⇒ the hook is a silent no-op.
+# ---------------------------------------------------------------------------
+qa_gate:
+  enabled: true
+  command: "bash scripts/qa-gate.sh"
+  timeout_secs: 600
+  fresh_window_secs: 120
+
+# ---------------------------------------------------------------------------
+# Sub-agent delegation (@aedl -delegate / -lifecycle / -review-cycle fix passes).
+# Standalone per-repo install: this repo is its own control plane AND work repo.
+# ---------------------------------------------------------------------------
+delegation:
+  enabled: true
+  default_tier: "T4"
+  default_expiry_minutes: 120
+  delegations_dir: "delegations"
+  # Cross-repo brokering off by default for a standalone install; flip to true
+  # and register repos: entries above only when you deliberately want it.
+  allow_cross_repo: false
+  cross_repo_targets: "self"

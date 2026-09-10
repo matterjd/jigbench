@@ -1,0 +1,27 @@
+# ---------------------------------------------------------------------------
+# field-map (GitHub) — copy to config/field-map.yml and fill in.
+# ---------------------------------------------------------------------------
+# Placeholders ONLY in this *.example file. Real values go in the local,
+# untracked config/field-map.yml. No tokens here — gh owns auth.
+# ---------------------------------------------------------------------------
+
+# owner/name of the GitHub repo whose Issues back this vault's stories/epics.
+repo: "<OWNER>/<REPO>"
+
+# Label conventions (created on the repo if missing via `gh label create`).
+story_label: "story"
+epic_label: "epic"
+
+# Auto-filed non-critical findings from a Delivery-seat feature (DELIVERY-TEAM.md §7).
+# aedl-roadmap treats these as planned-by-policy (burn-down queue), never orphans.
+debt_label: "debt"
+
+# Prefix used to link a story to its epic issue: label "epic:<number>".
+epic_link_prefix: "epic:"
+
+# Labels applied to every created issue (e.g. a triage flag). Empty list = none.
+default_labels: []
+
+# Optional: map each products[] entry to a repo label for scoped filtering.
+product_labels:
+  wedding-notes: "wedding-notes"

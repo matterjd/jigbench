@@ -1,0 +1,6 @@
+{
+  "name": "aedl-guard-libs",
+  "private": true,
+  "type": "commonjs",
+  "//": "mn#51 — pins THIS directory to CommonJS. The guards' libs use require()/module.exports, and node picks CJS vs ESM from the package.json nearest the FILE, walking up from the installed hook. In a repo whose root package.json declares \"type\": \"module\" (jigbench, 2026-09-09) every lib died on 'require is not defined', the guards took their fail-closed path, and the repo blocked every call while reporting 'unparseable tool input' — 49 of verify-guards' 177 cases went red as ALLOWED cases that were refused. This file shadows the host's declaration so a provisioned repo's module system can never decide whether its armor runs. Do not delete it, and do not convert the libs to ESM to remove it: the hooks invoke them through node with require()."
+}
