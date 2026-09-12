@@ -53,6 +53,43 @@ describe('validateClampPath', () => {
     }
   });
 
+  // #37: #18's guard read the spelling, and a symlink (or an NTFS junction) inside the home is
+  // spelled like any other local path — the `stat` that followed it was the SMB connection the
+  // guard exists to prevent, made after the guard had said yes. The win32 shape cannot be planted
+  // on either CI leg without making that connection for real, so the realpath answer is injected;
+  // `fs/local-path.test.ts` plants the link-following half for real.
+  it('#37: rejects a locally-spelled path whose real target is a UNC share, in either spelling', async () => {
+    for (const real of ['\\\\attacker.example\\share\\loot', '//attacker.example/share/loot']) {
+      const dir = await freshDir();
+      const result = await validateClampPath(dir, { realpath: async () => real });
+      expect(result.ok, real).toBe(false);
+      if (!result.ok) expect(result.error).toMatch(/UNC/);
+    }
+  });
+
+  it('#37: rejects a locally-spelled path whose real target is inside a .jig/ directory', async () => {
+    const dir = await freshDir();
+    const insideJig = join(dir, '.jig', 'prompts');
+    await mkdir(insideJig, { recursive: true }); // a real directory, so only the `.jig` rule can refuse it
+
+    const result = await validateClampPath(dir, { realpath: async () => insideJig });
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error).toContain('.jig');
+  });
+
+  it('#37: still answers with the spelling the caller gave, not the canonical one', async () => {
+    const dir = await freshDir();
+    const elsewhere = await freshDir();
+
+    const result = await validateClampPath(dir, { realpath: async () => elsewhere });
+
+    expect(result.ok).toBe(true);
+    // The clamp records what the human picked. `realpath` on win32 also expands an 8.3 alias
+    // (`C:\Users\RUNNER~1\…`), and rewriting `repoRoot` to that is a different change.
+    if (result.ok) expect(result.resolved).toBe(dir);
+  });
+
   it('rejects a path inside a .jig/ directory', async () => {
     const dir = await freshDir();
     const inner = join(dir, '.jig', 'work-orders');
