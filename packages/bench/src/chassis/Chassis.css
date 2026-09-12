@@ -1,20 +1,31 @@
 .jig-chassis {
   display: grid;
   height: 100vh;
-  /* Same fallback rule as v0.1 (never `hidden`): if the floored regions below sum past the
-     real viewport, the WHOLE chassis gets a native scrollbar rather than clipping a region. */
-  overflow: auto;
+  /* REVERSES v0.1's fallback rule ("never `hidden`": let the WHOLE chassis take a native
+     scrollbar rather than clip a floored region) on Matter's ruling in retest #57. That
+     fallback does not keep a region visible — it carries the rail and the status line off the
+     bottom of the viewport with everything else, which is exactly what a long Design system
+     list did. Concept D and `docs/team/v0.2/CHASSIS.md` put one status line at the bottom and
+     the plate in the middle: the page never scrolls, a tall panel scrolls inside itself. */
+  overflow: hidden;
   background: var(--bg0);
   color: var(--ink);
   font-family: var(--sans);
   font-size: 14px;
   line-height: 1.45;
-  grid-template-rows: 1fr 28px; /* the bench · the status line (AMENDMENT-1 §4) */
+  /* `minmax(0, 1fr)`, not `1fr`: a bare `1fr` is `minmax(auto, 1fr)`, whose minimum is the
+     content's own min-content size — so the bench row could not be shorter than what was in
+     it, and the 28px status line was pushed out of view instead. */
+  grid-template-rows: minmax(0, 1fr) 28px; /* the bench · the status line (AMENDMENT-1 §4) */
 }
 
 .jig-chassis__bench {
   display: grid;
   grid-template-columns: 56px minmax(560px, 1fr) 340px;
+  /* The implicit row was `auto` — sized to the tallest region's max-content — so a tall right
+     column grew this grid past the bench row above it and the overflow escaped to the chassis.
+     One bounded row instead: rail, centre and column each get exactly the height there is. */
+  grid-template-rows: minmax(0, 1fr);
   min-height: 0;
   min-width: 0;
 }

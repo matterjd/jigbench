@@ -9,6 +9,12 @@ semantic versioning strictly (pre-1.0).
 The 0.2.0 desk retest (2026-09-12) — what the first drive of the published package found, one PR
 each.
 
+- **the page never scrolls; a tall panel scrolls inside itself** — a long Design system list used
+  to grow the chassis past the viewport and take the rail and the status line off the bottom with
+  it. The chassis is a fixed `100vh` grid that cannot scroll, every row that holds a scrolling
+  region is `minmax(0, 1fr)` rather than a bare `1fr` (whose minimum is its own content), and the
+  right column's **active tab panel** is the one scroll container — with the tab strip fixed above
+  it. The Advanced drawer's four sections and the logbook drawer's body follow the same rule.
 - **holding Ready makes the draft ready** — the hold's 800 ms timer called the card as it was at
   the render where Ready first lit, which is the first keystroke, while the draft's own
   `POST /api/prompts` was still in flight: so the ring filled, the second passed, and nothing was
