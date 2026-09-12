@@ -6,6 +6,18 @@ semantic versioning strictly (pre-1.0).
 
 ## [Unreleased]
 
+Issue #37 — the hardening items from the fix-round verification, none of them a live defect, one
+PR each.
+
+- **the Origin check runs on every method, GET included** — `SECURITY.md` promised that a present
+  `Origin` must match the Host on every `/api/*` request; both gates (`http.ts` and
+  `bench/host.ts`) exempted `GET`, `HEAD` and `OPTIONS` from that half and leant on the browser's
+  own CORS, which stops a foreign page reading the answer but not the request arriving and the
+  work being done. The exemption is gone, so the code and the sentence say the same thing;
+  `fs/route.ts`, which already refused a foreign Origin on its own two GETs, is no longer the
+  exception. A same-origin GET and a no-Origin GET (curl, an MCP client, the CLI) are unaffected:
+  a browser sends no `Origin` on a same-origin read.
+
 The 0.2.0 desk retest (2026-09-12) — what the first drive of the published package found, one PR
 each.
 

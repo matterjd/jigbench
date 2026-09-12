@@ -308,14 +308,14 @@ export async function createBenchHost(options: CreateBenchHostOptions = {}): Pro
   const app = express();
   app.use(express.json({ limit: '64kb' }));
 
-  // #18: Host first on every /api/* request (GET included), then the same-origin gate on
-  // mutating ones — identical rule to http.ts's own middleware; see same-origin.ts.
+  // #18: Host first on every /api/* request (GET included), then the same-origin gate — also
+  // on every method, GET included (#37) — identical rule to http.ts's own middleware, and see
+  // that one for why the GET exemption went; the rule itself is same-origin.ts's.
   app.use('/api', (req, res, next) => {
     if (!isAllowedHost(req.headers.host, host)) {
       res.status(403).json({ error: HOST_REFUSED_MESSAGE });
       return;
     }
-    if (req.method === 'GET' || req.method === 'HEAD' || req.method === 'OPTIONS') return next();
     if (!isSameOriginOrAbsent(req.headers.origin, req.headers.host, host)) {
       res.status(403).json({ error: 'cross-origin request rejected' });
       return;

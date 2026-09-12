@@ -13,8 +13,11 @@ import { hiddenOrSystemNames } from './win32-hidden.js';
  * browsing) and `/api/fs/list?path=` (what's inside one directory) — directories only, never
  * file contents. Both are local-filesystem reads with no server-side sandbox root (the whole
  * point is to reach any repo on disk), so the "sensitive" half of the brief is the one thing
- * that actually IS enforceable here: refuse a foreign `Origin` even on a GET, the one
- * exception to `http.ts`'s main same-origin gate (which exempts every GET).
+ * that actually IS enforceable here: refuse a foreign `Origin` even on a GET. That was the one
+ * exception to `http.ts`'s main same-origin gate, which used to exempt every GET; since #37
+ * that gate refuses a foreign Origin on every method too, so this is belt-and-braces — kept
+ * because these two routes are also mounted by `bench/host.ts` and read the filesystem
+ * directly, and because it costs one call.
  */
 
 const SKIP_DIR_NAMES = new Set(['node_modules', '.git']);

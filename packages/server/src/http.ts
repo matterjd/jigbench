@@ -220,17 +220,21 @@ function buildApp(
   // #18: Host first, on EVERY /api/* request, GET included — a request whose Host does not
   // name this bench (a DNS name: the rebinding case, which arrives with no Origin on a GET)
   // is refused before anything answers; `/api/state` alone hands out the survey. Then the
-  // same-origin gate on every mutating request: GET is exempt from THAT half (it has no side
-  // effect to forge); anything else must either carry no Origin (a non-browser client) or an
-  // Origin that matches this request's own Host. No CORS headers are ever sent alongside
-  // this: the bench is same-origin only, never a cross-origin API.
+  // same-origin gate, on every method too (#37): a request must either carry no Origin (a
+  // non-browser client — curl, an MCP client, the CLI) or an Origin that matches this
+  // request's own Host. It used to exempt GET/HEAD/OPTIONS on the grounds that a read has no
+  // side effect to forge, which left `SECURITY.md`'s "a browser's Origin, when present, must
+  // match it" true of only half the surface and leant on the browser's own CORS — and CORS
+  // stops a foreign page READING the answer, never the request arriving and the work being
+  // done. `fs/route.ts` had already refused a foreign Origin on its own two GETs as the one
+  // exception; there is no exception now. No CORS headers are ever sent alongside this: the
+  // bench is same-origin only, never a cross-origin API.
   const boundHost = options.host;
   app.use('/api', (req, res, next) => {
     if (!isAllowedHost(req.headers.host, boundHost)) {
       res.status(403).json({ error: HOST_REFUSED_MESSAGE });
       return;
     }
-    if (req.method === 'GET' || req.method === 'HEAD' || req.method === 'OPTIONS') return next();
     if (!isSameOriginOrAbsent(req.headers.origin, req.headers.host, boundHost)) {
       res.status(403).json({ error: 'cross-origin request rejected' });
       return;

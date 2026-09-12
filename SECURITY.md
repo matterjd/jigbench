@@ -18,7 +18,10 @@ Jig runs locally. A few things are worth knowing if you are looking for security
 - **Both ports answer only to their own Host.** Every `/api/*` request and the WebSocket must
   carry a `Host` that names the bench itself — `localhost`, `127.0.0.1`, `[::1]`, or the `--host`
   it was started with (a wildcard bind accepts any IP-literal Host, never a DNS name) — and a
-  browser's `Origin`, when present, must match it. That is the defence against DNS rebinding; a
+  browser's `Origin`, when present, must match it. Both halves run on every method: a `GET`
+  carrying a foreign `Origin` is refused exactly as a `POST` is, rather than being left to the
+  browser's own CORS (which stops a foreign page reading the answer, not the request arriving).
+  That is the defence against DNS rebinding; a
   request with no `Origin` on an allowed Host is a local non-browser client (curl, an MCP client).
   The **plate proxy listens on its own port** and applies the same Host allowlist to every
   request and every WebSocket upgrade, before any interceptor and before the target is
