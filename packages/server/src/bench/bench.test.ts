@@ -73,6 +73,42 @@ describe('createBench', () => {
     expect(b2.claudeInstalled).toBe(false);
   });
 
+  // #37 (S20, the test gaps): `createBench`'s `opts.ollama ?? new OllamaDrafter()` is the
+  // production path — #21's fix, the reason Polish appears on the Clamp-screen path at all — and
+  // every test in this file passes a `runner` but no `ollama`, so the branch RAN and nothing ever
+  // asserted anything about it. With `JIG_NO_MODEL=1` the probe is skipped outright, so the
+  // default drafter could have been deleted and the whole suite would still be green.
+  //
+  // This case unsets that pin for its own duration, so the real `available()` probe runs — against
+  // a port nothing answers on, named explicitly rather than inherited, so the answer is the same
+  // on a desk with Ollama running as on a CI runner without it (#54's class of desk-only
+  // divergence, avoided on purpose).
+  it('#37: constructs a real Ollama client when none is injected, and reports the drafter as stub when no model answers', async () => {
+    const repoRoot = await freshRepo();
+    const noModel = process.env.JIG_NO_MODEL;
+    const ollamaUrl = process.env.JIG_OLLAMA_URL;
+    delete process.env.JIG_NO_MODEL;
+    process.env.JIG_OLLAMA_URL = 'http://127.0.0.1:9'; // discard port — refused, and refused fast
+
+    try {
+      // No `ollama` in the options: this is `new OllamaDrafter()`, probed for real.
+      const b = await bench(repoRoot);
+
+      expect(b.store.getState().wiring.drafter).toBe('stub'); // probed, nothing there, said so
+      expect(b.promptService).toBeDefined();
+
+      // Polish is on demand and answers honestly rather than throwing something a caller cannot
+      // read — the behaviour #21 wired this client in for.
+      const prompt = await b.promptService.create({ requirement: 'Show days overdue beside the due date' });
+      await expect(b.promptService.polish(prompt.id)).rejects.toThrow(/no local model is reachable/);
+    } finally {
+      if (noModel === undefined) delete process.env.JIG_NO_MODEL;
+      else process.env.JIG_NO_MODEL = noModel;
+      if (ollamaUrl === undefined) delete process.env.JIG_OLLAMA_URL;
+      else process.env.JIG_OLLAMA_URL = ollamaUrl;
+    }
+  });
+
   it('the .jig/ watcher notices an external write and calls notify() after reloading the store', async () => {
     const repoRoot = await freshRepo();
     let notified = 0;

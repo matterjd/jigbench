@@ -159,6 +159,17 @@ describe('POST /api/target/start', () => {
 
     const res = await startWithScript(url, 'dev');
     expect(res.status).toBe(400);
+
+    // #37 (S20, the test gaps): the status was all this case checked, and a 400 is also what the
+    // "not a script in this package.json" branch answers — so the no-scripts branch's own words,
+    // which are the ones that tell a human what to do instead, were never asserted at all. They
+    // have to name what was asked for, say why nothing can be run, and point at the way out.
+    const error = (await res.json()).error as string;
+    expect(error).toContain('"dev"'); // what was asked for, quoted
+    expect(error).toContain("this repo's package.json defines no scripts"); // why, not just that
+    expect(error).toContain('POST /api/target/url'); // and the way out — paste a URL instead
+    expect(error).not.toMatch(/is not a script in/); // never the other branch's words
+
     await new Promise((resolve) => setTimeout(resolve, 50));
     expect(runner.startedWith).toBeUndefined();
   });
