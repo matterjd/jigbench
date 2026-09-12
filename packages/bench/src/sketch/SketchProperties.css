@@ -67,12 +67,25 @@
   color: var(--dim);
 }
 
-.jig-sketch-properties__field select {
+/* #56: the panel had a rule for its `select` alone, so the `content` textarea and the `label`
+   input beside it took the UA's ground as well as the UA's ink. (The `/route` input and the
+   sketch picker sit in `__link-form`, which has always had its own rule.) Same ground, same
+   ink, one rule. */
+.jig-sketch-properties__field select,
+.jig-sketch-properties__field textarea,
+.jig-sketch-properties__field input {
   background: var(--bg1);
   border: 1px solid var(--line);
   border-radius: var(--r-inner);
   color: var(--ink);
   padding: 4px 6px;
+}
+
+.jig-sketch-properties__field textarea {
+  min-height: 56px;
+  resize: vertical;
+  font-size: 12.5px;
+  line-height: 1.45;
 }
 
 .jig-sketch-properties__links {

@@ -145,7 +145,12 @@ PASS: a **prompt card** opens beside the header (never over it) titled with the 
 uses as chips, its routes.
 
 **14. The requirement.** Type `the invoice due date should show how many days overdue`.
-PASS: **Ready** turns ember (*· hold*); the card's foot reads `draft`; **Prompts** lists it under
+PASS: **the text you type is light on the dark card**, in the bench's own sans — not black, not
+the browser's monospace default (a browser inherits neither `color` nor `font` into a form
+control, so this is the one thing on the card only a real browser can judge; the same goes for
+the acceptance lines, the Clamp screen's path box, the docs and app URL boxes, the Design
+system's filter, and the sketch panel's **content** and **label** boxes under Advanced).
+**Ready** turns ember (*· hold*); the card's foot reads `draft`; **Prompts** lists it under
 **draft** as `0001` with a slug made from your words, and the file exists:
 ```bash
 ls /c/Users/matte/source/repos/jigbench/examples/ledger-angular/.jig/prompts/

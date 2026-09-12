@@ -9,6 +9,12 @@ semantic versioning strictly (pre-1.0).
 The 0.2.0 desk retest (2026-09-12) — what the first drive of the published package found, one PR
 each.
 
+- **the words you type are the house ink** — a browser inherits neither `color` nor `font` into a
+  form control, so the prompt card's requirement box drew in the UA's black on the dark card, in
+  the UA's font. `index.css` resets `input`, `textarea` and `select` to the ink and font of
+  whatever surface they sit on — bare type selectors, so a component that dims a control on
+  purpose still wins — and the sketch properties panel's own text controls get the ground its
+  `select` already had.
 - **the page never scrolls; a tall panel scrolls inside itself** — a long Design system list used
   to grow the chassis past the viewport and take the rail and the status line off the bottom with
   it. The chassis is a fixed `100vh` grid that cannot scroll, every row that holds a scrolling
