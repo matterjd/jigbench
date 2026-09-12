@@ -105,6 +105,15 @@ export class PromptStore {
     return [...this.migrationSkips];
   }
 
+  /** One work order this migration could not turn into a prompt — reported through
+   * `migrationSkipped()` (and so `GET /api/state`'s `migration.skipped`) as well as logged, so a
+   * failure is never only a server-log line (#37; the record itself is `565245b`'s). */
+  private recordMigrationSkip(entry: string, err: unknown): void {
+    const error = String(err);
+    this.migrationSkips.push({ entry, error });
+    logger.warn(`S11 migration: work order ${entry} failed to migrate to a prompt; skipping it`, error);
+  }
+
   private async hasAnyPromptFile(): Promise<boolean> {
     if (!(await pathExists(this.paths.prompts))) return false;
     const entries = await readdirOrEmpty(this.paths.prompts);
@@ -126,16 +135,29 @@ export class PromptStore {
     let migrated = 0;
     for (const entry of entries) {
       if (!entry.endsWith('.md')) continue;
+
+      // #37: the ENOENT allowance belongs to the READ and to nothing else. An ENOENT here means
+      // the work order went away between the listing and the read — there is nothing left to
+      // migrate, so moving on loses nothing. An ENOENT from the WRITE below means the opposite:
+      // the work order is still on disk and was NOT migrated, which is the one thing
+      // `migrationSkipped()` exists to report (`565245b` added that record for exactly a write
+      // ENOENT, seen live on CI run 34148382041; the guard, added later for this read, swallowed
+      // it again). Two try blocks rather than one, so the two failures cannot be confused.
+      let raw: string;
       try {
-        const wo = parseWorkOrder(await readFile(join(this.paths.workOrders, entry), 'utf8'));
-        const prompt = migrateWorkOrder(wo);
+        raw = await readFile(join(this.paths.workOrders, entry), 'utf8');
+      } catch (err) {
+        if (isEnoent(err)) continue; // gone between the listing and the read — not a failure
+        this.recordMigrationSkip(entry, err);
+        continue;
+      }
+
+      try {
+        const prompt = migrateWorkOrder(parseWorkOrder(raw));
         await atomicWriteFile(this.filePathFor(prompt), serializePrompt(prompt));
         migrated++;
       } catch (err) {
-        if (isEnoent(err)) continue; // gone between the listing and the read — nothing to migrate, not a failure
-        const error = String(err);
-        this.migrationSkips.push({ entry, error });
-        logger.warn(`S11 migration: work order ${entry} failed to migrate to a prompt; skipping it`, error);
+        this.recordMigrationSkip(entry, err);
       }
     }
     if (migrated > 0) {

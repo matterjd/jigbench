@@ -6,6 +6,17 @@ semantic versioning strictly (pre-1.0).
 
 ## [Unreleased]
 
+Issue #37 — the hardening items from the fix-round verification, none of them a live defect, one
+PR each.
+
+- **a work order that cannot be written as a prompt is reported again** — the S11 migration's
+  ENOENT guard sat in front of the read *and* the write. An ENOENT from the read means the work
+  order went away between the listing and the read, so moving on loses nothing; an ENOENT from the
+  write means the work order is still there and was **not** migrated, which is the one thing
+  `migrationSkipped()` (and `GET /api/state`'s `migration.skipped`) exists to report. The record
+  was added for exactly that write failure, seen live on CI run 34148382041; the read guard, added
+  later, swallowed it again. Two guards now, one per failure.
+
 The 0.2.0 desk retest (2026-09-12) — what the first drive of the published package found, one PR
 each.
 
