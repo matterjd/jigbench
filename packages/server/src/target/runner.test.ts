@@ -200,7 +200,15 @@ describe('TargetRunner', () => {
       await runner.stop();
       expect(runner.getState()).toEqual({ status: 'none' });
     } finally {
-      await rm(repoRoot, { recursive: true, force: true });
+      // This test spawns a REAL `npm run start` — on Windows that is three processes deep
+      // (`cmd.exe` -> `npm.cmd` -> `node server.mjs`), and `stop()` resolving does not mean the
+      // OS has released their handles into `repoRoot` yet. An unretried `rm` reproduces as
+      // EBUSY/ENOTEMPTY on windows-latest, not as a real leak: CI run 34716624245 failed here
+      // with `EBUSY: resource busy or locked, rmdir
+      // 'C:\Users\RUNNER~1\AppData\Local\Temp\jig-runner-npm-dl84Jg'` on a PR whose diff does not
+      // touch this package. The retry is the same one `build/runner.test.ts` documents for the
+      // identical (and shorter) chain, and `atomic-write.ts` for writes.
+      await rm(repoRoot, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
     }
   }, 40_000);
 });

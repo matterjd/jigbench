@@ -42,6 +42,15 @@ PR each.
   Off win32 nothing re-parses npm's argv, so a name the repo chose is the repo's business; the
   charset is win32-only and the rule takes the platform as a parameter, so both branches are
   proved on whichever CI leg runs.
+- **the UNC refusal judges what a path really is, not only how it is spelled** — #18 refused
+  `\\host\share` by its spelling, and a symlink (or NTFS junction) inside the home pointing at
+  `\\attacker\share` is spelled like any other local path: the `stat` that came next followed it,
+  which on Windows is the SMB connection the guard exists to prevent, made after the guard said
+  yes. The folder browser and clamp now share one rule (`fs/local-path.ts`) — refuse the spelling,
+  `realpath`, refuse that too, then do the filesystem work against the real path so nothing can be
+  re-pointed in between. Clamp also refuses a link whose target sits inside a `.jig/` directory,
+  the same lexical guard with the same hole. Every message, every `entries[].path` and the
+  `repoRoot` a clamp records keep the caller's own spelling.
 
 The 0.2.0 desk retest (2026-09-12) — what the first drive of the published package found, one PR
 each.

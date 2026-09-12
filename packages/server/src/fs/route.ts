@@ -1,10 +1,10 @@
 import { existsSync } from 'node:fs';
 import { readdir, stat } from 'node:fs/promises';
 import { homedir, platform } from 'node:os';
-import { dirname, join, resolve as resolvePath } from 'node:path';
+import { dirname, join } from 'node:path';
 import type { Express, Request, Response } from 'express';
 import { isSameOriginOrAbsent } from '../same-origin.js';
-import { isUncPath, UNC_REFUSED_MESSAGE } from './unc-path.js';
+import { checkLocalPath } from './local-path.js'; // #37
 import { hiddenOrSystemNames } from './win32-hidden.js';
 
 /**
@@ -92,6 +92,10 @@ export interface FsRouteOptions {
   /** The `--host` the server was bound to, when any — #18: the gate below accepts it as a
    * Host alongside the loopback names. Omitted: loopback only. */
   host?: string;
+  /** Test-only override, forwarded to `checkLocalPath` (#37) — a junction onto a UNC share
+   * cannot be planted on a CI runner without opening the SMB connection the guard exists to
+   * prevent, so the rule is proved against an injected answer. Production passes nothing. */
+  realpath?: (path: string) => Promise<string>;
 }
 
 export function attachFsRoute(app: Express, options: FsRouteOptions = {}): void {
@@ -124,22 +128,27 @@ export function attachFsRoute(app: Express, options: FsRouteOptions = {}): void 
       }
 
       // #18: a UNC value would make Windows open an SMB connection to the named host on the
-      // `stat` below — refused by its spelling, before any filesystem call.
-      if (isUncPath(raw)) {
-        res.status(400).json({ error: UNC_REFUSED_MESSAGE });
+      // `stat` below — refused by its spelling, before any filesystem call. #37: and again on
+      // what the path REALLY is, because a symlink or NTFS junction onto a UNC share is spelled
+      // like any other local path and the stat would follow it. `checkLocalPath` does both, plus
+      // the existence check (by `realpath`, which follows nothing further than the guard does).
+      //
+      // `resolved` there is `path.resolve(raw)`: `..`/`.` segments collapsed against
+      // `process.cwd()` for a relative input, separators normalised — the ONLY handling `..`
+      // gets here (S17a brief: "`..` allowed only via the parent link the API itself returns",
+      // i.e. by normalising whatever the caller sent rather than special-casing it as an attack).
+      const checked = await checkLocalPath(raw, { realpath: options.realpath });
+      if (!checked.ok) {
+        res.status(400).json({ error: checked.error });
         return;
       }
+      // `target` is the caller's own spelling — what every message says, what `entries[].path`
+      // is built from, and what the browser navigates with; `real` is what the filesystem calls
+      // below actually touch, so nothing can be re-pointed between the guard and the use.
+      const { resolved: target, real } = checked;
 
-      // `resolvePath` collapses `..`/`.` segments against `process.cwd()` for a relative
-      // input and normalises separators — the ONLY handling `..` gets here (S17a brief:
-      // "`..` allowed only via the parent link the API itself returns", i.e. by normalising
-      // whatever the caller sent rather than special-casing it as an attack).
-      const target = resolvePath(raw);
-
-      let stats;
-      try {
-        stats = await stat(target);
-      } catch {
+      const stats = await stat(real).catch(() => null);
+      if (!stats) {
         res.status(400).json({ error: `no such path: ${target}` });
         return;
       }
@@ -148,7 +157,7 @@ export function attachFsRoute(app: Express, options: FsRouteOptions = {}): void 
         return;
       }
 
-      const dirEntries = await readdir(target, { withFileTypes: true });
+      const dirEntries = await readdir(real, { withFileTypes: true });
       const visible = dirEntries
         .filter((e) => e.isDirectory())
         .map((e) => e.name)
@@ -156,8 +165,9 @@ export function attachFsRoute(app: Express, options: FsRouteOptions = {}): void 
 
       // #24: a dot prefix is a POSIX convention. Windows keeps the same idea as two bits on the
       // directory entry, which is why `$Recycle.Bin`, `$WINDOWS.~BT`, `System Volume Information`
-      // and `Recovery` came back at a drive root. Off win32 this is a no-op with no spawn.
-      const flagged = await hiddenOrSystemNames(target, visible);
+      // and `Recovery` came back at a drive root. Off win32 this is a no-op with no spawn. #37:
+      // `real`, like the `readdir` above — `attrib` is asked about the directory that was read.
+      const flagged = await hiddenOrSystemNames(real, visible);
       const names = visible.filter((name) => !flagged.has(name)).sort((a, b) => a.localeCompare(b));
 
       const entries = await Promise.all(names.map((name) => describeEntry(target, name)));
