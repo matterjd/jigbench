@@ -135,7 +135,14 @@ describe('POST /api/target/start', () => {
     const res = await startWithScript(url, 'start&calc.exe');
     expect(res.status).toBe(400);
     const body = await res.json();
-    expect(body.error).toMatch(/package\.json/);
+    // #37: two refusals, one per platform, and both are right — so this asserts the one that
+    // actually applies rather than a regex that happens to match only off Windows (which is how
+    // CI run 34716234717 caught this: green on ubuntu, red on windows-latest). On win32 the name
+    // never reaches the membership test: `isRunnableScriptName` refuses those characters first,
+    // and `packageJsonScriptNames` would have dropped such a key from the list anyway. Off win32
+    // nothing re-parses npm's argv, so the only thing that can refuse this name is that the repo
+    // does not define it.
+    expect(body.error).toMatch(process.platform === 'win32' ? /letters, digits/ : /package\.json/);
 
     // start() is fire-and-forget after a 202 — give a wrongly-accepted spawn every chance to
     // have registered before asserting it never did.
