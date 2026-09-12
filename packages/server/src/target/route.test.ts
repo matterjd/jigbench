@@ -163,6 +163,70 @@ describe('POST /api/target/start', () => {
     expect(runner.startedWith).toBeUndefined();
   });
 
+  // #37: `port` was accepted on a bare `typeof === 'number'`, and `1e999` passes that — JSON
+  // has no Infinity literal but no exponent ceiling either, so a parser reads it as Infinity.
+  // The app was spawned and the runner's 120-second probe burned on a port that cannot exist.
+  describe('#37: the port is bounded to 1..65535 before anything spawns', () => {
+    // The body is RAW TEXT on purpose: `JSON.stringify({ port: 1e999 })` is `{"port":null}`,
+    // so building this payload the usual way tests a different bug than the one the desk found.
+    const RAW_BODIES: Array<[string, string]> = [
+      ['1e999 (Infinity — the one the desk found)', '{"port":1e999}'],
+      ['0 (the OS\'s "any free port", never a caller\'s to ask for)', '{"port":0}'],
+      ['-1', '{"port":-1}'],
+      ['65536 (one past the last port there is)', '{"port":65536}'],
+      ['4200.5', '{"port":4200.5}'],
+      ['"4200" (a numeric string)', '{"port":"4200"}'],
+    ];
+
+    for (const [label, body] of RAW_BODIES) {
+      it(`400s on port ${label}, and never spawns`, async () => {
+        const repoRoot = await freshRepo();
+        await writeFile(join(repoRoot, 'package.json'), JSON.stringify({ scripts: { start: 'ng serve' } }), 'utf8');
+        const { url } = await boot(fakeBench(repoRoot));
+
+        const res = await fetch(`${url}/api/target/start`, {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body,
+        });
+        expect(res.status, label).toBe(400);
+        const error = (await res.json()).error as string;
+        expect(error).toMatch(/port must be a whole number from 1 to 65535/);
+        expect(error).toMatch(/got /); // the words say what was wrong, not just that something was
+
+        await new Promise((resolve) => setTimeout(resolve, 50));
+        expect(runner.startedWith, label).toBeUndefined();
+        expect(runner.getState()).toEqual({ status: 'none' });
+      });
+    }
+
+    it('still accepts the edges — 1 and 65535 — and starts on them', async () => {
+      for (const port of [1, 65535]) {
+        const repoRoot = await freshRepo();
+        await writeFile(join(repoRoot, 'package.json'), JSON.stringify({ scripts: { start: 'ng serve' } }), 'utf8');
+        const { url } = await boot(fakeBench(repoRoot));
+        const res = await fetch(`${url}/api/target/start`, {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ port }),
+        });
+        expect(res.status, String(port)).toBe(202);
+        await expect.poll(() => runner.startedWith).toBeDefined();
+        expect(runner.startedWith?.port, String(port)).toBe(port);
+      }
+    });
+
+    it('a body with no port at all is untouched — detection still supplies one', async () => {
+      const repoRoot = await freshRepo();
+      await writeFile(join(repoRoot, 'package.json'), JSON.stringify({ scripts: { start: 'ng serve' } }), 'utf8');
+      const { url } = await boot(fakeBench(repoRoot));
+      const res = await fetch(`${url}/api/target/start`, { method: 'POST' });
+      expect(res.status).toBe(202);
+      await expect.poll(() => runner.startedWith).toBeDefined();
+      expect(runner.startedWith?.port).toBe(4200);
+    });
+  });
+
   it('409s when the target is already starting or up', async () => {
     const repoRoot = await freshRepo();
     const { url } = await boot(fakeBench(repoRoot));

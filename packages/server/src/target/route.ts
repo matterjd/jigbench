@@ -1,6 +1,7 @@
 import type { Express } from 'express';
 import { detectDevScript, invocation, packageJsonScriptNames } from './detect.js';
 import type { StartTargetInput, TargetRunnerLike } from './runner.js';
+import { isValidPort, portRefusedMessage } from '../valid-port.js'; // #37
 import { logger } from '../logger.js';
 
 /**
@@ -40,8 +41,20 @@ export function attachTargetRoute(app: Express, ctx: TargetRouteContext): void {
     }
 
     const body = (req.body ?? {}) as { script?: unknown; port?: unknown };
+
+    // #37: a `port` the request names is bounded BEFORE anything spawns. `typeof === 'number'`
+    // (what this used to be) passes `1e999`, which a JSON parser reads as Infinity: the app
+    // was started and the runner's 120-second availability probe spent on a port that cannot
+    // exist. A port that is present but not a whole 1..65535 is a 400 in words, never a
+    // silent substitution of the detected one — see valid-port.ts for the rule and for why 0
+    // is out.
+    if (body.port !== undefined && !isValidPort(body.port)) {
+      res.status(400).json({ error: portRefusedMessage(body.port) });
+      return;
+    }
+
     const detected = detectDevScript(bench.repoRoot, bench.store.getState().survey);
-    const explicitPort = typeof body.port === 'number' ? body.port : undefined;
+    const explicitPort = isValidPort(body.port) ? body.port : undefined;
 
     let spec: StartTargetInput | null = null;
     if (typeof body.script === 'string' && body.script.trim().length > 0) {

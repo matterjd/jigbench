@@ -17,6 +17,14 @@ PR each.
   `fs/route.ts`, which already refused a foreign Origin on its own two GETs, is no longer the
   exception. A same-origin GET and a no-Origin GET (curl, an MCP client, the CLI) are unaffected:
   a browser sends no `Origin` on a same-origin read.
+- **a `port` in a request body is a whole number from 1 to 65535, or a 400 that says so** — both
+  routes that take one and act on it checked only `typeof === 'number'`, and `1e999` passes that:
+  JSON has no Infinity literal but no exponent ceiling either, so a parser reads it as `Infinity`.
+  `POST /api/target/start` spawned the app and spent its whole 120-second availability probe on a
+  port that cannot exist; `POST /api/plate/mirror` reached `server.listen` and came back a 500
+  naming nothing. One rule now (`valid-port.ts`), one wording, checked before anything spawns or
+  binds. `/api/plate/mirror` still takes `0` — on that route it is the OS's "any free port"
+  sentinel and the 200 body reports the port actually bound.
 
 The 0.2.0 desk retest (2026-09-12) — what the first drive of the published package found, one PR
 each.
