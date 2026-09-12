@@ -6,6 +6,18 @@ semantic versioning strictly (pre-1.0).
 
 ## [Unreleased]
 
+Issue #37 — the hardening items from the fix-round verification, none of them a live defect, one
+PR each.
+
+- **a git that never answers no longer holds a build open** — `build/git-diff.ts` spawned `git`
+  with no timeout of any kind, and `BuildRunner.start()` awaits the before-snapshot before it
+  spawns `claude` at all: a wedged git (a credential helper waiting on a prompt, a dead network
+  drive under the working tree, an `index.lock` someone else holds) blocked the whole build
+  forever, with nothing to cancel and nothing in the log. Each invocation has a budget now —
+  15 seconds by default, three orders of magnitude over what a real `git status` takes, and the
+  runner can name its own — and a git that outlives it is killed, reading as the same "no diff
+  information available" every other git failure already reads as.
+
 The 0.2.0 desk retest (2026-09-12) — what the first drive of the published package found, one PR
 each.
 

@@ -57,6 +57,10 @@ export interface BuildRunnerOptions {
   maxDurationMs?: number;
   /** Budget for the `--version` probe `isClaudeAvailable()` runs. Default 5s. */
   availabilityTimeoutMs?: number;
+  /** #37: budget per `git` invocation in the before/after snapshots (`git-diff.ts`), which
+   * `start()` awaits before it spawns anything. Default 15s — see that module for why it is
+   * generous rather than tight. */
+  gitTimeoutMs?: number;
 }
 
 const DEFAULT_ALLOWED_TOOLS = [
@@ -99,6 +103,8 @@ export class BuildRunner implements BuildRunnerLike {
   private readonly allowedTools: string[];
   private readonly maxDurationMs: number;
   private readonly availabilityTimeoutMs: number;
+  /** #37 — undefined leaves `git-diff.ts`'s own default in force. */
+  private readonly gitTimeoutMs: number | undefined;
   private current: RunningBuild | null = null;
   private lastBuilt: LastBuilt | undefined;
 
@@ -109,6 +115,7 @@ export class BuildRunner implements BuildRunnerLike {
     this.allowedTools = opts.allowedTools ?? DEFAULT_ALLOWED_TOOLS;
     this.maxDurationMs = opts.maxDurationMs ?? DEFAULT_MAX_DURATION_MS;
     this.availabilityTimeoutMs = opts.availabilityTimeoutMs ?? DEFAULT_AVAILABILITY_TIMEOUT_MS;
+    this.gitTimeoutMs = opts.gitTimeoutMs;
   }
 
   currentBuild(): { promptId: string; buildId: string } | null {
@@ -204,7 +211,9 @@ export class BuildRunner implements BuildRunnerLike {
     }
     const transcript = createWriteStream(transcriptPath, { flags: 'a' });
 
-    const before = await gitStatusSnapshot(this.repoRoot).catch(() => null);
+    // #37: with a budget now — a wedged `git` used to hold this await, and so the whole build,
+    // open forever with nothing to cancel and nothing in the log.
+    const before = await gitStatusSnapshot(this.repoRoot, { timeoutMs: this.gitTimeoutMs }).catch(() => null);
     const startedAt = running.startedAt;
 
     return new Promise<BuildOutcome>((resolve) => {
@@ -283,7 +292,7 @@ export class BuildRunner implements BuildRunnerLike {
         }
 
         if (filesTouched === null && before) {
-          const after = await gitStatusSnapshot(this.repoRoot).catch(() => null);
+          const after = await gitStatusSnapshot(this.repoRoot, { timeoutMs: this.gitTimeoutMs }).catch(() => null);
           filesTouched = after ? filesTouchedBetween(before, after) : [];
         }
         filesTouched ??= [];
