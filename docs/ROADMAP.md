@@ -97,7 +97,7 @@ main's one red push run, at `365ebef`, was root-caused the same day as its own P
 `README.md` and `docs/TEST-RUN.md` name 4601 and #44 makes it true on that path; #24 closed with
 every box ticked and nothing refiled.
 
-### S20 · issue #37, the hardening items
+### S20 · issue #37, the hardening items · SHIPPED 2026-09-12 (unreleased on main: PR #80 `fc4207b`, the nine PRs merged together; follow-ups #81)
 **M · amber (two items touch the Host and Origin gates) · after R0 · prompt** `03-hardening.md`
 
 **Goal.** Close #37's eight items. **Why now.** They came out of the fix-round verification, none
