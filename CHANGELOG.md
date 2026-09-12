@@ -66,6 +66,14 @@ PR each.
   `migrationSkipped()` (and `GET /api/state`'s `migration.skipped`) exists to report. The record
   was added for exactly that write failure, seen live on CI run 34148382041; the read guard, added
   later, swallowed it again. Two guards now, one per failure.
+- **four fixes that were shipped without a test that could fail now have one** (tests only, no
+  production change) — the ref refresh behind #19 is pinned by a case that actually **re-renders**
+  the selector table, since every existing case rendered once and would have passed with that line
+  deleted; #20's "keeps the URL field" test now asserts the URL field its own name is about;
+  `createBench`'s production `new OllamaDrafter()` path is exercised with the model probe really
+  running, against a port nothing answers on so a desk with Ollama and a CI runner without it agree;
+  and the #17 no-scripts 400 says what it says on purpose — the message, not just the status. Each
+  was confirmed by reverting the line it covers and watching it go red.
 
 The 0.2.0 desk retest (2026-09-12) — what the first drive of the published package found, one PR
 each.

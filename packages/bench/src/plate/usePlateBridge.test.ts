@@ -356,6 +356,43 @@ describe('the survey reaches a plate that loads after it arrived (#19)', () => {
     document.body.removeChild(iframe);
   });
 
+  // #37 (S20, the test gaps): every case above renders ONCE, so the line that keeps the ref
+  // current — `selectorsRef.current = selectors`, on every render — was unpinned: the ref is
+  // seeded at the first render, and a hook that never re-rendered would pass all three tests with
+  // the assignment deleted. Which is the whole shape of #19: the survey arrives while the plate is
+  // still coming up, i.e. in a LATER render than the one the ref was created in.
+  it('#37: a re-render with a new selector table is what gets posted, not the table the ref was created with', () => {
+    const { ref, posted, iframe } = iframeWithCapture();
+    const SECOND = [
+      { selector: 'app-invoice-detail', name: 'InvoiceDetailComponent', file: 'src/app/invoices/invoice-detail.ts' },
+      { selector: 'app-invoice-list', name: 'InvoiceListComponent', file: 'src/app/invoices/invoice-list.ts' },
+    ];
+
+    const { rerender } = renderHook(({ selectors }) => usePlateBridge(ref, PLATE_ORIGIN, selectors), {
+      initialProps: { selectors: SELECTORS },
+    });
+
+    rerender({ selectors: SECOND });
+    // The eager post on change carries the new table …
+    expect(posted).toContainEqual({ type: 'jig:survey', selectors: SECOND });
+
+    // … and so does the answer to a loupe that boots afterwards, which is the case #19 is about:
+    // that post reads the table through the ref, not through the closure it was created in.
+    posted.length = 0;
+    act(() => fireMessage({ type: 'jig:ready' }, PLATE_ORIGIN));
+    expect(posted).toEqual([{ type: 'jig:survey', selectors: SECOND }]);
+    expect(posted).not.toContainEqual({ type: 'jig:survey', selectors: SELECTORS });
+
+    // And the iframe's own load event, the third way the table is sent.
+    posted.length = 0;
+    act(() => {
+      iframe.dispatchEvent(new Event('load'));
+    });
+    expect(posted).toEqual([{ type: 'jig:survey', selectors: SECOND }]);
+
+    document.body.removeChild(iframe);
+  });
+
   it('posts nothing on load or ready while there is no survey to send', () => {
     const { ref, posted, iframe } = iframeWithCapture();
     renderHook(() => usePlateBridge(ref, PLATE_ORIGIN, []));
