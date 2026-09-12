@@ -128,10 +128,21 @@ describe('POST /api/target/start', () => {
     await writeFile(join(repoRoot, 'package.json'), JSON.stringify({ scripts: { start: 'ng serve' } }), 'utf8');
     const { url } = await boot(fakeBench(repoRoot));
 
-    const res = await startWithScript(url, 'start & calc.exe');
+    // #37: `start&calc.exe`, not `start & calc.exe`. libuv quotes an argument containing a
+    // space, a tab or a quote, so the SPACED form reaches cmd.exe as one quoted token and could
+    // never have injected anything — the old payload proved less than it looked. Unspaced, `&`
+    // is passed through bare and cmd.exe splits the line on it.
+    const res = await startWithScript(url, 'start&calc.exe');
     expect(res.status).toBe(400);
     const body = await res.json();
-    expect(body.error).toMatch(/package\.json/);
+    // #37: two refusals, one per platform, and both are right — so this asserts the one that
+    // actually applies rather than a regex that happens to match only off Windows (which is how
+    // CI run 34716234717 caught this: green on ubuntu, red on windows-latest). On win32 the name
+    // never reaches the membership test: `isRunnableScriptName` refuses those characters first,
+    // and `packageJsonScriptNames` would have dropped such a key from the list anyway. Off win32
+    // nothing re-parses npm's argv, so the only thing that can refuse this name is that the repo
+    // does not define it.
+    expect(body.error).toMatch(process.platform === 'win32' ? /letters, digits/ : /package\.json/);
 
     // start() is fire-and-forget after a 202 — give a wrongly-accepted spawn every chance to
     // have registered before asserting it never did.
@@ -151,6 +162,45 @@ describe('POST /api/target/start', () => {
     expect(body.error).toContain('start'); // the message names what the repo does define
     await new Promise((resolve) => setTimeout(resolve, 50));
     expect(runner.startedWith).toBeUndefined();
+  });
+
+  // #37: the hole #17 left. Being a key of package.json was the whole test, and a repo's own key
+  // can carry the metacharacters — `"start&calc.exe": "echo pwned"` in a hostile clone was a name
+  // Jig would hand to cmd.exe. On win32 the name must also be letters, digits, `-`, `_`, `:` or
+  // `.`; off win32 nothing re-parses npm's argv, so the repo's own key is the repo's business
+  // (which is why this case runs only on the Windows leg — `isRunnableScriptName`'s own tests in
+  // detect.test.ts prove both branches on every leg).
+  const itOnWin32 = process.platform === 'win32' ? it : it.skip;
+
+  itOnWin32('#37: 400s on a {script} the repo DOES define, when the name would split under cmd.exe', async () => {
+    const repoRoot = await freshRepo();
+    await writeFile(
+      join(repoRoot, 'package.json'),
+      JSON.stringify({ scripts: { start: 'ng serve', 'start&calc.exe': 'echo pwned' } }),
+      'utf8',
+    );
+    const { url } = await boot(fakeBench(repoRoot));
+
+    const res = await startWithScript(url, 'start&calc.exe');
+    expect(res.status).toBe(400);
+    expect((await res.json()).error).toMatch(/letters, digits/);
+
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(runner.startedWith).toBeUndefined();
+    expect(runner.getState()).toEqual({ status: 'none' });
+  });
+
+  itOnWin32('#37: a repo whose only script splits under cmd.exe detects nothing to start, rather than starting that', async () => {
+    const repoRoot = await freshRepo();
+    await writeFile(join(repoRoot, 'package.json'), JSON.stringify({ scripts: { start: 'ng serve&calc.exe' } }), 'utf8');
+    const { url } = await boot(fakeBench(repoRoot));
+
+    // The VALUE may be anything — the repo runs its own scripts however it likes; only the NAME
+    // reaches Jig's argv, and `start` is a fine name. So this one starts.
+    const res = await fetch(`${url}/api/target/start`, { method: 'POST' });
+    expect(res.status).toBe(202);
+    await expect.poll(() => runner.startedWith).toBeDefined();
+    expect(runner.startedWith?.args.slice(-2)).toEqual(['run', 'start']);
   });
 
   it('#17: 400s on any {script} when the repo has no package.json at all — nothing can be a key of it', async () => {
