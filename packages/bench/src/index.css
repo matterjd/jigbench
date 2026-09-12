@@ -37,3 +37,31 @@ button:focus-visible {
   outline: 2px solid var(--storm);
   outline-offset: 2px;
 }
+
+/* Retest 0.2.0 defect #56, and the same lesson the button reset above records, one element
+   further on: a browser does not inherit `color` or `font` into a form control. `input`,
+   `textarea` and `select` start from the UA's own `fieldtext` ink and UA font, so a control
+   whose own class sets a `var(--bg2)` ground and forgets `color` renders BLACK on the dark
+   card — which is exactly what the prompt card's requirement box did on Matter's desk. The
+   bench's ink is set on the page (`body`, `.jig-chassis`), so `inherit` is all that is needed:
+   every control picks up the ink of whatever surface it sits on.
+
+   Bare type selectors, no `!important`: this is the floor a control falls back to, never a
+   rule that outranks a component dimming a control on purpose. No `background` here either —
+   ink and font are safe for every control type, a ground is not (`.jig-rail__advanced input`
+   and the Advanced drawer's rulers switch are real checkboxes), so the ground stays each
+   component's own. */
+input,
+textarea,
+select {
+  color: inherit;
+  font: inherit;
+  caret-color: var(--ink);
+}
+
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  outline: 2px solid var(--storm);
+  outline-offset: 1px;
+}

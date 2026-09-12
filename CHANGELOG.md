@@ -6,6 +6,16 @@ semantic versioning strictly (pre-1.0).
 
 ## [Unreleased]
 
+The 0.2.0 desk retest (2026-09-12) — what the first drive of the published package found, one PR
+each.
+
+- **the words you type are the house ink** — a browser inherits neither `color` nor `font` into a
+  form control, so the prompt card's requirement box drew in the UA's black on the dark card, in
+  the UA's font. `index.css` resets `input`, `textarea` and `select` to the ink and font of
+  whatever surface they sit on — bare type selectors, so a component that dims a control on
+  purpose still wins — and the sketch properties panel's own text controls get the ground its
+  `select` already had.
+
 Issue #24 — the small defects the first ten minutes of using Jig turn up, one PR each.
 
 - **the app's own log is clean** — `target/runner.ts` strips ANSI escapes (colour, the window
