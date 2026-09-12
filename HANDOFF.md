@@ -1,8 +1,9 @@
 # HANDOFF — next-session entry point
 
-> **S20 (issue #37, the hardening items) is BUILT and waiting on the lead: eight PRs, #65 #70 #71
-> #72 #74 #75 #76 #77, one per item, each test-first with its red line in the commit body.** The
-> slice is **amber** — nothing was merged, `main` is still `39496f2`, and no tag, publish or
+> **S20 (issue #37, the hardening items) is MERGED: the nine PRs #65 #70 #71 #72 #74 #75 #76 #77 #78,
+> each test-first with its red line in the commit body, landed together as PR #80 → `fc4207b` on
+> 2026-09-12 after the lead's review (one verifier per PR, attackers on the security-adjacent ones);
+> #37 is closed and the review's follow-ups are #81.** The slice was **amber** — the lead merged; no tag, publish or
 > visibility change was touched. A ninth PR, **#78**, is not one of #37's items: it root-causes a
 > red windows-latest leg that surfaced during the slice (`target/runner.test.ts`'s unretried temp-dir
 > `rm` after a real `npm` spawn). `docs/ROADMAP.md`'s S20 row is deliberately unchanged and **#37 is
@@ -14,9 +15,9 @@
 
 **seat:** Delivery (remote — no Browser pane, no Windows desk, no .NET SDK, no Ollama, no real
 `claude` binary; CI is the only gate) · **branch:** `main` · **written:** 2026-09-12 · code at
-`39496f2` · **S20's nine PRs are open and green-or-named; S18 (#59 #60 #61) merged earlier the same
-day. Nothing was merged by this seat, nothing tagged, nothing published; 0.2.0 remains the last
-release.**
+`fc4207b` · **S20's nine PRs are merged (PR #80); S18 (#59 #60 #61) merged earlier the same day.
+Nothing was merged by the cloud seat itself, nothing tagged, nothing published; 0.2.0 remains the
+last release, with S18 + S20 unreleased on main.**
 
 ## State
 
@@ -133,8 +134,9 @@ after the first** — the same hand-union the S18 set needed.
 **The plan of record:** `docs/ROADMAP.md`, one row per slice, each with a goal, acceptance,
 depends-on, size, tier (green = a cloud session may merge on green CI; amber = the PR waits for
 the lead; ruling = Matter decides first) and the file name of its cloud prompt under
-`docs/team/cloud/`; read that folder's README first. R0, **S19** and **S18** are shipped; **S20 is
-built and waiting on the lead**. Next in sequence: **S21** issue #23, the three rulings (ruling —
+`docs/team/cloud/`; read that folder's README first. R0, **S19**, **S18** and **S20** are shipped
+(S20 as PR #80 `fc4207b`; its review follow-ups are #81; the second retest batch #66–#69 is the next
+S18 run). Next in sequence: **S21** issue #23, the three rulings (ruling —
 Matter answers first) → v0.3, the stacks (S22 React/Next/Vite, S23 Vue/Svelte, S24 Expo web, S25
 server-rendered, S26 OpenAPI) → v0.3, the loop deepens (S27 a real before, S28 the stream and the
 logbook, S29 refine and build again, S30 the MCP door) → v0.4. **S22 is the first slice that can make
@@ -188,9 +190,10 @@ on Windows:** a repo whose `package.json` names a script with a metacharacter (`
 is refused with the charset message rather than run (#72), and the folder browser still lists a
 directory reached through a junction (#74).
 
-**→ Next session: S20's nine PRs are the lead's to review and merge (amber; expect the `CHANGELOG.md`
-Unreleased hunk to conflict after the first, and merge #78 or #74 in either order — the fix is in
-both). When the last of the eight items lands, close #37 and flip the S20 row in `docs/ROADMAP.md`
-to shipped. Then the frontier is `docs/team/cloud/04-rulings.md` (S21, issue #23) if Matter has
-answered, else `05-adapter-react.md` (S22) — and S22 is the slice that makes #71's survey-hint tier
-live, so read that PR before writing an adapter's `devServer`.**
+**→ Next session: the second retest batch is the frontier — paste `docs/team/cloud/01-retest-fixes.md`
+again; its set is #66 #67 #68 #69 (Build re-mounting the card, the build stream overflowing the card
+and the pane, Sketch with no visible way to add a button, the build-this-screen card behind the
+rail), amber. After that: #81 (hardening round 2) as its own slice, then `04-rulings.md` (S21, issue
+#23) if Matter has answered, else `05-adapter-react.md` (S22) — and S22 is the slice that makes #71's
+survey-hint tier live, so read that PR before writing an adapter's `devServer`. #73 (Point like the
+inspector) is queued after S28.**
