@@ -1,6 +1,13 @@
+/* #57: the column is a flex/grid column whose tab strip is fixed and whose ACTIVE TAB PANEL is
+   the one scroll container. `height: 100%` matters as much as the track: without it this is a
+   block box of `height: auto` inside a stretched grid item, so the row below resolves against
+   its own content and bounding the row above buys nothing. `overflow: hidden` here was never
+   the scroll container it looked like — clipping does not stop a panel's content contributing
+   its full height to the track above. */
 .jig-right-column {
   display: grid;
-  grid-template-rows: 40px 1fr;
+  grid-template-rows: 40px minmax(0, 1fr);
+  height: 100%;
   min-height: 0;
   min-width: 0;
   overflow: hidden;
@@ -57,9 +64,13 @@
   padding: 2px 6px;
 }
 
+/* The one scroll container: Prompts, Inspect and the Design system each scroll in here, and the
+   tab strip, the rail and the status line stay put while they do. `overflow-y` only — a
+   horizontal scrollbar in a 340px column is always a layout bug, never a feature. */
 .jig-right-column__pane {
   min-height: 0;
-  overflow: auto;
+  overflow-y: auto;
+  overflow-x: hidden;
   padding: 12px;
 }
 
