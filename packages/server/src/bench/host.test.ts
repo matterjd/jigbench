@@ -306,6 +306,18 @@ describe('#18: the Host allowlist and UNC rejection on the bench host', () => {
     expect((await rawRequest(`${h.url}/api/state`, { headers: { host: `localhost:${port}` } })).status).toBe(200);
   });
 
+  // #37: the Origin half runs on every method here too — `SECURITY.md` promises it for every
+  // `/api/*` request, and this gate is the same rule as `http.ts`'s (see same-origin.ts).
+  it('#37: refuses a GET /api/state carrying a foreign Origin, and still answers the bench\'s own and none at all', async () => {
+    const h = await boot();
+    const foreign = await fetch(`${h.url}/api/state`, { headers: { origin: 'http://evil.example' } });
+    expect(foreign.status).toBe(403);
+    expect(await foreign.text()).not.toContain('"recent"');
+
+    expect((await fetch(`${h.url}/api/state`, { headers: { origin: h.url } })).status).toBe(200);
+    expect((await fetch(`${h.url}/api/state`)).status).toBe(200);
+  });
+
   it('answers to the explicit host it was bound to', async () => {
     // `host: '127.0.0.1'` is what the test can actually bind on any runner; the allowlist
     // logic for a LAN address is pinned in same-origin.test.ts — this proves the option is

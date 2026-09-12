@@ -42,7 +42,7 @@ function rawGet(target: string, headers: Record<string, string>): Promise<{ stat
   });
 }
 
-async function boot(options: { host?: string } = {}): Promise<{ app: Express; url: string }> {
+async function boot(options: Parameters<typeof attachFsRoute>[1] = {}): Promise<{ app: Express; url: string }> {
   const app = express();
   attachFsRoute(app, options);
   server = createHttpServer(app);
@@ -223,6 +223,25 @@ describe('GET /api/fs/list', () => {
       expect(res.status, unc).toBe(400);
       expect((await res.json()).error).toMatch(/UNC/);
     }
+  });
+
+  // #37: the same guard, applied to what the path really IS. A symlink or NTFS junction inside
+  // the home pointing at `\\attacker\share` is spelled like any other local path, and the `stat`
+  // that came next follows it — the SMB connection #18's guard exists to prevent, made after that
+  // guard had said yes. Planting the win32 shape for real would make that connection on a CI
+  // runner, so the realpath answer is injected here (`fs/local-path.test.ts` plants the
+  // link-following half for real, and proves the rule itself).
+  it('#37: 400s a locally-spelled path whose real target is a UNC share, and lists nothing', async () => {
+    const repoRoot = await freshDir();
+    await mkdir(join(repoRoot, 'a-real-child'), { recursive: true });
+    const { url } = await boot({ realpath: async () => '\\\\attacker.example\\share\\loot' });
+
+    const res = await fetch(`${url}/api/fs/list?path=${encodeURIComponent(repoRoot)}`);
+
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.error).toMatch(/UNC/);
+    expect(body.entries).toBeUndefined();
   });
 
   it("#18: refuses a listing whose Host is not the bench's own address (DNS rebinding), with no Origin at all", async () => {
