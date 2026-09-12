@@ -155,10 +155,18 @@ acceptance lines appear (*your own words are never lost*). With no model there i
 button at all — not a greyed one.
 
 **15. Ready — the one held gesture [you only].**
-- **Tap it once, quickly.** PASS: *let go early — still a draft · 303 ms of 800* (your number will
-  differ) and nothing changes. That is the safety: a tap cannot commit.
-- **Press and hold for about a second.** PASS: the ring fills, the Prompts row's pip takes a gold
-  ring under **ready**, and the card's one ember act is now **Build · runs Claude Code**.
+- **Tap it once, quickly.** PASS: the card says *let go early — still a draft · 303 ms of 800*
+  (your number will differ) and nothing changes. That is the safety: a tap cannot commit.
+- **Press and hold for about a second.** PASS: **the moment the button goes down** the card reads
+  *hold — the ring fills; let go early and it stays a draft*, and the ring on the button fills
+  from empty to whole over the 800 ms. **Keep holding and drift the mouse off the button** — the
+  hold survives it, because the button takes the pointer for the length of the gesture; only
+  letting go ends it early. When the ring completes: that line clears, the Prompts row's pip
+  takes a gold ring under **ready**, and the card's one ember act is now **Build · runs Claude
+  Code**.
+- FAIL, and the shape #58 was filed as: the ring fills, the second passes, and **nothing
+  happens** — no *let go early* message either, because the hold completed and simply sent
+  nothing. If you ever see that again, the file below is the check: no `state: ready`, no POST.
 ```bash
 cat /c/Users/matte/source/repos/jigbench/examples/ledger-angular/.jig/prompts/0001-*.md
 ```
