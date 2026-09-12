@@ -41,16 +41,41 @@ Opus session may tag, cut the GitHub release and run the `npx` registry check, r
 
 ## 1 · v0.2.1, the retest fixes
 
-### S18 · what the retest files
+### S18 · what the retest files · SHIPPED 2026-09-12 (unreleased on main: #61 `c9df97a`, #60 `2c83f3f`, #59 `5bced66`; #58 open until the desk holds Ready; harness #64)
 **M · amber (the list is unknown until the retest runs) · after R0 · prompt** `01-retest-fixes.md`
 
 **Goal.** Fix what the desk retest of the published 0.2.0 finds, one PR per item. **Why now.** The
 retest is the first drive of the shipped package, so its list is the truest defect list Jig has.
 
-**Acceptance.**
-- Every item the retest files has an issue and a PR that names it.
-- Each PR is test-first, with the red line quoted in the commit body.
-- `CHANGELOG.md`'s Unreleased section names each fix in one line.
+**The retest filed three** (2026-09-12, label `retest-0.2.0`), all in `packages/bench`, one PR each,
+each with both CI legs green at its PR head. **Amber, so none is merged — the lead merges.**
+
+| # | what it was | PR | PR head · run |
+|---|---|---|---|
+| #56 typed text black on the dark card | two control rules set a house ground and no ink; a browser inherits neither `color` nor `font` into a form control | #59 | `fcc230c` · 34711356021 |
+| #57 the page scrolled, not the panel | a bare `1fr` cannot be shorter than its content, and the right column's `overflow: hidden` was never the scroll container it looked like | #60 | `f65d4ad` · 34711623331 |
+| #58 holding Ready did nothing | `useReadyHold`'s completion callback was frozen at the render where Ready first lit — the first keystroke, while `POST /api/prompts` was still in flight | #61 | `be05dae` · 34711954812 (attempt 2) |
+
+**#61's windows leg was red on attempt 1 and it was not #61's.** `build/runner.test.ts:220` —
+`expected [] to include 'new-file.txt'` — in `packages/server`, which that diff does not touch.
+Root-caused, not re-run and forgotten: the test bets a fixed 500 ms sleep outlasts
+`BuildRunner.start()`'s before-snapshot, which spawns two git subprocesses, and on a loaded
+runner it does not, so the file lands *inside* the before-snapshot and the diff is empty.
+Reproduced deterministically here by shrinking that sleep to 0, and a patch needing no sleeps at
+all verified green — filed as **#62** with both, since it is outside this set. The one re-run
+then passed (107 s against attempt 1's 140 s).
+
+None share a root cause. **#56 and #57 share a why, and it is the one thing this slice leaves
+behind:** both are contracts only a real browser can judge, and there is no browser anywhere in
+this repo — no Playwright, no Puppeteer, no e2e harness, and none on either CI leg. (The
+"headless-Chromium harness" #58's text points at does not exist; `http.trialfit` is a plain Node
+HTTP test.) So both are pinned by source-contract tests in `floor-*.test.ts`'s idiom, with
+detector controls, and `docs/TEST-RUN.md` carries the desk steps that prove the rendering. A
+browser harness for the bench is worth its own slice; it has deliberately not been filed here.
+
+**Acceptance.** All three met: an issue and a PR per item, each red-first with the red line quoted
+in the commit body, and `CHANGELOG.md`'s Unreleased section naming each fix in one line. The
+version this ships in goes in this row when the lead merges.
 
 ### S19 · issue #24, the small fixes · SHIPPED 2026-09-09 (main at `ab89f7b`; record on issue #1)
 **M · green · after R0 · prompt** `02-small-fixes.md`
