@@ -6,6 +6,16 @@ semantic versioning strictly (pre-1.0).
 
 ## [Unreleased]
 
+The 0.2.0 desk retest (2026-09-12) — what the first drive of the published package found, one PR
+each.
+
+- **the page never scrolls; a tall panel scrolls inside itself** — a long Design system list used
+  to grow the chassis past the viewport and take the rail and the status line off the bottom with
+  it. The chassis is a fixed `100vh` grid that cannot scroll, every row that holds a scrolling
+  region is `minmax(0, 1fr)` rather than a bare `1fr` (whose minimum is its own content), and the
+  right column's **active tab panel** is the one scroll container — with the tab strip fixed above
+  it. The Advanced drawer's four sections and the logbook drawer's body follow the same rule.
+
 Issue #24 — the small defects the first ten minutes of using Jig turn up, one PR each.
 
 - **the app's own log is clean** — `target/runner.ts` strips ANSI escapes (colour, the window

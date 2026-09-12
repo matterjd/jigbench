@@ -77,13 +77,20 @@ describe('Chassis — layout contract', () => {
     return match[0];
   }
 
-  it('the root fills the viewport with one row for the bench and one 28px row for the status line, with a whole-chassis fallback scroll', () => {
+  // Retest #57 reversed two lines of this contract, and this test is where they were written
+  // down: the chassis used to be `overflow: auto` ("never `hidden`" — v0.1's fallback, so a
+  // floored region got a scrollbar rather than being clipped) with a bare `1fr` bench row.
+  // Matter's ruling is that the page must never scroll: that fallback carried the rail and the
+  // status line off the viewport instead of keeping anything visible. `floor-viewport-scroll.test.ts`
+  // holds the whole new contract across all four stylesheets; these two lines change here so
+  // the old decision is reversed in the open rather than left contradicting its replacement.
+  it('the root fills the viewport with one bounded row for the bench and one 28px row for the status line, and cannot scroll itself', () => {
     // `\s*\{` in ruleFor only matches whitespace-then-brace immediately after the selector, so
     // '.jig-chassis' here correctly misses '.jig-chassis__bench {' (no whitespace before '__').
     const root = ruleFor('.jig-chassis');
     expect(root).toMatch(/height:\s*100vh/);
-    expect(root).toMatch(/overflow:\s*auto/);
-    expect(root).toMatch(/grid-template-rows:\s*1fr\s+28px/);
+    expect(root).toMatch(/overflow:\s*hidden/);
+    expect(root).toMatch(/grid-template-rows:\s*minmax\(0,\s*1fr\)\s+28px/);
   });
 
   it('the bench splits into rail (56px) | centre (flexible) | column (340px)', () => {

@@ -15,7 +15,9 @@
   border-radius: var(--r) var(--r) 0 0;
   box-shadow: var(--shadow-overlay);
   display: grid;
-  grid-template-rows: 40px 1fr;
+  /* #57, same rule as the chassis and the Advanced drawer: `minmax(0, 1fr)` so a long session's
+     rows scroll in the body below rather than growing the drawer past its own 300px. */
+  grid-template-rows: 40px minmax(0, 1fr);
   min-width: 0;
 }
 
@@ -116,7 +118,8 @@
 }
 
 .jig-logbook-drawer__body {
-  overflow: auto;
+  overflow-y: auto;
+  overflow-x: hidden;
   padding: 8px 12px;
   min-height: 0;
 }

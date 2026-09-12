@@ -192,6 +192,12 @@ git -C /c/Users/matte/source/repos/jigbench checkout -- examples/ledger-angular
 PASS: the gauges by category (`colour 10`, `type`, `space`, `radius`, `shadow`, `motion`) with
 use counts; click a colour swatch and every use on the plate takes a dashed storm outline;
 **printed** clears it.
+**And the scroll, at both 1440×900 and 1280×720 [you only]:** a gauge list longer than the
+column scrolls **inside the tab panel**. The page itself never scrolls — the browser window has
+no scrollbar — and the tab strip (**Prompts · Inspect · Design system**), the rail and the
+status line all stay exactly where they are while you scroll. Same when you open **Advanced**
+(each of the four sections scrolls in its own column) and the **logbook** drawer (its rows
+scroll under a fixed head). Only a real browser lays this out, so this step is the proof.
 
 **19. Sketch.** Press `S`. Name a sketch `Overdue invoices`, click **new**.
 PASS: a sheet at the app's size; draw a box, then a button; drag the button toward the box's edge:
