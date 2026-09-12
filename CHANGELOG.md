@@ -6,6 +6,18 @@ semantic versioning strictly (pre-1.0).
 
 ## [Unreleased]
 
+The 0.2.0 desk retest (2026-09-12) — what the first drive of the published package found, one PR
+each.
+
+- **holding Ready makes the draft ready** — the hold's 800 ms timer called the card as it was at
+  the render where Ready first lit, which is the first keystroke, while the draft's own
+  `POST /api/prompts` was still in flight: so the ring filled, the second passed, and nothing was
+  sent. `useReadyHold` now reads its callbacks at the moment the timer fires, during a hold as
+  well as before one. The button also takes the pointer for the length of the gesture, so the
+  ring growing under the cursor or a hand that drifts cannot end the hold, and a focus change
+  while the pointer is still down is no longer read as letting go. A tap is still a tap: *let go
+  early — still a draft · 303 ms of 800*.
+
 Issue #24 — the small defects the first ten minutes of using Jig turn up, one PR each.
 
 - **the app's own log is clean** — `target/runner.ts` strips ANSI escapes (colour, the window
