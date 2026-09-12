@@ -41,7 +41,7 @@ Opus session may tag, cut the GitHub release and run the `npx` registry check, r
 
 ## 1 · v0.2.1, the retest fixes
 
-### S18 · what the retest files · BUILT 2026-09-12, three PRs open and green, awaiting the lead
+### S18 · what the retest files · SHIPPED 2026-09-12 (unreleased on main: #61 `c9df97a`, #60 `2c83f3f`, #59 `5bced66`; #58 open until the desk holds Ready; harness #64)
 **M · amber (the list is unknown until the retest runs) · after R0 · prompt** `01-retest-fixes.md`
 
 **Goal.** Fix what the desk retest of the published 0.2.0 finds, one PR per item. **Why now.** The

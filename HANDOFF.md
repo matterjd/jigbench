@@ -1,7 +1,7 @@
 # HANDOFF — next-session entry point
 
-> **S18 is built but NOT merged: three PRs — #59, #60, #61 — are open on `main`, each green on
-> both CI legs at its head, and this slice is amber, so the lead merges them.** They close the
+> **S18 is MERGED: #61 `c9df97a` (the Ready hold), #60 `2c83f3f` (the page never scrolls), #59
+> `5bced66` (form controls in the house ink), in that order, each green on both CI legs at its head; the lead reviewed and merged them on 2026-09-12.** They close the
 > whole 0.2.0 desk-retest set (#56, #57, #58), including the defect that stopped the retest at
 > `docs/TEST-RUN.md` step 15. Nothing else is in flight. Once they land, the frontier is the next
 > `docs/team/cloud/` prompt in sequence — `03-hardening.md` (S20, issue #37), unless Matter has
@@ -14,9 +14,9 @@
 
 **seat:** Delivery (remote — no Browser pane, no Windows desk, no .NET SDK, no Ollama, no real
 `claude` binary; CI is the only gate) · **branch:** `main` · **written:** 2026-09-12 · code at
-`dd72b2f` · **S18 is built and waiting: three PRs open, all green on both legs, none merged
-because this slice is amber. `docs/ROADMAP.md`'s S18 row and issue #1 carry the heads and run
-ids. Nothing was tagged or published; 0.2.0 remains the last release.**
+`5bced66` · **S18 is merged (#61 → #60 → #59); `docs/ROADMAP.md`'s S18 row and issue #1 carry the
+shas and run ids. #58 stays OPEN until the desk holds Ready with a mouse (TEST-RUN step 15); the
+browser harness is #64. Nothing was tagged or published; 0.2.0 remains the last release.**
 
 ## State
 
@@ -57,7 +57,9 @@ being fixed once already, by raising its timeout, which cures a slow test but no
 
 All three are `packages/bench` only, test-first with the red line in the commit body, one
 `CHANGELOG.md` Unreleased line each, and a `docs/TEST-RUN.md` desk step where CI cannot judge.
-They are independent — different files, no shared root cause — so they merge in any order.
+They are independent in code, but all three add to the same `CHANGELOG.md` Unreleased block, so they
+collided there; the lead merged them in order #61 → #60 → #59, unioning the changelog by hand on the
+second and third (a signed merge commit each).
 
 **What each actually was.**
 
@@ -182,7 +184,6 @@ start the Ollama tray app before the demo (or `JIG_NO_MODEL=1`). Still only real
 Windows desk, from S19: a drive root showing no `$Recycle.Bin`, `$WINDOWS.~BT`,
 `System Volume Information` or `Recovery` (#42).
 
-**→ Next session: if #59, #60 and #61 are merged, take the next `docs/team/cloud/` prompt in
-sequence — `03-hardening.md` (S20, issue #37) unless Matter has answered #23, in which case
-`04-rulings.md` (S21) goes first. If they are still open, they are the frontier: they need the
-lead's merge, not more code.**
+**→ Next session: take the next `docs/team/cloud/` prompt in sequence — `03-hardening.md` (S20,
+issue #37) unless Matter has answered #23, in which case `04-rulings.md` (S21) goes first; #58 and
+#64 (the browser harness) wait on the desk and on a ruling, not on more code.**
