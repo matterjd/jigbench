@@ -1,6 +1,7 @@
 import type { Express } from 'express';
-import { detectDevScript, invocation, packageJsonScriptNames } from './detect.js';
+import { detectDevScript, invocation, isRunnableScriptName, packageJsonScriptNames } from './detect.js';
 import type { StartTargetInput, TargetRunnerLike } from './runner.js';
+import { isValidPort, portRefusedMessage } from '../valid-port.js'; // #37
 import { logger } from '../logger.js';
 
 /**
@@ -40,8 +41,20 @@ export function attachTargetRoute(app: Express, ctx: TargetRouteContext): void {
     }
 
     const body = (req.body ?? {}) as { script?: unknown; port?: unknown };
+
+    // #37: a `port` the request names is bounded BEFORE anything spawns. `typeof === 'number'`
+    // (what this used to be) passes `1e999`, which a JSON parser reads as Infinity: the app
+    // was started and the runner's 120-second availability probe spent on a port that cannot
+    // exist. A port that is present but not a whole 1..65535 is a 400 in words, never a
+    // silent substitution of the detected one — see valid-port.ts for the rule and for why 0
+    // is out.
+    if (body.port !== undefined && !isValidPort(body.port)) {
+      res.status(400).json({ error: portRefusedMessage(body.port) });
+      return;
+    }
+
     const detected = detectDevScript(bench.repoRoot, bench.store.getState().survey);
-    const explicitPort = typeof body.port === 'number' ? body.port : undefined;
+    const explicitPort = isValidPort(body.port) ? body.port : undefined;
 
     let spec: StartTargetInput | null = null;
     if (typeof body.script === 'string' && body.script.trim().length > 0) {
@@ -51,9 +64,27 @@ export function attachTargetRoute(app: Express, ctx: TargetRouteContext): void {
       // clamped repo's own package.json `scripts`: the repo names what "Start the app" may
       // run; the request only picks one of those names. Anything else is a 400, in words,
       // before anything is spawned.
+      //
+      // #37: and on win32 the name must pass `isRunnableScriptName` too — a repo's own key can
+      // carry those metacharacters. One consequence, accepted rather than papered over: a win32
+      // repo whose every script name fails the charset reads as `scripts.length === 0` below,
+      // so an unrelated `{script}` is told "defines no scripts" where "defines none Jig can run"
+      // is the truth. That sentence is left exactly as it is because a separate S20 PR (the
+      // test-gap one) pins its wording; if it changes, change it there.
       const scripts = packageJsonScriptNames(bench.repoRoot);
+      const asked = JSON.stringify(body.script.length > 60 ? `${body.script.slice(0, 60)}…` : body.script);
+
+      // #37: checked BEFORE the membership test, so a name the repo really does define but Jig
+      // will not run is told why — rather than "is not a script in this repo's package.json",
+      // which of that name would be a lie (`packageJsonScriptNames` has already dropped it).
+      if (!isRunnableScriptName(body.script)) {
+        res.status(400).json({
+          error: `${asked} cannot be run: on Windows a script name must be letters, digits, "-", "_", ":" or "." — cmd.exe re-parses the command line npm is given, so any other character in the name would run as shell syntax; rename the script, or use POST /api/target/url for an app you already have running`,
+        });
+        return;
+      }
+
       if (!scripts.includes(body.script)) {
-        const asked = JSON.stringify(body.script.length > 60 ? `${body.script.slice(0, 60)}…` : body.script);
         res.status(400).json({
           error:
             scripts.length === 0

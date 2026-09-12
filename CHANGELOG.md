@@ -6,6 +6,75 @@ semantic versioning strictly (pre-1.0).
 
 ## [Unreleased]
 
+Issue #37 — the hardening items from the fix-round verification, none of them a live defect, one
+PR each.
+
+- **the Origin check runs on every method, GET included** — `SECURITY.md` promised that a present
+  `Origin` must match the Host on every `/api/*` request; both gates (`http.ts` and
+  `bench/host.ts`) exempted `GET`, `HEAD` and `OPTIONS` from that half and leant on the browser's
+  own CORS, which stops a foreign page reading the answer but not the request arriving and the
+  work being done. The exemption is gone, so the code and the sentence say the same thing;
+  `fs/route.ts`, which already refused a foreign Origin on its own two GETs, is no longer the
+  exception. A same-origin GET and a no-Origin GET (curl, an MCP client, the CLI) are unaffected:
+  a browser sends no `Origin` on a same-origin read.
+- **a `port` in a request body is a whole number from 1 to 65535, or a 400 that says so** — both
+  routes that take one and act on it checked only `typeof === 'number'`, and `1e999` passes that:
+  JSON has no Infinity literal but no exponent ceiling either, so a parser reads it as `Infinity`.
+  `POST /api/target/start` spawned the app and spent its whole 120-second availability probe on a
+  port that cannot exist; `POST /api/plate/mirror` reached `server.listen` and came back a 500
+  naming nothing. One rule now (`valid-port.ts`), one wording, checked before anything spawns or
+  binds. `/api/plate/mirror` still takes `0` — on that route it is the OS's "any free port"
+  sentinel and the 200 body reports the port actually bound.
+- **a survey's dev-server hint chooses among the repo's own scripts** — `detectDevScript`'s first
+  tier built `npm run <survey.devServer.script>` straight from the hint, the one path through
+  `target/detect.ts` that never met `packageJsonScriptNames`. On win32 those args reach `cmd.exe`,
+  which re-parses them, so a name that came from data rather than from the repo is what #17 exists
+  to refuse. The tier is allowlisted now, and a hint the repo does not name falls through to the
+  repo's own `start`/`dev`/`serve` — or to an honest null. Unreachable today only because
+  `SurveySchema` strips a top-level `devServer`; the first adapter to emit one would have made it
+  live.
+- **a script name Jig puts on a Windows command line is letters, digits, `-`, `_`, `:` or `.`** —
+  being a key of the repo's own `package.json` was the whole of #17's test, and a repo's own key
+  can carry the metacharacters: `"start&calc.exe": "echo pwned"` in a hostile clone was a name Jig
+  would hand to `cmd.exe`, which re-parses the line. libuv quotes an argument containing a space,
+  a tab or a quote, so the spaced spelling `start & calc.exe` arrives as one quoted token and was
+  never the danger — the #17 test payload is the unspaced form now, which is the one that splits.
+  Off win32 nothing re-parses npm's argv, so a name the repo chose is the repo's business; the
+  charset is win32-only and the rule takes the platform as a parameter, so both branches are
+  proved on whichever CI leg runs.
+- **the UNC refusal judges what a path really is, not only how it is spelled** — #18 refused
+  `\\host\share` by its spelling, and a symlink (or NTFS junction) inside the home pointing at
+  `\\attacker\share` is spelled like any other local path: the `stat` that came next followed it,
+  which on Windows is the SMB connection the guard exists to prevent, made after the guard said
+  yes. The folder browser and clamp now share one rule (`fs/local-path.ts`) — refuse the spelling,
+  `realpath`, refuse that too, then do the filesystem work against the real path so nothing can be
+  re-pointed in between. Clamp also refuses a link whose target sits inside a `.jig/` directory,
+  the same lexical guard with the same hole. Every message, every `entries[].path` and the
+  `repoRoot` a clamp records keep the caller's own spelling.
+- **a git that never answers no longer holds a build open** — `build/git-diff.ts` spawned `git`
+  with no timeout of any kind, and `BuildRunner.start()` awaits the before-snapshot before it
+  spawns `claude` at all: a wedged git (a credential helper waiting on a prompt, a dead network
+  drive under the working tree, an `index.lock` someone else holds) blocked the whole build
+  forever, with nothing to cancel and nothing in the log. Each invocation has a budget now —
+  15 seconds by default, three orders of magnitude over what a real `git status` takes, and the
+  runner can name its own — and a git that outlives it is killed, reading as the same "no diff
+  information available" every other git failure already reads as.
+- **a work order that cannot be written as a prompt is reported again** — the S11 migration's
+  ENOENT guard sat in front of the read *and* the write. An ENOENT from the read means the work
+  order went away between the listing and the read, so moving on loses nothing; an ENOENT from the
+  write means the work order is still there and was **not** migrated, which is the one thing
+  `migrationSkipped()` (and `GET /api/state`'s `migration.skipped`) exists to report. The record
+  was added for exactly that write failure, seen live on CI run 34148382041; the read guard, added
+  later, swallowed it again. Two guards now, one per failure.
+- **four fixes that were shipped without a test that could fail now have one** (tests only, no
+  production change) — the ref refresh behind #19 is pinned by a case that actually **re-renders**
+  the selector table, since every existing case rendered once and would have passed with that line
+  deleted; #20's "keeps the URL field" test now asserts the URL field its own name is about;
+  `createBench`'s production `new OllamaDrafter()` path is exercised with the model probe really
+  running, against a port nothing answers on so a desk with Ollama and a CI runner without it agree;
+  and the #17 no-scripts 400 says what it says on purpose — the message, not just the status. Each
+  was confirmed by reverting the line it covers and watching it go red.
+
 The 0.2.0 desk retest (2026-09-12) — what the first drive of the published package found, one PR
 each.
 

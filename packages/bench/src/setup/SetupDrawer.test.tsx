@@ -224,5 +224,31 @@ describe('the app step can start the app (#20)', () => {
     render(<SetupDrawer {...props({ fetchImpl: routeStub({ 'GET /api/setup': { status: 200, body: nothing } }).fetchImpl })} />);
     expect(await screen.findByText('read')).toBeTruthy();
     expect(screen.queryByRole('button', { name: 'Start the app' })).toBeNull();
+
+    // #37 (S20, the test gaps): the half of this test's own name that it never checked. #20 is
+    // "keeps the URL field" — with nothing detected, pasting a URL is the ONLY way left to put an
+    // app on the plate, so the field and its button have to outlive the Start button they sit
+    // under, and the drawer has to say why.
+    const urlField = screen.getByRole('textbox', { name: /the app's URL/ }) as HTMLInputElement;
+    expect(urlField).toBeTruthy();
+    expect(urlField.getAttribute('placeholder')).toBe('http://localhost:4200');
+    // Still prefilled from what the SURVEY knows (this fixture's angular adapter reports
+    // `devServer: http://localhost:4200`) even though detection came back with nothing — the field
+    // is the way out here, so it starts as close to usable as the bench can make it.
+    expect(urlField.value).toBe('http://localhost:4200');
+    expect(screen.getByRole('button', { name: 'use this URL' })).toBeTruthy();
+    expect(screen.getByText(/no dev script found/)).toBeTruthy();
+  });
+
+  // #37: and the other side of the same rule — a checklist that DID detect something keeps the
+  // field too, rather than dropping it because Start is available.
+  it('#37: keeps the URL field when something WAS detected too, beside the Start button', async () => {
+    const detected: SetupChecklist = { ...checklist, detected: { script: 'start', port: 4200, source: 'package.json' } };
+    render(<SetupDrawer {...props({ fetchImpl: routeStub({ 'GET /api/setup': { status: 200, body: detected } }).fetchImpl })} />);
+
+    expect(await screen.findByRole('button', { name: 'Start the app' })).toBeTruthy();
+    expect(screen.getByRole('textbox', { name: /the app's URL/ })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'use this URL' })).toBeTruthy();
+    expect(screen.queryByText(/no dev script found/)).toBeNull(); // that line belongs to the other case
   });
 });

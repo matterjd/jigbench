@@ -393,6 +393,25 @@ describe('same-origin protection', () => {
     });
     expect(outcome).toBe('error-or-close');
   });
+
+  // --- #37: the Origin half runs on EVERY method, GET included ------------------------------
+  // `SECURITY.md` says a present `Origin` must match on every `/api/*` request. The gate used
+  // to exempt GET/HEAD/OPTIONS from that half, leaving the promise to the browser's own CORS
+  // (which stops a foreign page READING the response, but not the request arriving and the
+  // work being done). `fs/route.ts` already refused a foreign Origin on its two GETs and
+  // called itself "the one exception"; it is the rule now, so there is no exception left.
+  it('#37: refuses a GET /api/state carrying a foreign Origin, so the survey never leaves', async () => {
+    const { url } = await freshServer();
+    const res = await fetch(`${url}/api/state`, { headers: { origin: 'http://evil.example' } });
+    expect(res.status).toBe(403);
+    expect(await res.text()).not.toContain('"survey"');
+  });
+
+  it("#37: still answers a GET /api/state whose Origin is the bench's own, and one with no Origin at all", async () => {
+    const { url } = await freshServer();
+    expect((await fetch(`${url}/api/state`, { headers: { origin: url } })).status).toBe(200);
+    expect((await fetch(`${url}/api/state`)).status).toBe(200);
+  });
 });
 
 interface StateMessage {

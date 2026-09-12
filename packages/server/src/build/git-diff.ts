@@ -12,12 +12,61 @@ import { relative, resolve } from 'node:path';
  * a second time, against `repoRoot` itself, before this module hands it back.
  */
 
-function run(command: string, args: string[], cwd: string): Promise<{ code: number | null; stdout: string }> {
+/**
+ * #37: a budget per `git` invocation. `BuildRunner.start()` awaits the before-snapshot before it
+ * spawns `claude` at all, so a `git` that never answers held `start()` open forever — no timeout
+ * anywhere, and the two calls here are the only child processes in the build path without one
+ * (`isClaudeAvailable`'s `--version` probe already had a 5-second cap of its own).
+ *
+ * A `git rev-parse` or `git status` on the clamped repo answers in milliseconds; a git that has
+ * not answered in 15 seconds is wedged, not slow — a credential helper waiting on a prompt, a
+ * dead network drive under the working tree, an `index.lock` someone else is holding. 15 s is
+ * three orders of magnitude of headroom over the real thing rather than a number tuned to a fast
+ * disk, because the cost of guessing LOW here is a snapshot that silently reads as "no diff
+ * information" on a loaded CI runner (the class of Windows-timing flake #62 records four of).
+ * `BuildRunner` can name its own through `gitTimeoutMs`.
+ */
+const DEFAULT_GIT_TIMEOUT_MS = 15_000;
+
+export interface GitSnapshotOptions {
+  /** Wall-clock cap per `git` invocation. A git that outlives it is killed and the snapshot
+   * reads as `null` — "no diff information available", which is what every other git failure
+   * already reads as. Default 15 s. */
+  timeoutMs?: number;
+  /** The git executable. Jig's own literal `'git'` in production; the same seam
+   * `BuildRunner`'s `command`/`commandArgsPrefix` pair gives the fake `claude`, so a test can
+   * point this at a `git` that never exits without needing one on PATH. */
+  command?: string;
+  /** Arguments before git's own — `[fixture.mjs]` when `command` is `process.execPath`. */
+  argsPrefix?: string[];
+}
+
+interface GitInvocation {
+  command: string;
+  argsPrefix: string[];
+  timeoutMs: number;
+}
+
+function invocationFrom(options: GitSnapshotOptions | undefined): GitInvocation {
+  return {
+    command: options?.command ?? 'git',
+    argsPrefix: options?.argsPrefix ?? [],
+    timeoutMs: options?.timeoutMs ?? DEFAULT_GIT_TIMEOUT_MS,
+  };
+}
+
+function run(git: GitInvocation, args: string[], cwd: string): Promise<{ code: number | null; stdout: string }> {
   return new Promise((resolvePromise) => {
+    // Same shape as `runner.ts`'s own `isClaudeAvailable` probe: an AbortController the timer
+    // trips, which makes Node kill the child — so a wedged git is reaped, not merely abandoned
+    // with this promise resolved out from under it.
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), git.timeoutMs);
     let child: ReturnType<typeof spawn>;
     try {
-      child = spawn(command, args, { cwd, shell: false });
+      child = spawn(git.command, [...git.argsPrefix, ...args], { cwd, shell: false, signal: controller.signal });
     } catch {
+      clearTimeout(timer);
       resolvePromise({ code: null, stdout: '' });
       return;
     }
@@ -25,13 +74,22 @@ function run(command: string, args: string[], cwd: string): Promise<{ code: numb
     child.stdout?.on('data', (chunk: Buffer) => {
       stdout += chunk.toString('utf8');
     });
-    child.on('error', () => resolvePromise({ code: null, stdout: '' }));
-    child.on('close', (code) => resolvePromise({ code, stdout }));
+    // An aborted child arrives here as an `error` (AbortError) or a `close` with a null code and
+    // a signal — both already mean "no diff information available", the same as a git that is
+    // not installed or exits non-zero.
+    child.on('error', () => {
+      clearTimeout(timer);
+      resolvePromise({ code: null, stdout: '' });
+    });
+    child.on('close', (code) => {
+      clearTimeout(timer);
+      resolvePromise({ code, stdout });
+    });
   });
 }
 
-async function gitTopLevel(repoRoot: string): Promise<string | null> {
-  const { code, stdout } = await run('git', ['rev-parse', '--show-toplevel'], repoRoot);
+async function gitTopLevel(git: GitInvocation, repoRoot: string): Promise<string | null> {
+  const { code, stdout } = await run(git, ['rev-parse', '--show-toplevel'], repoRoot);
   if (code !== 0) return null;
   const top = stdout.trim();
   return top.length > 0 ? top : null;
@@ -78,12 +136,14 @@ export interface GitStatusSnapshot {
   paths: Set<string>;
 }
 
-/** `null` when `repoRoot` isn't inside a git working tree at all, or `git` itself isn't on
- * PATH — the caller treats that as "no diff information available", never a thrown error. */
-export async function gitStatusSnapshot(repoRoot: string): Promise<GitStatusSnapshot | null> {
-  const topLevel = await gitTopLevel(repoRoot);
+/** `null` when `repoRoot` isn't inside a git working tree at all, `git` itself isn't on PATH, or
+ * (#37) a `git` invocation outlived its budget — the caller treats every one of those as "no
+ * diff information available", never a thrown error. */
+export async function gitStatusSnapshot(repoRoot: string, options?: GitSnapshotOptions): Promise<GitStatusSnapshot | null> {
+  const git = invocationFrom(options);
+  const topLevel = await gitTopLevel(git, repoRoot);
   if (!topLevel) return null;
-  const { code, stdout } = await run('git', ['status', '--porcelain', '-z'], repoRoot);
+  const { code, stdout } = await run(git, ['status', '--porcelain', '-z'], repoRoot);
   if (code !== 0) return null;
 
   // `repoRoot` can reach this module through a path that is LEXICALLY different from, but

@@ -118,6 +118,62 @@ describe('POST /api/plate/mirror — routing logic', () => {
     expect(mirror.start).not.toHaveBeenCalled();
   });
 
+  // #37: the other route that takes a port out of a body and acts on it — this one binds a
+  // socket on it. `1e999` reached `mirror.start()` as Infinity and came back a 500 from
+  // `server.listen`, rather than a 400 saying what was wrong. Raw text for the same reason
+  // `target/route.test.ts` uses it: `JSON.stringify({ port: 1e999 })` is `{"port":null}`.
+  it('#37: 400s on a port outside 1..65535 — and never starts a mirror', async () => {
+    for (const body of [
+      '{"target":"http://localhost:4200","port":1e999}',
+      '{"target":"http://localhost:4200","port":-1}',
+      '{"target":"http://localhost:4200","port":65536}',
+      '{"target":"http://localhost:4200","port":4200.5}',
+      '{"target":"http://localhost:4200","port":"4200"}',
+    ]) {
+      const snapshotStore = await freshSnapshotStore();
+      const mirror = { start: vi.fn() } as unknown as TrialFitMirror;
+
+      const app = express();
+      app.use(express.json());
+      attachTrialFitRoute(app, { mirror, snapshotStore });
+      const url = await serve(app);
+
+      const res = await fetch(`${url}/api/plate/mirror`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body,
+      });
+      expect(res.status, body).toBe(400);
+      expect((await res.json()).error).toMatch(/port must be a whole number from 1 to 65535/);
+      expect(mirror.start, body).not.toHaveBeenCalled();
+      await close?.();
+      close = undefined;
+    }
+  });
+
+  // #37: the one value this route lets through that `POST /api/target/start` does not. `0` is
+  // the OS's "assign me any free port"; the 200 body reports the port actually bound, so the
+  // caller still learns where the mirror is. The end-to-end test at the bottom of this file
+  // relies on it — that is how its bind can never collide with another ephemeral socket.
+  it('#37: still takes port 0, the "any free port" sentinel, and passes it straight through', async () => {
+    const snapshotStore = await freshSnapshotStore();
+    const mirror = { start: vi.fn().mockResolvedValue({ port: 54321 }) } as unknown as TrialFitMirror;
+
+    const app = express();
+    app.use(express.json());
+    attachTrialFitRoute(app, { mirror, snapshotStore });
+    const url = await serve(app);
+
+    const res = await fetch(`${url}/api/plate/mirror`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ target: 'http://localhost:4200', port: 0 }),
+    });
+    expect(res.status).toBe(200);
+    expect(mirror.start).toHaveBeenCalledWith('http://localhost:4200', 0);
+    expect((await res.json()).port).toBe(54321); // the real port comes back, which is why 0 is safe here
+  });
+
   it('with no primary plate, an explicit target still works (default port 4602)', async () => {
     const snapshotStore = await freshSnapshotStore();
     const mirror = { start: vi.fn().mockResolvedValue({ port: 4602 }) } as unknown as TrialFitMirror;
