@@ -6,6 +6,18 @@ semantic versioning strictly (pre-1.0).
 
 ## [Unreleased]
 
+Issue #37 — the hardening items from the fix-round verification, none of them a live defect, one
+PR each.
+
+- **a survey's dev-server hint chooses among the repo's own scripts** — `detectDevScript`'s first
+  tier built `npm run <survey.devServer.script>` straight from the hint, the one path through
+  `target/detect.ts` that never met `packageJsonScriptNames`. On win32 those args reach `cmd.exe`,
+  which re-parses them, so a name that came from data rather than from the repo is what #17 exists
+  to refuse. The tier is allowlisted now, and a hint the repo does not name falls through to the
+  repo's own `start`/`dev`/`serve` — or to an honest null. Unreachable today only because
+  `SurveySchema` strips a top-level `devServer`; the first adapter to emit one would have made it
+  live.
+
 The 0.2.0 desk retest (2026-09-12) — what the first drive of the published package found, one PR
 each.
 

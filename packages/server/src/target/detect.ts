@@ -8,7 +8,9 @@ import type { DetectedTargetSummary } from '@jigbench/core';
  *   1. `survey.devServer?.script` — a seam for S16's `adapter-web` (not landed at the time
  *      this was written; read structurally off whatever `survey` is handed in, so this file
  *      never has an import-time dependency on `@jigbench/adapter-web` or a `devServer` field
- *      existing on core's `Survey` type yet).
+ *      existing on core's `Survey` type yet). #37: the hint chooses among the repo's own
+ *      scripts — it must be a key of `package.json`'s `scripts`, exactly like an explicit
+ *      `{script}` on `POST /api/target/start` — so no adapter's output can name a command.
  *   2. `package.json`'s own `start`/`dev`/`serve` script, in that priority order — whichever
  *      is defined first wins; a repo commonly has more than one.
  *   3. `angular.json` alone, with no npm script found at all — `npx ng serve --port <n>`
@@ -145,7 +147,15 @@ export function summarizeDetectedTarget(detected: DetectedTarget | null): Detect
  * `POST /api/target/start` both treat that as "ask the human for a URL instead". */
 export function detectDevScript(repoRoot: string, survey?: unknown): DetectedTarget | null {
   const hint = readDevServerHint(survey);
-  if (hint?.script) {
+  // #37: the hint says WHICH script; the repo is what says a script may run at all. This tier
+  // used to build `npm run <hint.script>` straight from the survey and return, the one path
+  // through this module that never met `packageJsonScriptNames` — and on win32 these args reach
+  // cmd.exe, which re-parses them (see `invocation` above), so a name that came from data rather
+  // than from the repo is exactly what #17 exists to refuse. It was unreachable only because
+  // `SurveySchema` strips a top-level `devServer` today; the first adapter to emit one would
+  // have made it live. A hint the repo does not name is not an error — the tiers below still get
+  // their turn, and answer with the repo's own script or with an honest null.
+  if (hint?.script && packageJsonScriptNames(repoRoot).includes(hint.script)) {
     return {
       ...invocation('npm', ['run', hint.script]),
       cwd: repoRoot,

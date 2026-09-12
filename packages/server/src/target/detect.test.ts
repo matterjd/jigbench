@@ -38,6 +38,10 @@ describe('detectDevScript', () => {
 
   it('prefers survey.devServer.script (S16 seam) when present, using its own port', async () => {
     const repoRoot = await freshDir();
+    // #37: the hint names a script; the REPO is what says that script may run. `dev` has to be
+    // a key of this package.json for the survey tier to fire at all (see the tier's own tests
+    // below) — before #37 this case passed with no package.json in the directory at all.
+    await writeFile(join(repoRoot, 'package.json'), JSON.stringify({ scripts: { dev: 'vite' } }), 'utf8');
     const result = detectDevScript(repoRoot, { devServer: { script: 'dev', port: 5173 } });
     expect(result).toEqual({
       ...expectedInvocation('npm', ['run', 'dev']),
@@ -45,6 +49,41 @@ describe('detectDevScript', () => {
       port: 5173,
       script: 'dev',
       source: 'survey',
+    });
+  });
+
+  // #37: the survey-hint tier built `npm run <hint.script>` straight from the hint and returned,
+  // never consulting `packageJsonScriptNames` — the allowlist every other path through this
+  // module goes through (#17: on win32 these args reach cmd.exe, which re-parses them, so the
+  // name must come from the repo and never from data). It was unreachable only because
+  // `SurveySchema` strips a top-level `devServer` today; the first adapter to emit one would
+  // have made it live, which is the wrong moment to find this out.
+  describe('#37: the survey hint goes through the repo\'s own script allowlist', () => {
+    it('refuses a hint naming a script the repo does not have, and falls through to the repo\'s own', async () => {
+      const repoRoot = await freshDir();
+      await writeFile(join(repoRoot, 'package.json'), JSON.stringify({ scripts: { start: 'ng serve' } }), 'utf8');
+
+      const result = detectDevScript(repoRoot, { devServer: { script: 'dev', port: 5173 } });
+
+      expect(result?.script).toBe('start'); // the repo's own, not the hint's
+      expect(result?.source).toBe('package.json'); // and it is no longer the survey tier that answered
+      expect(result?.args).toEqual(expectedInvocation('npm', ['run', 'start']).args);
+      expect(result?.args.join(' ')).not.toContain('dev');
+    });
+
+    it('refuses a hint carrying cmd.exe metacharacters, whatever else is in the repo', async () => {
+      const repoRoot = await freshDir();
+      await writeFile(join(repoRoot, 'package.json'), JSON.stringify({ scripts: { start: 'ng serve' } }), 'utf8');
+
+      const result = detectDevScript(repoRoot, { devServer: { script: 'start&calc.exe', port: 5173 } });
+
+      expect(result?.script).toBe('start');
+      expect(result?.args.join(' ')).not.toContain('calc');
+    });
+
+    it('returns null when the hint is all there was and the repo does not name it', async () => {
+      const repoRoot = await freshDir();
+      expect(detectDevScript(repoRoot, { devServer: { script: 'dev', port: 5173 } })).toBeNull();
     });
   });
 
