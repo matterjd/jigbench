@@ -98,11 +98,41 @@ function angularConfiguredPort(repoRoot: string): number | undefined {
   }
 }
 
-/** The names `package.json` `scripts` defines in this repo — the ONLY values
- * `POST /api/target/start` accepts for an explicit `{script}` (#17: see `invocation` above for
- * why the name must come from the repo and never from the request). Empty when there is no
- * package.json, when it will not parse, or when it defines no string-valued scripts. */
-export function packageJsonScriptNames(repoRoot: string): string[] {
+/** #37: letters, digits, `-`, `_`, `:` and `.` — every shape a real npm script name takes
+ * (`start`, `test:unit`, `build.prod`, `lint-all`, `under_score`) and nothing cmd.exe reads as
+ * syntax. Deliberately ASCII: every cmd.exe metacharacter is ASCII, so this is stricter than it
+ * strictly needs to be, but a name the console codepage can mangle is not a name worth handing
+ * to a shell — and a repo whose only script is spelled otherwise still has
+ * `POST /api/target/url` for an app it starts itself. */
+const WIN32_RUNNABLE_SCRIPT_NAME = /^[A-Za-z0-9._:-]+$/;
+
+/**
+ * #37: may Jig put this script NAME on a command line? Being a key of the repo's own
+ * `package.json` was the whole of #17's test, and a repo's own key can carry the
+ * metacharacters — `"start&calc.exe": "echo pwned"` in a hostile clone is a name that splits.
+ * libuv quotes an argument containing a space, a tab or a quote when it builds the single
+ * command line Windows hands `cmd.exe`, so the SPACED spelling arrives as one quoted token and
+ * was never the danger; `&`, `|`, `^`, `%` with no space around them are passed through bare and
+ * cmd.exe re-parses the line on them.
+ *
+ * Off win32 every name passes: `npm` is an ordinary executable there, the argv array is the argv
+ * the process gets, and nothing re-parses it — a name the repo chose is the repo's business.
+ *
+ * `platform` is a parameter (defaulting to this process's) so the win32 rule is provable on any
+ * leg, the same reason `fs/win32-hidden.ts` splits `parseAttribOutput` out of its spawn.
+ */
+export function isRunnableScriptName(name: string, platform: string = process.platform): boolean {
+  if (platform !== 'win32') return true;
+  return WIN32_RUNNABLE_SCRIPT_NAME.test(name);
+}
+
+/** The names `package.json` `scripts` defines in this repo AND Jig is willing to run — the ONLY
+ * values `POST /api/target/start` accepts for an explicit `{script}`, and the same list every
+ * detection tier picks from (#17: see `invocation` above for why the name must come from the
+ * repo and never from the request; #37: and why coming from the repo is not by itself enough on
+ * win32 — see `isRunnableScriptName`). Empty when there is no package.json, when it will not
+ * parse, or when it defines no string-valued scripts. */
+export function packageJsonScriptNames(repoRoot: string, platform?: string): string[] {
   const packageJsonPath = join(repoRoot, 'package.json');
   if (!existsSync(packageJsonPath)) return [];
   try {
@@ -111,7 +141,8 @@ export function packageJsonScriptNames(repoRoot: string): string[] {
     if (!scripts || typeof scripts !== 'object') return [];
     return Object.entries(scripts as Record<string, unknown>)
       .filter(([, value]) => typeof value === 'string')
-      .map(([name]) => name);
+      .map(([name]) => name)
+      .filter((name) => isRunnableScriptName(name, platform));
   } catch {
     // A corrupt package.json reads as "no scripts" — detection's next tier still gets a chance.
     return [];

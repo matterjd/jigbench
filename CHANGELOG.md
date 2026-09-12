@@ -6,6 +6,19 @@ semantic versioning strictly (pre-1.0).
 
 ## [Unreleased]
 
+Issue #37 — the hardening items from the fix-round verification, none of them a live defect, one
+PR each.
+
+- **a script name Jig puts on a Windows command line is letters, digits, `-`, `_`, `:` or `.`** —
+  being a key of the repo's own `package.json` was the whole of #17's test, and a repo's own key
+  can carry the metacharacters: `"start&calc.exe": "echo pwned"` in a hostile clone was a name Jig
+  would hand to `cmd.exe`, which re-parses the line. libuv quotes an argument containing a space,
+  a tab or a quote, so the spaced spelling `start & calc.exe` arrives as one quoted token and was
+  never the danger — the #17 test payload is the unspaced form now, which is the one that splits.
+  Off win32 nothing re-parses npm's argv, so a name the repo chose is the repo's business; the
+  charset is win32-only and the rule takes the platform as a parameter, so both branches are
+  proved on whichever CI leg runs.
+
 The 0.2.0 desk retest (2026-09-12) — what the first drive of the published package found, one PR
 each.
 

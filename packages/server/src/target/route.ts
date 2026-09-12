@@ -1,5 +1,5 @@
 import type { Express } from 'express';
-import { detectDevScript, invocation, packageJsonScriptNames } from './detect.js';
+import { detectDevScript, invocation, isRunnableScriptName, packageJsonScriptNames } from './detect.js';
 import type { StartTargetInput, TargetRunnerLike } from './runner.js';
 import { logger } from '../logger.js';
 
@@ -51,9 +51,27 @@ export function attachTargetRoute(app: Express, ctx: TargetRouteContext): void {
       // clamped repo's own package.json `scripts`: the repo names what "Start the app" may
       // run; the request only picks one of those names. Anything else is a 400, in words,
       // before anything is spawned.
+      //
+      // #37: and on win32 the name must pass `isRunnableScriptName` too — a repo's own key can
+      // carry those metacharacters. One consequence, accepted rather than papered over: a win32
+      // repo whose every script name fails the charset reads as `scripts.length === 0` below,
+      // so an unrelated `{script}` is told "defines no scripts" where "defines none Jig can run"
+      // is the truth. That sentence is left exactly as it is because a separate S20 PR (the
+      // test-gap one) pins its wording; if it changes, change it there.
       const scripts = packageJsonScriptNames(bench.repoRoot);
+      const asked = JSON.stringify(body.script.length > 60 ? `${body.script.slice(0, 60)}…` : body.script);
+
+      // #37: checked BEFORE the membership test, so a name the repo really does define but Jig
+      // will not run is told why — rather than "is not a script in this repo's package.json",
+      // which of that name would be a lie (`packageJsonScriptNames` has already dropped it).
+      if (!isRunnableScriptName(body.script)) {
+        res.status(400).json({
+          error: `${asked} cannot be run: on Windows a script name must be letters, digits, "-", "_", ":" or "." — cmd.exe re-parses the command line npm is given, so any other character in the name would run as shell syntax; rename the script, or use POST /api/target/url for an app you already have running`,
+        });
+        return;
+      }
+
       if (!scripts.includes(body.script)) {
-        const asked = JSON.stringify(body.script.length > 60 ? `${body.script.slice(0, 60)}…` : body.script);
         res.status(400).json({
           error:
             scripts.length === 0
