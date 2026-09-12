@@ -197,3 +197,77 @@ describe('PromptCard', () => {
     expect(screen.getByText(/the selection is larger than the room around it/i)).toBeTruthy();
   });
 });
+
+/**
+ * Retest 0.2.0 defect #58, at the card. The two hold tests above render ONCE with the words and
+ * `state: 'draft'` already in the props and one `onReadyComplete` that never changes — which is
+ * not the sequence a human produces, and is why they were green while the desk was stuck.
+ *
+ * The real sequence, from `App.tsx`: the card opens empty (`state: 'none'`); the first keystroke
+ * gives it words, so `cardState` falls back to `'draft'` from the words alone (`App.tsx:208`,
+ * deliberate — the card must light before the server answers) and Ready lights; only THEN does
+ * `POST /api/prompts` answer, and `onReadyComplete` becomes a closure that knows the prompt id
+ * (`App.tsx:316` — before that it is `matchedPrompt && …` with `matchedPrompt === null`, a
+ * silent no-op). Ready is pressed after all of that.
+ */
+describe('PromptCard — retest #58: the hold sends what the card knows at 800 ms, not at the first keystroke', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+
+  it('holding Ready calls the onReadyComplete the card has now, after the draft has been created', () => {
+    const beforeTheCreateAnswered = vi.fn(); // App's no-op closure over a prompt that does not exist
+    const afterTheCreateAnswered = vi.fn(); // the same closure, holding a real prompt id
+
+    // 1 — the card opens on a fresh Point pick: no words, no Prompt, Ready dark.
+    const { rerender } = render(
+      <PromptCard {...baseProps({ state: 'none', text: '', onReadyComplete: beforeTheCreateAnswered })} />,
+    );
+    expect(screen.getByRole('button', { name: /Ready/ }).hasAttribute('disabled')).toBe(true);
+
+    // 2 — the keystroke: words, so the card calls itself a draft and Ready lights, while the
+    // create is still in flight and the callback is still the one that can do nothing.
+    rerender(<PromptCard {...baseProps({ state: 'draft', text: 'show days overdue', onReadyComplete: beforeTheCreateAnswered })} />);
+    expect(screen.getByRole('button', { name: /Ready/ }).hasAttribute('disabled')).toBe(false);
+
+    // 3 — the create answers. Nothing else about the card changes: same state, same words.
+    rerender(<PromptCard {...baseProps({ state: 'draft', text: 'show days overdue', onReadyComplete: afterTheCreateAnswered })} />);
+
+    // 4 — the hold.
+    const ready = screen.getByRole('button', { name: /Ready/ });
+    act(() => {
+      fireEvent.pointerDown(ready);
+    });
+    expect(screen.getByText(/hold — the ring fills/i)).toBeTruthy();
+    act(() => {
+      vi.advanceTimersByTime(800);
+    });
+
+    expect(afterTheCreateAnswered).toHaveBeenCalledTimes(1);
+    expect(beforeTheCreateAnswered).not.toHaveBeenCalled();
+    expect(screen.queryByText(/let go early/i)).toBeNull();
+  });
+
+  it('a tap is still a tap: it cancels in words and sends nothing, however many times the card re-rendered first', () => {
+    const onReadyComplete = vi.fn();
+    const { rerender } = render(<PromptCard {...baseProps({ state: 'none', text: '', onReadyComplete })} />);
+    rerender(<PromptCard {...baseProps({ state: 'draft', text: 'show days overdue', onReadyComplete })} />);
+
+    const ready = screen.getByRole('button', { name: /Ready/ });
+    act(() => {
+      fireEvent.pointerDown(ready);
+    });
+    act(() => {
+      vi.advanceTimersByTime(240);
+    });
+    act(() => {
+      fireEvent.pointerUp(ready);
+    });
+    act(() => {
+      vi.advanceTimersByTime(2000);
+    });
+
+    expect(onReadyComplete).not.toHaveBeenCalled();
+    expect(screen.getByText(/let go early — still a draft · \d+ ms of 800/i)).toBeTruthy();
+  });
+});
