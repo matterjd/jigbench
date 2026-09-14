@@ -32,6 +32,22 @@ const MARGIN = 12; // gap between the selection and the card
 const EDGE = 8; // minimum gap between the card and the plate's own edge
 
 /**
+ * #69: whatever this is handed, the answer is a position INSIDE the plate — that is the only
+ * promise this function makes, and it was not keeping it. Every `clamp(v, EDGE, W - cw - EDGE)`
+ * inverts once the plate is narrower than the card (`Math.min` runs first, so the answer becomes
+ * the LARGER of two numbers, both of them outside), and the corner fallback had no clamp at all.
+ * A plate that was never measured is 0 wide, and `0 - 340 - 8` is where the card went: 348px left
+ * of the plate's own left edge, which on the bench is under the rail.
+ */
+function insidePlate(x: number, y: number, where: CardPlacementSide, W: number, H: number, cw: number, ch: number): CardPlacement {
+  return {
+    x: Math.max(EDGE, Math.min(x, W - cw - EDGE)),
+    y: Math.max(EDGE, Math.min(y, H - ch - EDGE)),
+    where,
+  };
+}
+
+/**
  * @param selection The selected element's rect, in plate-local coordinates (as `rectIn(el)`
  *   produces in the concept — origin at the plate's own top-left, not the viewport's).
  * @param plateWidth `plate.clientWidth`
@@ -51,20 +67,22 @@ export function placeCardPosition(
   const W = plateWidth;
   const H = plateHeight;
   const cw = cardWidth;
-  const ch = Math.min(requestedCardHeight, H - 16);
+  // never negative: a plate shorter than 16px would otherwise make every branch guard below
+  // read as though the card had negative height, and `above` would win for anything at all.
+  const ch = Math.max(0, Math.min(requestedCardHeight, H - 16));
   const r = selection;
 
   if (r.x + r.w + MARGIN + cw <= W - EDGE) {
-    return { x: r.x + r.w + MARGIN, y: clamp(r.y, EDGE, H - ch - EDGE), where: 'beside' };
+    return insidePlate(r.x + r.w + MARGIN, clamp(r.y, EDGE, H - ch - EDGE), 'beside', W, H, cw, ch);
   }
   if (r.x - MARGIN - cw >= EDGE) {
-    return { x: r.x - MARGIN - cw, y: clamp(r.y, EDGE, H - ch - EDGE), where: 'beside' };
+    return insidePlate(r.x - MARGIN - cw, clamp(r.y, EDGE, H - ch - EDGE), 'beside', W, H, cw, ch);
   }
   if (r.y + r.h + MARGIN + ch <= H - EDGE) {
-    return { x: clamp(r.x, EDGE, W - cw - EDGE), y: r.y + r.h + MARGIN, where: 'below' };
+    return insidePlate(clamp(r.x, EDGE, W - cw - EDGE), r.y + r.h + MARGIN, 'below', W, H, cw, ch);
   }
   if (r.y - MARGIN - ch >= EDGE) {
-    return { x: clamp(r.x, EDGE, W - cw - EDGE), y: r.y - MARGIN - ch, where: 'above' };
+    return insidePlate(clamp(r.x, EDGE, W - cw - EDGE), r.y - MARGIN - ch, 'above', W, H, cw, ch);
   }
-  return { x: W - cw - EDGE, y: H - ch - EDGE, where: 'corner' };
+  return insidePlate(W - cw - EDGE, H - ch - EDGE, 'corner', W, H, cw, ch);
 }

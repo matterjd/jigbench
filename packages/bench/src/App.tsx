@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Chassis } from './chassis/Chassis.js';
 import { Rail } from './chassis/Rail.js';
 import { RightColumn, type RightColumnTab } from './chassis/RightColumn.js';
@@ -13,7 +13,7 @@ import type { PlateEvent, PlatePick } from './plate/usePlateBridge.js';
 import { CommandPalette, type PaletteDocsResult } from './palette/CommandPalette.js';
 import { FixturePanel } from './fixtures/index.js';
 import { ToolpathBar } from './toolpath/ToolpathBar.js';
-import { SketchSheet } from './sketch/SketchSheet.js';
+import { SketchSheet, type BuildScreenTarget } from './sketch/SketchSheet.js';
 import { LogbookDrawer } from './logbook/LogbookDrawer.js';
 import { useLogbook } from './logbook/useLogbook.js';
 import { ClampScreen } from './clamp/ClampScreen.js';
@@ -58,7 +58,8 @@ export function App() {
   const { advanced } = useAdvanced();
   const plateRef = useRef<PlateBenchHandle>(null);
   const plateIframeRef = useRef<HTMLIFrameElement>(null);
-  const plateBoxRef = useRef<HTMLDivElement>(null);
+  const plateBoxRef = useRef<HTMLDivElement | null>(null);
+  const plateBoxObserverRef = useRef<ResizeObserver | null>(null);
   const [plateOrigin, setPlateOrigin] = useState<string | null>(null);
   const [plateSize, setPlateSize] = useState({ w: 0, h: 0 });
   const [lastPick, setLastPick] = useState<PlatePick | null>(null);
@@ -99,20 +100,44 @@ export function App() {
   // Measures the plate's own box (the outer chassis region, not the cross-origin iframe inside
   // it) so the card can place itself against a plate-local rect it never had to walk the DOM
   // to get — see PromptCard.tsx's anchorRect path and CHASSIS.md v0.2 §2.
-  useEffect(() => {
-    const el = plateBoxRef.current;
-    if (!el) return;
-    function measure(): void {
-      if (el) setPlateSize({ w: el.clientWidth, h: el.clientHeight });
+  //
+  // #69: this was a `useEffect` with an empty dependency list, and that is a trap here. The first
+  // commit is the `state === null` holding screen below — no rail, no plate, no ref — so the
+  // effect ran once against `null`, returned, and with `[]` never ran again. `plateSize` stayed
+  // `{ 0, 0 }` for the life of the page, and every card was placed against a plate 0 wide. A
+  // CALLBACK ref cannot miss it: React calls it with the node the moment the plate mounts, and
+  // with `null` the moment it goes (switching back to the Clamp screen), whenever that happens.
+  const measurePlateBox = useCallback((el: HTMLDivElement | null) => {
+    plateBoxObserverRef.current?.disconnect();
+    plateBoxObserverRef.current = null;
+    plateBoxRef.current = el;
+    if (!el) {
+      setPlateSize((prev) => (prev.w === 0 && prev.h === 0 ? prev : { w: 0, h: 0 }));
+      return;
     }
+    const measure = (): void =>
+      setPlateSize((prev) => (prev.w === el.clientWidth && prev.h === el.clientHeight ? prev : { w: el.clientWidth, h: el.clientHeight }));
     measure();
     if (typeof ResizeObserver !== 'undefined') {
       const observer = new ResizeObserver(measure);
       observer.observe(el);
-      return () => observer.disconnect();
+      plateBoxObserverRef.current = observer;
     }
-    window.addEventListener('resize', measure);
-    return () => window.removeEventListener('resize', measure);
+  }, []);
+
+  // A window resize is the one size change a ResizeObserver-less environment still sees; with an
+  // observer attached above this is simply a second, harmless witness to the same number.
+  useEffect(() => {
+    function onResize(): void {
+      const el = plateBoxRef.current;
+      if (el) setPlateSize((prev) => (prev.w === el.clientWidth && prev.h === el.clientHeight ? prev : { w: el.clientWidth, h: el.clientHeight }));
+    }
+    window.addEventListener('resize', onResize);
+    return () => {
+      window.removeEventListener('resize', onResize);
+      plateBoxObserverRef.current?.disconnect();
+      plateBoxObserverRef.current = null;
+    };
   }, []);
 
   // #9 — the logbook's sources: every build-stream frame (a Claude row) and every line of the
@@ -182,12 +207,20 @@ export function App() {
     setLocalAcceptance([]);
   }, [lastPick, tool]);
 
-  function openSketchCard(): void {
+  // #69: the sheet says its own name and its own box (in viewport coordinates); the translation
+  // into the frame the card is placed in — plate-local — happens here, where the plate box is.
+  // The card used to be anchored to `{0, 0, plateSize.w, plateSize.h}` and titled with the
+  // button's label; with `plateSize` never measured that anchor was `{0,0,0,0}`, which fits no
+  // branch and fell through to the corner at `0 - 340 - 8`, under the rail.
+  function openSketchCard(target: BuildScreenTarget): void {
+    const plateBox = plateBoxRef.current?.getBoundingClientRect();
     setCardTarget({
       kind: 'sketch',
-      title: 'build this screen',
+      title: target.name,
       promptTarget: { kind: 'sketch' },
-      anchorRect: { x: 0, y: 0, w: plateSize.w, h: plateSize.h },
+      anchorRect: plateBox
+        ? { x: target.rect.x - plateBox.left, y: target.rect.y - plateBox.top, w: target.rect.w, h: target.rect.h }
+        : { x: 0, y: 0, w: 0, h: 0 },
     });
     setCardOpen(true);
     setLocalText('');
@@ -278,7 +311,7 @@ export function App() {
         }
         rail={<Rail postToPlate={(message) => plateRef.current?.post({ ...message })} />}
         plate={
-          <div ref={plateBoxRef} style={{ position: 'absolute', inset: 0 }}>
+          <div ref={measurePlateBox} style={{ position: 'absolute', inset: 0 }}>
             {tool === 'sketch' ? (
               <SketchSheet gauges={gauges} onBuildScreen={openSketchCard} />
             ) : (

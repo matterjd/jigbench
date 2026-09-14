@@ -133,7 +133,8 @@ box · text · button · input · list. Drag to draw on the 4px grid; drag an el
 the grid, then to other elements' edges and centres (and the sheet's centre) within 6px, with a
 storm alignment line on each held axis and the exact coordinates said in words. Delete scraps to
 the bin; **put back** returns it. The sheet is a prompt target: **build this screen →** opens the
-card with that title.
+card inside the plate, titled with the sketch's own name. The sheet is the app's size, so it is
+larger than the room around it: the card lands over the sheet's free corner and says so.
 
 ## The logbook
 
