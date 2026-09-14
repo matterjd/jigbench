@@ -35,6 +35,16 @@ published package found, one PR each.
   wrapped line that clips rather than a line that grows the card and runs past its edge — the
   strip's window is anchored to its END, so a wrapped line costs the oldest step and never the one
   Claude is on, and the card says in words where the rest of the build is.
+- **the sketch sheet says how to place a primitive** (#68) — the six primitives were reachable
+  only through `SketchProperties`'s palette, and that panel is mounted through `PropertiesColumn`,
+  which the quiet chassis does not render at all: nothing in the default view could set the sheet's
+  tool, so every click on the sheet dropped the default `box`, forever. The sheet now carries its
+  own **primitives strip** — `box · text · button · input · image · list` — with the pairing in
+  words (*click a primitive, then click the sheet*), an empty sheet that says what to do first, and
+  `sketch <primitive>` entries in the palette so the keyboard reaches the same act. Both of those
+  instruction lines are painted in the house secondary ink, not the provenance ink the floor bars
+  from carrying meaning, and the held primitive is marked with a storm underline as well as a
+  ground, so which one is armed never rests on colour alone.
 
 Issue #37 — the hardening items from the fix-round verification, none of them a live defect, one
 PR each.

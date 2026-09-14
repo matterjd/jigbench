@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { SketchSheet } from './SketchSheet.js';
-import { resetSketchWorkspaceForTests, setPaletteTool } from './sketchWorkspace.js';
+import { PALETTE_TOOLS, resetSketchWorkspaceForTests, setPaletteTool } from './sketchWorkspace.js';
 import type { SketchSummary } from '@jigbench/core';
 
 afterEach(() => {
@@ -278,5 +278,60 @@ describe('SketchSheet — Delete scraps the selected element', () => {
 
     await waitFor(() => expect(screen.queryByTestId(/^sketch-element-/)).toBeNull());
     expect(el).toBeTruthy();
+  });
+});
+
+/**
+ * #68 (the 0.2.0 desk retest, round 2, step 19): after naming a sketch and clicking **new**,
+ * "I do not see a way to add a button." The five primitives were reachable only through
+ * `SketchProperties`'s palette — and `SketchProperties` is mounted through `PropertiesColumn`,
+ * which the quiet chassis (S12) does not render at all. Nothing in the default view could set
+ * `state.tool`, so every click on the sheet dropped the default `box`, forever. The step could
+ * not be followed from the page alone because the control was not on the page.
+ */
+describe('SketchSheet — #68: the sheet says how to place a primitive', () => {
+  function openSketch() {
+    const created = { jigFormat: 1, id: '0001', name: 'Overdue invoices', createdAt: 'a', updatedAt: 'a', size: { w: 640, h: 480 }, elements: [], links: [] };
+    return routedFetch({ 'GET /api/sketches': { sketches: [] }, 'POST /api/sketches': created });
+  }
+
+  async function newSketch(fetchImpl: typeof fetch): Promise<HTMLElement> {
+    render(<SketchSheet fetchImpl={fetchImpl} />);
+    await screen.findByText(/no sketches yet/i);
+    fireEvent.change(screen.getByPlaceholderText(/name this sketch/i), { target: { value: 'Overdue invoices' } });
+    fireEvent.click(screen.getByRole('button', { name: /^new$/i }));
+    return screen.findByLabelText('sketch sheet');
+  }
+
+  it('a first-time user adds a button in two clicks: the primitive, then the sheet', async () => {
+    const { fetchImpl } = openSketch();
+    const sheet = await newSketch(fetchImpl);
+
+    fireEvent.click(screen.getByRole('button', { name: /button/i }));
+    fireEvent.click(sheet, { clientX: 40, clientY: 40 });
+
+    const placed = await screen.findByTestId(/^sketch-element-/);
+    expect(placed.className).toMatch(/jig-sketch-sheet-panel__element--button/);
+  });
+
+  it('every primitive the sheet can place is on the strip, and the strip says what to do with it', async () => {
+    const { fetchImpl } = openSketch();
+    await newSketch(fetchImpl);
+
+    const strip = screen.getByRole('group', { name: /primitives/i });
+    expect(within(strip).getAllByRole('button').map((b) => b.textContent)).toEqual([...PALETTE_TOOLS]);
+    expect(screen.getByText(/click a primitive, then click the sheet/i)).toBeTruthy();
+  });
+
+  it('an empty sheet says what to do first, and stops saying it once something is on it', async () => {
+    const { fetchImpl } = openSketch();
+    const sheet = await newSketch(fetchImpl);
+    expect(screen.getByText(/nothing on this sheet yet/i)).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: /button/i }));
+    fireEvent.click(sheet, { clientX: 40, clientY: 40 });
+
+    await screen.findByTestId(/^sketch-element-/);
+    expect(screen.queryByText(/nothing on this sheet yet/i)).toBeNull();
   });
 });

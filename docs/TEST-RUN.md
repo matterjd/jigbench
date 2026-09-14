@@ -230,7 +230,16 @@ status line all stay exactly where they are while you scroll. Same when you open
 scroll under a fixed head). Only a real browser lays this out, so this step is the proof.
 
 **19. Sketch.** Press `S`. Name a sketch `Overdue invoices`, click **new**.
-PASS: a sheet at the app's size; draw a box, then a button; drag the button toward the box's edge:
+PASS: a sheet at the app's size, with a **primitives strip** above it — `box · text · button ·
+input · image · list` — carrying the line *click a primitive, then click the sheet*; the empty
+sheet says the same thing in its own words. Click **box** in the strip, then click the sheet: a
+box. Click **button** in the strip, then click the sheet: a button. The held primitive carries a
+**storm underline** as well as its lighter ground, so which one is armed is readable without
+telling the two greys apart, and both instruction lines read as ordinary secondary text — not as
+the faintest words on the sheet. (`Ctrl+K`, then `sketch
+button`, then `Enter` arms the same primitive from anywhere — the palette's two moves.) That the
+strip is *there and legible* is the half only your eyes can judge, and it is the shape #68 was
+filed as: *"I do not see a way to add a button."* Then drag the button toward the box's edge:
 it snaps within 6px, an alignment line shows on each held axis, and the sheet says the coordinates.
 **build this screen →** opens the prompt card **titled `Overdue invoices`** — the sketch's own
 name, not the button's words — and the whole card is visible: **inside the plate, over the

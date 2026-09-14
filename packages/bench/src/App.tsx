@@ -14,6 +14,7 @@ import { CommandPalette, type PaletteDocsResult } from './palette/CommandPalette
 import { FixturePanel } from './fixtures/index.js';
 import { ToolpathBar } from './toolpath/ToolpathBar.js';
 import { SketchSheet, type BuildScreenTarget } from './sketch/SketchSheet.js';
+import { PALETTE_TOOLS, setPaletteTool } from './sketch/sketchWorkspace.js';
 import { LogbookDrawer } from './logbook/LogbookDrawer.js';
 import { useLogbook } from './logbook/useLogbook.js';
 import { ClampScreen } from './clamp/ClampScreen.js';
@@ -442,6 +443,14 @@ export function App() {
         routes={survey?.routes ?? []}
         gauges={(gauges ?? []).map((g) => ({ name: g.name, pair: `${String(g.$value)} · ${g.category}` }))}
         workOrders={[]}
+        sketchPrimitives={PALETTE_TOOLS}
+        // #68: the keyboard's way to the same act as the sheet's own primitives strip — the
+        // palette arms the primitive AND puts the rail on Sketch, so `sketch button` from the
+        // bench's default view lands you on the sheet with `button` held, one click from placed.
+        onSelectSketchPrimitive={(kind) => {
+          setTool('sketch');
+          setPaletteTool(kind as (typeof PALETTE_TOOLS)[number]);
+        }}
         onSelectTool={setTool}
         onSelectComponent={(c) => {
           setRightTab('inspect');

@@ -7,8 +7,8 @@ import {
   setElementGauge,
   setElementText,
   setPaletteTool,
+  PALETTE_TOOLS,
   useSketchWorkspace,
-  type PaletteTool,
 } from './sketchWorkspace.js';
 import './SketchProperties.css';
 
@@ -48,8 +48,6 @@ function slotsForKind(kind: SketchElement['kind']): string[] {
       return [];
   }
 }
-
-const PALETTE_TOOLS: readonly PaletteTool[] = ['box', 'text', 'button', 'input', 'image', 'list'];
 
 function GaugePicker({ slot, element, gauges }: { slot: string; element: SketchElement; gauges: readonly Gauge[] }) {
   const category = SLOT_CATEGORY[slot];
