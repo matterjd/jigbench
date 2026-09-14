@@ -107,6 +107,7 @@
 }
 
 .jig-sketch-sheet-panel__primitive {
+  position: relative; /* the held mark below is positioned against this button, not the strip */
   font: 11px var(--mono);
   color: var(--dim);
   border: 1px solid var(--line);
@@ -120,29 +121,50 @@
   background: var(--bg2);
 }
 
+/* Ground and ink alone put the held primitive one ladder step from the hover state (--bg2 to
+   --bg3), and the sentence that names it in words disappears the moment the sheet has an element
+   on it — which is exactly when the second and third are placed. So the held state takes a storm
+   MARK as well, the way `Rail.css` does for the active tool: the state never rests on colour
+   alone (design floor item 6). */
 .jig-sketch-sheet-panel__primitive--active {
   color: var(--ink);
   background: var(--bg3);
   border-color: var(--line);
 }
 
+.jig-sketch-sheet-panel__primitive--active::before {
+  content: '';
+  position: absolute;
+  left: 6px;
+  right: 6px;
+  bottom: -1px;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--storm);
+}
+
+/* --dim, not --faint: this is the pairing that makes the strip usable with nothing read, so it is
+   load-bearing by commission, and `tokens.css` reserves --faint for provenance (a11y floor). */
 .jig-sketch-sheet-panel__hint {
   margin-left: 6px;
   font: 11px var(--mono);
-  color: var(--faint);
+  color: var(--dim);
 }
 
+/* Same call, same reason: this sentence is #68's "what to do first". */
 .jig-sketch-sheet-panel__sheet-empty {
   position: absolute;
   inset: 24px 24px auto 24px;
   margin: 0;
   font: 12px/1.5 var(--mono);
-  color: var(--faint);
+  color: var(--dim);
   pointer-events: none;
 }
 
+/* The sentence is --dim now, so the primitive it names is lifted a step to stay the word that
+   stands out in it. */
 .jig-sketch-sheet-panel__sheet-empty b {
-  color: var(--dim);
+  color: var(--ink);
   font-weight: 600;
 }
 
