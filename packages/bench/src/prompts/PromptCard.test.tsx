@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
+import type { BuildStreamEvent } from '@jigbench/core';
 import { PromptCard } from './PromptCard.js';
 
 afterEach(() => {
@@ -149,7 +150,9 @@ describe('PromptCard', () => {
         })}
       />,
     );
-    expect(screen.getByText(/editing invoice-list.component.html/)).toBeTruthy();
+    // Twice over since #67: once in the strip's state line (`building · <the step>`) and once as
+    // the stream line itself. Both are the point, so the query says so rather than narrowing.
+    expect(screen.getAllByText(/editing invoice-list.component.html/)).toHaveLength(2);
   });
 
   it('the close button calls onClose', () => {
@@ -195,6 +198,87 @@ describe('PromptCard', () => {
     mockRect(plate, { left: 0, top: 0, width: 1044, height: 872 });
     render(<PromptCard {...baseProps({ anchorEl: anchor, plateEl: plate })} />);
     expect(screen.getByText(/the selection is larger than the room around it/i)).toBeTruthy();
+  });
+});
+
+/**
+ * #66 (the 0.2.0 desk retest, round 2): "pressing Build makes the prompt card disappear and
+ * reappear." The card is anchored once, when it opens — and then the build stream grows INSIDE
+ * it while `claude -p` runs. The placement effect re-ran on every `buildStream.length` change,
+ * measured a taller card each time and re-placed it, so the card walked up the plate frame by
+ * frame instead of staying under the selection it belongs to.
+ *
+ * jsdom computes no layout — every box is zero — so the card's own height has to be modelled for
+ * this to be visible at all: the `offsetHeight` stub below answers the way a browser would, from
+ * the stream lines the card is actually rendering. Without it the placement inputs never change
+ * and the defect is invisible to any test in this suite (which is why it reached the desk).
+ */
+describe('PromptCard — #66: it stays put while Claude builds', () => {
+  let originalOffsetHeight: PropertyDescriptor | undefined;
+
+  beforeEach(() => {
+    originalOffsetHeight = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'offsetHeight');
+    Object.defineProperty(HTMLElement.prototype, 'offsetHeight', {
+      configurable: true,
+      get(this: HTMLElement) {
+        if (!this.classList.contains('jig-prompt-card')) return 0;
+        return 300 + 60 * this.querySelectorAll('.jig-prompt-card__stream li').length;
+      },
+    });
+  });
+
+  afterEach(() => {
+    if (originalOffsetHeight) Object.defineProperty(HTMLElement.prototype, 'offsetHeight', originalOffsetHeight);
+  });
+
+  /** n stream frames, the shape `POST /api/prompts/:id/build` streams over the WS. */
+  function frames(n: number): BuildStreamEvent[] {
+    return Array.from({ length: n }, (_, i) => ({ kind: 'text', text: `editing invoice-list.html (${i})` }) as BuildStreamEvent);
+  }
+
+  const anchorRect = { x: 120, y: 140, w: 200, h: 60 };
+  const plateSize = { w: 1045, h: 700 };
+
+  it('the card does not move as the build stream grows under it', () => {
+    const props = baseProps({ anchorRect, plateSize, state: 'building' as const, text: 'show days overdue' });
+    const { container, rerender } = render(<PromptCard {...props} buildStream={frames(0)} />);
+    const card = container.querySelector('.jig-prompt-card') as HTMLElement;
+    const openedAt = { left: card.style.left, top: card.style.top, where: card.dataset.where };
+
+    rerender(<PromptCard {...props} buildStream={frames(6)} />);
+
+    // the SAME element — the card changes state in place, it is never unmounted and re-created
+    expect(container.querySelector('.jig-prompt-card')).toBe(card);
+    expect(card.style.top).toBe(openedAt.top);
+    expect(card.style.left).toBe(openedAt.left);
+    expect(card.dataset.where).toBe(openedAt.where);
+  });
+
+  it('stays the same element, at the same place, from ready through building to built', () => {
+    const props = baseProps({ anchorRect, plateSize, text: 'show days overdue' });
+    const { container, rerender } = render(<PromptCard {...props} state="ready" buildStream={frames(0)} />);
+    const card = container.querySelector('.jig-prompt-card') as HTMLElement;
+    const openedAt = { left: card.style.left, top: card.style.top };
+
+    rerender(<PromptCard {...props} state="building" buildStream={frames(3)} />);
+    expect(container.querySelector('.jig-prompt-card')).toBe(card);
+    rerender(<PromptCard {...props} state="built" buildStream={frames(9)} builtSummary={{ files: 3, durationMs: 72000 }} />);
+
+    expect(container.querySelector('.jig-prompt-card')).toBe(card);
+    expect({ left: card.style.left, top: card.style.top }).toEqual(openedAt);
+  });
+
+  // The detector control for the two above: placement is not simply frozen. A NEW anchor — the
+  // next Point pick — still re-places the card, which is the only thing that ever should.
+  it('detector control: a new anchor still re-places it', () => {
+    const props = baseProps({ plateSize, state: 'building' as const, text: 'show days overdue' });
+    const { container, rerender } = render(<PromptCard {...props} anchorRect={anchorRect} buildStream={frames(2)} />);
+    const card = container.querySelector('.jig-prompt-card') as HTMLElement;
+    const firstTop = card.style.top;
+
+    rerender(<PromptCard {...props} anchorRect={{ x: 300, y: 420, w: 120, h: 40 }} buildStream={frames(2)} />);
+
+    expect(card.style.top).not.toBe(firstTop);
   });
 });
 
@@ -269,5 +353,69 @@ describe('PromptCard — retest #58: the hold sends what the card knows at 800 m
 
     expect(onReadyComplete).not.toHaveBeenCalled();
     expect(screen.getByText(/let go early — still a draft · \d+ ms of 800/i)).toBeTruthy();
+  });
+});
+
+/**
+ * #67 (the 0.2.0 desk retest, round 2): "the build stream overflows the prompt card and the
+ * Prompts pane; the card shows too much of it." The build has two tiers — the card is a PEEK
+ * (the state line and the last three lines) and the Prompts pane is the RECORD (all of it, in a
+ * scroll box of its own). What jsdom can judge is the count and the words; the fixed-height strip
+ * and the wrapping are pinned at the source in `floor-build-stream-box.test.ts`, and at the desk
+ * in `docs/TEST-RUN.md` step 16.
+ */
+describe('PromptCard — #67: the stream on the card is a peek, not the record', () => {
+  function frames(n: number): BuildStreamEvent[] {
+    return Array.from({ length: n }, (_, i) => ({ kind: 'text', text: `step ${i} ` + 'x'.repeat(300) }) as BuildStreamEvent);
+  }
+
+  it('shows the last three stream lines and no more, however long the build runs', () => {
+    const { container } = render(
+      <PromptCard {...baseProps({ state: 'building' as const, text: 'show days overdue', buildStream: frames(40) })} />,
+    );
+    const lines = [...container.querySelectorAll('.jig-prompt-card__stream li')];
+    expect(lines).toHaveLength(3);
+    expect(lines.map((li) => li.textContent?.slice(0, 7))).toEqual(['step 37', 'step 38', 'step 39']);
+  });
+
+  it('a build with fewer than three lines shows all of them', () => {
+    const { container } = render(
+      <PromptCard {...baseProps({ state: 'building' as const, text: 'show days overdue', buildStream: frames(2) })} />,
+    );
+    expect(container.querySelectorAll('.jig-prompt-card__stream li')).toHaveLength(2);
+  });
+
+  it('the strip is headed by the state line — the state and the step Claude is on', () => {
+    render(
+      <PromptCard
+        {...baseProps({
+          state: 'building' as const,
+          text: 'show days overdue',
+          buildStream: [
+            { kind: 'text', text: 'reading invoice-list.ts' },
+            { kind: 'tool', name: 'Edit', target: 'invoice-list.html' },
+          ] as BuildStreamEvent[],
+        })}
+      />,
+    );
+    expect(screen.getByText('building · Edit · invoice-list.html')).toBeTruthy();
+  });
+
+  it('the head carries the newest frame verbatim, 300 characters and all, and it is the strip\'s last line', () => {
+    const { container } = render(
+      <PromptCard {...baseProps({ state: 'building' as const, text: 'show days overdue', buildStream: frames(40) })} />,
+    );
+    const head = container.querySelector('.jig-prompt-card__stream-head');
+    const lines = [...container.querySelectorAll('.jig-prompt-card__stream li')];
+    // The head and the bottom of the strip say the same step — the one Claude is on. Whether the
+    // 300 characters FIT is CSS, pinned in floor-build-stream-box.test.ts; that they arrive here
+    // untruncated is what makes the CSS load-bearing.
+    expect(head?.textContent).toBe(`building · ${lines[lines.length - 1]?.textContent}`);
+    expect(head?.textContent?.length).toBeGreaterThan(300);
+  });
+
+  it('the card says where the whole build is, since the card itself only shows three lines', () => {
+    render(<PromptCard {...baseProps({ state: 'building' as const, text: 'show days overdue', buildStream: frames(40) })} />);
+    expect(screen.getByText('the whole build is in Prompts')).toBeTruthy();
   });
 });

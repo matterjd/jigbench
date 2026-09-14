@@ -11,6 +11,8 @@ import {
   moveElement,
   newSketch,
   openSketch,
+  PALETTE_TOOLS,
+  setPaletteTool,
   loadSketches,
   placeElementAt,
   printed,
@@ -24,6 +26,17 @@ import {
 } from './sketchWorkspace.js';
 import './SketchSheet.css';
 
+/** What the sheet hands its integrator when "build this screen →" is pressed (#69). The sheet
+ * knows two things nobody else does: the sketch's own NAME (the card's title — `docs/TEST-RUN.md`
+ * step 19 has always said the card opens "with that title") and the sheet's own BOX. The box is
+ * in VIEWPORT coordinates, the only frame the sheet can speak in; translating it into whatever
+ * frame the card is placed in belongs to whoever places the card (App.tsx: plate-local). Handing
+ * over nothing at all is what made App.tsx invent both, and invent them wrong. */
+export interface BuildScreenTarget {
+  name: string;
+  rect: { x: number; y: number; w: number; h: number };
+}
+
 export interface SketchSheetProps {
   /** The survey's gauge set — used only to resolve the sheet's own snap grid (the same
    * smallest-`space`-gauge rule the plate's rulers/guides already use). */
@@ -32,7 +45,7 @@ export interface SketchSheetProps {
   /** "The sheet is a prompt target: build this screen → opens the card with that title" (S12/
    * S13 brief). Absent = the button isn't rendered (App.tsx always provides one in the real
    * bench; tests that don't care about the loop can omit it). */
-  onBuildScreen?: () => void;
+  onBuildScreen?: (target: BuildScreenTarget) => void;
 }
 
 function isTypingTarget(target: EventTarget | null): boolean {
@@ -143,6 +156,17 @@ export function SketchSheet({ gauges, fetchImpl = fetch, onBuildScreen }: Sketch
     const size = { w: window.innerWidth || 1280, h: window.innerHeight || 800 };
     await newSketch(trimmed, size, fetchImpl);
     setName('');
+  }
+
+  /** #69: the sketch's name and the sheet's own box, in viewport coordinates. A sheet that has
+   * not been laid out yet (no browser, or before the first paint) answers with a zero rect at the
+   * origin rather than a lie — the card then places itself beside the sheet's top-left. */
+  function buildScreenTarget(): BuildScreenTarget {
+    const box = sheetRef.current?.getBoundingClientRect();
+    return {
+      name: state.activeSketch?.name ?? '',
+      rect: box ? { x: box.left, y: box.top, w: box.width, h: box.height } : { x: 0, y: 0, w: 0, h: 0 },
+    };
   }
 
   function onSheetClick(event: ReactMouseEvent<HTMLDivElement>): void {
@@ -263,11 +287,30 @@ export function SketchSheet({ gauges, fetchImpl = fetch, onBuildScreen }: Sketch
         )}
         {onBuildScreen && (
           <span className="jig-sketch-sheet-panel__actions">
-            <button type="button" className="jig-sketch-sheet-panel__build-screen" onClick={onBuildScreen}>
+            <button type="button" className="jig-sketch-sheet-panel__build-screen" onClick={() => onBuildScreen(buildScreenTarget())}>
               build this screen →
             </button>
           </span>
         )}
+      </div>
+      {/* #68: the primitives, on the sheet itself. They existed — but only in
+          `SketchProperties`, which the quiet chassis (S12) does not render, so nothing in the
+          default view could set `state.tool` and every click dropped the default `box`. The
+          hint is the pairing in words, the way the rail's tools carry theirs. */}
+      <div className="jig-sketch-sheet-panel__primitives" role="group" aria-label="primitives">
+        {PALETTE_TOOLS.map((kind) => (
+          <button
+            key={kind}
+            type="button"
+            aria-pressed={state.tool === kind}
+            aria-label={`${kind} — click a primitive, then click the sheet`}
+            className={'jig-sketch-sheet-panel__primitive' + (state.tool === kind ? ' jig-sketch-sheet-panel__primitive--active' : '')}
+            onClick={() => setPaletteTool(kind)}
+          >
+            {kind}
+          </button>
+        ))}
+        <span className="jig-sketch-sheet-panel__hint">click a primitive, then click the sheet</span>
       </div>
       <div className="jig-sketch-sheet-panel__surface">
         <PlateRulers cursor={null} />
@@ -301,6 +344,11 @@ export function SketchSheet({ gauges, fetchImpl = fetch, onBuildScreen }: Sketch
                 />
               </div>
             ))}
+            {sketch.elements.length === 0 && (
+              <p className="jig-sketch-sheet-panel__sheet-empty">
+                nothing on this sheet yet — pick <b>{state.tool}</b> above (or another primitive) and click here to place it.
+              </p>
+            )}
             {alignLines.map((line, i) =>
               line.axis === 'v' ? (
                 <div

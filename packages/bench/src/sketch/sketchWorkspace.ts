@@ -10,6 +10,12 @@ import { snap, type Sketch, type SketchElement, type SketchLink, type SketchSumm
 
 export type PaletteTool = 'box' | 'text' | 'button' | 'input' | 'image' | 'list';
 
+/** Every primitive the sheet can place, in the order the surfaces show them. Lives here, beside
+ * the `tool` it sets, because #68 gave it a second reader: the sheet's own primitives strip (and
+ * the palette's `sketch <primitive>` entries) — not just the Advanced properties column, which
+ * the quiet chassis does not render. */
+export const PALETTE_TOOLS: readonly PaletteTool[] = ['box', 'text', 'button', 'input', 'image', 'list'];
+
 export const DEFAULT_GRID = 4; // the surveyed 4px space gauge, or the app's smallest one (caller may override)
 
 export interface SketchWorkspaceState {

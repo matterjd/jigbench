@@ -37,11 +37,16 @@ export interface CommandPaletteProps {
   onSelectRoute: (path: string) => void;
   onSelectGauge: (name: string) => void;
   onSelectWorkOrder: (id: string) => void;
+  /** #68: every primitive the sketch sheet can place, so the keyboard reaches the same action
+   * the sheet's own strip does — `Ctrl+K`, `sketch button`, Enter. Omitted (a test that does not
+   * care) and no sketch entries are listed. */
+  sketchPrimitives?: readonly string[];
+  onSelectSketchPrimitive?: (kind: string) => void;
   onPrinted: () => void;
   onDocsQuery: (query: string) => Promise<PaletteDocsResult[]> | PaletteDocsResult[];
 }
 
-type ItemKind = 'tool' | 'component' | 'route' | 'gauge' | 'workorder' | 'printed' | 'docs';
+type ItemKind = 'tool' | 'component' | 'route' | 'gauge' | 'workorder' | 'printed' | 'docs' | 'sketch';
 
 interface Item {
   kind: ItemKind;
@@ -146,13 +151,22 @@ export function CommandPalette(props: CommandPaletteProps) {
         run: () => props.onSelectWorkOrder(w.id),
       });
     }
+    for (const kind of props.sketchPrimitives ?? []) {
+      list.push({
+        kind: 'sketch',
+        key: `sketch-${kind}`,
+        label: `sketch ${kind}`,
+        pair: 'place it on the sheet — then click where it goes',
+        run: () => props.onSelectSketchPrimitive?.(kind),
+      });
+    }
     list.push({ kind: 'printed', key: 'printed', label: 'printed', pair: 'reset the bench to its default view', run: () => props.onPrinted() });
     return list;
     // props is a fresh object every render in the normal case (callbacks + arrays), but the
     // palette only needs the CURRENT values whenever the query/docs results change — recomputing
     // on every parent render is cheap for a list this size.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isDocsQuery, docsResults, props.tools, props.components, props.routes, props.gauges, props.workOrders]);
+  }, [isDocsQuery, docsResults, props.tools, props.components, props.routes, props.gauges, props.workOrders, props.sketchPrimitives]);
 
   const words = trimmed.toLowerCase().split(/\s+/).filter(Boolean);
   const filtered = isDocsQuery

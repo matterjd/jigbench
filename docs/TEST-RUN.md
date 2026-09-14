@@ -186,6 +186,23 @@ status line: the **logbook** drawer opens with every step as a `Claude` row, you
 survey as `human`/`bench` rows, and `ng serve`'s lines as `app` rows; the pills filter by who.
 When Claude exits: `Claude · built · N files · m:ss`, the prompt moves to **built**. FAIL: `Claude
 · not installed` → step 1.
+**And the card itself, from the moment you press Build [you only]:** it stays exactly where it
+is. It must not blink out and come back, and it must not creep up the plate as Claude's steps
+arrive — only its contents change (Polish and Ready leave, the words lock, the stream appears
+under them). That the card never moves is pinned by a test; that it never *flashes* on the way
+is what only your eyes can judge, and it is the shape #66 was filed as.
+
+**And the stream, at 1280×720 [you only]:** the card shows a peek — the state line
+(*building · <the step>*, one line, in the same lower case as the status line) and **the last
+three steps only**, in a strip that stays the same height however long the build runs, with **no
+scrollbar inside the card**. The bottom line of the strip is **always the step Claude is on right
+now**: when a line wraps it is the OLDEST line that goes, never the newest. Under the strip the
+card says *the whole build is in Prompts*. **Prompts** shows the
+whole thing, scrolling **inside its own box** while the tab strip, the rail and the status line
+stay put. Nothing anywhere runs off the right-hand edge: a 300-character transcript line and a
+long file path both **wrap**, in the card, in the pane and in the logbook drawer. That is the
+shape #67 was filed as — long lines ran past the box and the card's own scroll fought the
+pane's.
 
 **17. Built.** In **Prompts** click the built prompt.
 PASS: its **built** line reads *built · N files* and lists the files Claude touched, with
@@ -213,9 +230,23 @@ status line all stay exactly where they are while you scroll. Same when you open
 scroll under a fixed head). Only a real browser lays this out, so this step is the proof.
 
 **19. Sketch.** Press `S`. Name a sketch `Overdue invoices`, click **new**.
-PASS: a sheet at the app's size; draw a box, then a button; drag the button toward the box's edge:
+PASS: a sheet at the app's size, with a **primitives strip** above it — `box · text · button ·
+input · image · list` — carrying the line *click a primitive, then click the sheet*; the empty
+sheet says the same thing in its own words. Click **box** in the strip, then click the sheet: a
+box. Click **button** in the strip, then click the sheet: a button. The held primitive carries a
+**storm underline** as well as its lighter ground, so which one is armed is readable without
+telling the two greys apart, and both instruction lines read as ordinary secondary text — not as
+the faintest words on the sheet. (`Ctrl+K`, then `sketch
+button`, then `Enter` arms the same primitive from anywhere — the palette's two moves.) That the
+strip is *there and legible* is the half only your eyes can judge, and it is the shape #68 was
+filed as: *"I do not see a way to add a button."* Then drag the button toward the box's edge:
 it snaps within 6px, an alignment line shows on each held axis, and the sheet says the coordinates.
-**build this screen →** opens the prompt card with that title. `Esc` returns to Hand.
+**build this screen →** opens the prompt card **titled `Overdue invoices`** — the sketch's own
+name, not the button's words — and the whole card is visible: **inside the plate, over the
+sheet's free corner, never under the rail on the left, never under the right column, never under
+the status line**, at 1440×900 and at 1280×720. The sheet is the app's size, so it is larger than
+the room around it and the card's own line says the card sits over its corner. That is the shape #69 was filed as: the card opened 348px
+to the LEFT of the plate and was clipped away entirely. `Esc` returns to Hand.
 
 **20. The palette.** `Ctrl+K`, type `design`, `Enter`.
 PASS: the Design system tab opens — two moves. `Esc` closes.

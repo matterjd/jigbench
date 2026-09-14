@@ -190,6 +190,22 @@ describe('App (S12: the quiet bench)', () => {
     expect(screen.getAllByText('Point').length).toBeGreaterThan(0);
   });
 
+  // #68: the palette is the keyboard's way to the sheet's primitives strip. The entry has to be
+  // WIRED, not merely renderable — `sketch button` from the bench's default view puts the rail
+  // on Sketch, which is the half a CommandPalette unit test cannot see.
+  it('#68: Ctrl+K, "sketch button", Enter arms the primitive and puts the rail on Sketch', async () => {
+    stubFetch((url) => (url.includes('/api/sketches') ? ({ ok: true, json: () => Promise.resolve({ sketches: [] }) } as Response) : undefined));
+    render(<App />);
+    sendState(clampedState);
+    fireEvent.keyDown(window, { key: 'k', ctrlKey: true });
+    expect(screen.getByText('sketch button')).toBeTruthy();
+
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'sketch button' } });
+    fireEvent.keyDown(screen.getByRole('combobox'), { key: 'Enter' });
+
+    expect(await screen.findByText(/no sketches yet/i)).toBeTruthy(); // the sheet is on the plate
+  });
+
   it('Point selects a component on the plate and opens the prompt card anchored to it', async () => {
     stubFetch((url) =>
       url.includes('/api/plate')
@@ -229,6 +245,101 @@ describe('App (S12: the quiet bench)', () => {
     const ready = screen.getByRole('button', { name: /Ready — hold/i });
     expect(ready.className).toMatch(/ember/);
     expect(ready.hasAttribute('disabled')).toBe(false);
+  });
+});
+
+/**
+ * #69 (the 0.2.0 desk retest, round 2): "the build-this-screen card opens off-screen behind the
+ * rail." The plate box is measured in an effect with an empty dependency list — and that effect
+ * runs once, after the FIRST commit, which is the `state === null` holding screen where none of
+ * the chassis is rendered and the ref is null. It returns early and, with `[]`, never runs again:
+ * `plateSize` stays `{ w: 0, h: 0 }` for the life of the page. Fed a 0x0 plate every clamp in
+ * `placeCardPosition` inverts, and a sketch anchor (the whole plate, so `{0,0,0,0}`) falls
+ * through to the corner at `0 - 340 - 8` = **-348** — 348px left of the plate, under the rail.
+ *
+ * jsdom computes no layout, so the plate's box has to be modelled: `clientWidth`/`clientHeight`
+ * answer the way a browser would. That is the whole reason this was invisible to the suite.
+ */
+describe('App (#69: the plate is measured, so the card lands inside it)', () => {
+  const saved: Record<string, PropertyDescriptor | undefined> = {};
+
+  function stubBoxes(w: number, h: number): void {
+    for (const [name, value] of [['clientWidth', w], ['clientHeight', h], ['offsetHeight', 320]] as const) {
+      saved[name] = Object.getOwnPropertyDescriptor(HTMLElement.prototype, name);
+      Object.defineProperty(HTMLElement.prototype, name, { configurable: true, get: () => value });
+    }
+  }
+
+  beforeEach(() => {
+    FakeWebSocket.instances = [];
+    vi.stubGlobal('WebSocket', FakeWebSocket);
+    stubFetch();
+    stubBoxes(1045, 700); // the plate region at 1440x900, per docs/team/v0.2/CHASSIS.md
+  });
+
+  afterEach(() => {
+    cleanup();
+    vi.unstubAllGlobals();
+    setTool('point');
+    setAdvanced(false);
+    for (const name of ['clientWidth', 'clientHeight', 'offsetHeight']) {
+      const descriptor = saved[name];
+      if (descriptor) Object.defineProperty(HTMLElement.prototype, name, descriptor);
+      else Reflect.deleteProperty(HTMLElement.prototype, name);
+    }
+  });
+
+  it('a Point pick opens the card BESIDE the selection, not pinned to the plate\'s left edge', async () => {
+    stubFetch((url) =>
+      url.includes('/api/plate')
+        ? ({ ok: true, json: () => Promise.resolve({ target: 'http://localhost:4200', port: 4601, status: 'up', changes: [] }) } as Response)
+        : undefined,
+    );
+    render(<App />);
+    sendState(clampedState);
+    const dialog = await pickOnPlate({
+      path: 'app-invoice-list',
+      tag: 'app-invoice-list',
+      text: 'Invoices',
+      component: 'InvoiceListComponent',
+      file: 'x.ts',
+      rect: { x: 100, y: 100, width: 200, height: 60 },
+    });
+
+    expect(dialog.dataset.where).toBe('beside');
+    expect(dialog.style.left).toBe(100 + 200 + 12 + 'px'); // r.x + r.w + the 12px margin
+  });
+
+  it('"build this screen →" opens a card titled with the sketch\'s name, fully inside the plate', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
+        const url = String(input);
+        const method = (init?.method ?? 'GET').toUpperCase();
+        if (url.includes('/api/sketches') && method === 'POST')
+          return Promise.resolve({
+            ok: true,
+            json: () => Promise.resolve({ jigFormat: 1, id: '0001', name: 'Overdue invoices', createdAt: 'a', updatedAt: 'a', size: { w: 640, h: 480 }, elements: [], links: [] }),
+          } as Response);
+        if (url.includes('/api/sketches')) return Promise.resolve({ ok: true, json: () => Promise.resolve({ sketches: [] }) } as Response);
+        if (url.includes('/api/prompts')) return Promise.resolve({ ok: true, json: () => Promise.resolve({ prompts: [] }) } as Response);
+        return Promise.resolve({ ok: true, json: () => Promise.resolve({ wiring, shop: null, status: { claude: { state: 'idle' } } }) } as Response);
+      }),
+    );
+    render(<App />);
+    sendState(clampedState);
+    fireEvent.click(screen.getByRole('button', { name: /^Sketch —/ }));
+    await screen.findByText(/no sketches yet/i);
+    fireEvent.change(screen.getByPlaceholderText(/name this sketch/i), { target: { value: 'Overdue invoices' } });
+    fireEvent.click(screen.getByRole('button', { name: /^new$/i }));
+    await screen.findByLabelText('sketch sheet');
+
+    fireEvent.click(screen.getByRole('button', { name: /build this screen/i }));
+
+    const dialog = await screen.findByRole('dialog', { name: /prompt card/i });
+    expect(within(dialog).getByText('Overdue invoices')).toBeTruthy();
+    expect(parseFloat(dialog.style.left)).toBeGreaterThanOrEqual(0);
+    expect(parseFloat(dialog.style.top)).toBeGreaterThanOrEqual(0);
   });
 });
 
