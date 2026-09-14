@@ -88,6 +88,47 @@ describe('retest #67 — the build stream is a peek on the card and a record in 
     expect(line.body).not.toMatch(/white-space:\s*(nowrap|pre)\b/);
   });
 
+  /**
+   * The lead review's blocker on this PR. The strip's HEAD is no longer the fixed word `Claude`:
+   * it carries the latest stream line verbatim (`building · ${latestStreamLine}`,
+   * PromptCard.tsx), and `buildStreamLine` hands back a text frame's own `event.text` untruncated
+   * — a 300-character frame, or a path with no break opportunity in it. An unwrapped, unbounded
+   * head is the one element left on the card that both GROWS with the stream and RUNS PAST the
+   * card's 340px edge into `.jig-prompt-card`'s own `overflow: auto` — which is the horizontal
+   * scrollbar #67 was filed on. So the head takes the same two properties as the strip: a fixed
+   * one-line height that clips, and a wrap that cannot be defeated by an unbroken token.
+   */
+  it('the strip\'s head is a fixed one-line box that wraps, so the latest line cannot grow or widen the card', () => {
+    const head = ruleFor(sheet(...CARD), '.jig-prompt-card__stream-head');
+    expect(heightIsFixed(head.body)).toBe(true);
+    expect(scrolls(head.body)).toBe(false);
+    expect(head.body).toMatch(/overflow:\s*hidden/);
+    expect(head.body).not.toMatch(/white-space:\s*(nowrap|pre)\b/);
+
+    // The head is a flex row, and a flex child does not shrink below its content unless it is
+    // told to: without `min-width: 0` the span keeps its full unbroken width whatever the parent
+    // says, and the wrap never happens.
+    const headLine = ruleFor(sheet(...CARD), '.jig-prompt-card__stream-head span');
+    expect(headLine.body).toMatch(/overflow-wrap:\s*anywhere/);
+    expect(headLine.body).toMatch(/min-width:\s*0/);
+  });
+
+  /**
+   * The second half of the same blocker: a fixed-height box with AUTO rows clips from the BOTTOM,
+   * so the moment one of the three lines wraps, the newest step — the whole point of a peek — is
+   * the part pushed out of view. The rows are pinned to one line each and the visible window is
+   * anchored to the END, so what a wrap costs is the OLDEST line, never the newest.
+   */
+  it('the strip shows the LAST lines: fixed rows, anchored to the bottom, each line clipped to its row', () => {
+    const lines = ruleFor(sheet(...CARD), '.jig-prompt-card__stream-lines');
+    expect(lines.body).toMatch(/grid-auto-rows:\s*17px/);
+    expect(lines.body).toMatch(/align-content:\s*end/);
+    expect(lines.body).not.toMatch(/align-content:\s*(start|flex-start)\b/);
+
+    const line = ruleFor(sheet(...CARD), '.jig-prompt-card__stream li');
+    expect(line.body).toMatch(/overflow:\s*hidden/);
+  });
+
   it('the pane\'s stream is the record: its own scroll box, bounded, and wrapped', () => {
     const stream = ruleFor(sheet(...PANE), '.jig-prompts-pane__stream');
     expect(stream.body).toMatch(/max-height:\s*[^;]+/);

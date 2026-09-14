@@ -221,15 +221,30 @@
   border-radius: 0 var(--r-inner) var(--r-inner) 0;
 }
 
+/* #67, the lead review's blocker: the head is no longer the fixed word `Claude` — it carries the
+   latest stream line verbatim (`building · <step>`), and a text frame's own text arrives
+   untruncated. Unwrapped and unbounded it is the one element left that both grows the card with
+   the stream and runs past the card's 340px edge into `.jig-prompt-card`'s own `overflow: auto`,
+   which is the horizontal scrollbar #67 was filed on. So the head is a fixed ONE-LINE box that
+   clips, and its span wraps at any character. The uppercase and the tracking went with the fixed
+   label they were written for: a shouted, wide-tracked file path is off the tongue's register and
+   costs width the head does not have. */
 .jig-prompt-card__stream-head {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 8px;
-  font: 700 11px/1 var(--mono);
+  font: 700 11px/14px var(--mono);
   color: var(--wyrd);
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
   margin-bottom: 6px;
+  height: 14px;
+  overflow: hidden;
+}
+
+.jig-prompt-card__stream-head span {
+  /* a flex child does not shrink below its content unless it is told to — without this the span
+     keeps its full unbroken width whatever the head says, and the wrap never happens */
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 /* #67: the strip is a PEEK of fixed height — three lines at 17px plus the two 2px gaps between
@@ -238,12 +253,18 @@
    past the plate's bottom edge. The record — every line, scrolling in a box of its own — is the
    Prompts pane's and the logbook drawer's. Clipped rather than scrolled on purpose: a scrollbar
    inside an anchored card is the thing #67 was filed about. */
+/* The rows are PINNED to one line each and the window is anchored to the END. With auto rows a
+   wrapped line takes two rows or more and the fixed box clips from the BOTTOM — the newest step,
+   the whole point of a peek, is the part that disappears. Anchored, what a wrap costs is the
+   OLDEST line, and the step Claude is on right now is always the one on screen. */
 .jig-prompt-card__stream-lines {
   list-style: none;
   margin: 0;
   padding: 0;
   display: grid;
   gap: 2px;
+  grid-auto-rows: 17px;
+  align-content: end;
   height: calc(3 * 17px + 2 * 2px);
   overflow: hidden;
 }
@@ -254,4 +275,14 @@
   /* a transcript line is a path, a command or a sentence — it wraps, it never runs past the
      card's own edge and it never widens the card */
   overflow-wrap: anywhere;
+  /* and a wrapped line stays inside its own 17px row rather than pushing its neighbours out */
+  overflow: hidden;
+}
+
+/* The card shows three lines of a build that may run to hundreds. Say where the rest is, in the
+   tongue's words, rather than leaving the reader to wonder what was cut. */
+.jig-prompt-card__stream-more {
+  margin-top: 6px;
+  font: 11px/14px var(--mono);
+  color: var(--dim);
 }

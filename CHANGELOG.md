@@ -12,7 +12,11 @@ semantic versioning strictly (pre-1.0).
   The card now shows the state line and the last three steps in a strip of fixed height, lines
   wrapped, nothing clipped horizontally and nothing scrolling inside it; the Prompts pane keeps
   the whole stream, wrapped, in a bounded scroll box of its own so it cannot push the tab panel's
-  scroll around (the logbook drawer already did both, and is pinned so it stays that way).
+  scroll around (the logbook drawer already did both, and is pinned so it stays that way). The
+  state line is bounded on the same terms — it carries the latest step verbatim, so it is one
+  wrapped line that clips rather than a line that grows the card and runs past its edge — the
+  strip's window is anchored to its END, so a wrapped line costs the oldest step and never the one
+  Claude is on, and the card says in words where the rest of the build is.
 
 Issue #37 — the hardening items from the fix-round verification, none of them a live defect, one
 PR each.

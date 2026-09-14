@@ -187,8 +187,11 @@ survey as `human`/`bench` rows, and `ng serve`'s lines as `app` rows; the pills 
 When Claude exits: `Claude · built · N files · m:ss`, the prompt moves to **built**. FAIL: `Claude
 · not installed` → step 1.
 **And the stream, at 1280×720 [you only]:** the card shows a peek — the state line
-(*building · <the step>*) and **the last three steps only**, in a strip that stays the same
-height however long the build runs, with **no scrollbar inside the card**. **Prompts** shows the
+(*building · <the step>*, one line, in the same lower case as the status line) and **the last
+three steps only**, in a strip that stays the same height however long the build runs, with **no
+scrollbar inside the card**. The bottom line of the strip is **always the step Claude is on right
+now**: when a line wraps it is the OLDEST line that goes, never the newest. Under the strip the
+card says *the whole build is in Prompts*. **Prompts** shows the
 whole thing, scrolling **inside its own box** while the tab strip, the rail and the status line
 stay put. Nothing anywhere runs off the right-hand edge: a 300-character transcript line and a
 long file path both **wrap**, in the card, in the pane and in the logbook drawer. That is the

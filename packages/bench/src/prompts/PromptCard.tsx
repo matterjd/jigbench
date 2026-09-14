@@ -243,6 +243,7 @@ export function PromptCard({
               <li key={buildStream.length - Math.min(buildStream.length, CARD_STREAM_LINES) + i}>{buildStreamLine(event)}</li>
             ))}
           </ol>
+          <div className="jig-prompt-card__stream-more">the whole build is in Prompts</div>
         </div>
       )}
       <div className="jig-prompt-card__foot">

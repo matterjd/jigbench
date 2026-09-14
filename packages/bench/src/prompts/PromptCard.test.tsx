@@ -319,4 +319,22 @@ describe('PromptCard — #67: the stream on the card is a peek, not the record',
     );
     expect(screen.getByText('building · Edit · invoice-list.html')).toBeTruthy();
   });
+
+  it('the head carries the newest frame verbatim, 300 characters and all, and it is the strip\'s last line', () => {
+    const { container } = render(
+      <PromptCard {...baseProps({ state: 'building' as const, text: 'show days overdue', buildStream: frames(40) })} />,
+    );
+    const head = container.querySelector('.jig-prompt-card__stream-head');
+    const lines = [...container.querySelectorAll('.jig-prompt-card__stream li')];
+    // The head and the bottom of the strip say the same step — the one Claude is on. Whether the
+    // 300 characters FIT is CSS, pinned in floor-build-stream-box.test.ts; that they arrive here
+    // untruncated is what makes the CSS load-bearing.
+    expect(head?.textContent).toBe(`building · ${lines[lines.length - 1]?.textContent}`);
+    expect(head?.textContent?.length).toBeGreaterThan(300);
+  });
+
+  it('the card says where the whole build is, since the card itself only shows three lines', () => {
+    render(<PromptCard {...baseProps({ state: 'building' as const, text: 'show days overdue', buildStream: frames(40) })} />);
+    expect(screen.getByText('the whole build is in Prompts')).toBeTruthy();
+  });
 });
