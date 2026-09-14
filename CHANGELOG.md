@@ -6,6 +6,16 @@ semantic versioning strictly (pre-1.0).
 
 ## [Unreleased]
 
+- **the build-this-screen card opens inside the plate, titled with the sketch's name** (#69) — the
+  plate's own box was measured in an effect with an empty dependency list, which runs once, after
+  the first commit — the `state === null` holding screen, where there is no plate and no ref. It
+  returned early and never ran again, so `plateSize` was `{0,0}` for the life of the page. Fed a
+  0-wide plate, every clamp in `placeCardPosition` inverts and a sketch anchor falls through to the
+  corner at `0 - 340 - 8`: 348px left of the plate, under the rail. The plate is measured by a
+  callback ref (which cannot miss the mount), `placeCardPosition` never answers with a position
+  outside the plate whatever it is handed, and the sheet now hands over its own name and box
+  instead of leaving both to be invented.
+
 Issue #37 — the hardening items from the fix-round verification, none of them a live defect, one
 PR each.
 

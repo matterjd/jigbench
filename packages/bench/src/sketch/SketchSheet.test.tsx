@@ -237,6 +237,28 @@ describe('SketchSheet — "build this screen" is a prompt target (S12/S13)', () 
     fireEvent.click(screen.getByRole('button', { name: /build this screen/i }));
     expect(onBuildScreen).toHaveBeenCalled();
   });
+
+  // #69: the sheet used to hand its integrator nothing at all, so App.tsx had to invent both the
+  // card's title ("build this screen") and its anchor (the whole plate, from a `plateSize` that
+  // was never measured). The sheet knows its own name and its own box; it says both, in the
+  // VIEWPORT frame, and leaves the translation to whoever places the card.
+  it('hands over the sketch\'s own name and the sheet\'s box, so the card can be titled and anchored', async () => {
+    const created = { jigFormat: 1, id: '0001', name: 'Overdue invoices', createdAt: 'a', updatedAt: 'a', size: { w: 640, h: 480 }, elements: [], links: [] };
+    const { fetchImpl } = routedFetch({ 'GET /api/sketches': { sketches: [] }, 'POST /api/sketches': created });
+    const onBuildScreen = vi.fn();
+    render(<SketchSheet fetchImpl={fetchImpl} onBuildScreen={onBuildScreen} />);
+    await screen.findByText(/no sketches yet/i);
+    fireEvent.change(screen.getByPlaceholderText(/name this sketch/i), { target: { value: 'Overdue invoices' } });
+    fireEvent.click(screen.getByRole('button', { name: /^new$/i }));
+    const sheet = await screen.findByLabelText('sketch sheet');
+    vi.spyOn(sheet, 'getBoundingClientRect').mockReturnValue({
+      x: 55, y: 40, width: 640, height: 480, top: 40, left: 55, right: 695, bottom: 520, toJSON: () => ({}),
+    } as DOMRect);
+
+    fireEvent.click(screen.getByRole('button', { name: /build this screen/i }));
+
+    expect(onBuildScreen).toHaveBeenCalledWith({ name: 'Overdue invoices', rect: { x: 55, y: 40, w: 640, h: 480 } });
+  });
 });
 
 describe('SketchSheet — Delete scraps the selected element', () => {
