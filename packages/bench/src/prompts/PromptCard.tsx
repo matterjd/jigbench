@@ -4,6 +4,9 @@ import { placeCardPosition, type CardPlacementSide, type PlateLocalRect } from '
 import { useReadyHold } from './useReadyHold.js';
 import './PromptCard.css';
 
+/** #67: how many stream lines the CARD shows. The Prompts pane keeps all of them. */
+const CARD_STREAM_LINES = 3;
+
 export interface PromptCardProps {
   open: boolean;
   title: string;
@@ -128,6 +131,15 @@ export function PromptCard({
   const showBuild = state === 'ready';
   const showPolish = drafterWired && !isBuildingOrBuilt;
 
+  // #67: the build has two tiers, and the card is the peek — the state line and the last three
+  // lines, in a strip of fixed height (PromptCard.css). The RECORD — every line, in a scroll box
+  // of its own — is the Prompts pane's and the logbook drawer's. Anything here that grows with
+  // the stream either moves the card (#66), scrolls it, or pushes it past the plate's edge.
+  const latestStreamLine = buildStream.length > 0 ? buildStreamLine(buildStream[buildStream.length - 1]) : '';
+  // The status line's own words (StatusLine.tsx), minus the clock: a live clock in the card would
+  // re-render it every second, and AMENDMENT-1 §4 puts the elapsed time on the status line.
+  const streamHead = state === 'building' ? `building · ${latestStreamLine}` : 'built';
+
   let say: string | null = cancelMessage;
   if (!say) {
     if (holding) say = 'hold — the ring fills; let go early and it stays a draft';
@@ -224,11 +236,11 @@ export function PromptCard({
       {(state === 'building' || state === 'built') && buildStream.length > 0 && (
         <div className="jig-prompt-card__stream">
           <div className="jig-prompt-card__stream-head">
-            <span>Claude</span>
+            <span>{streamHead}</span>
           </div>
-          <ol>
-            {buildStream.map((event, i) => (
-              <li key={i}>{buildStreamLine(event)}</li>
+          <ol className="jig-prompt-card__stream-lines">
+            {buildStream.slice(-CARD_STREAM_LINES).map((event, i) => (
+              <li key={buildStream.length - Math.min(buildStream.length, CARD_STREAM_LINES) + i}>{buildStreamLine(event)}</li>
             ))}
           </ol>
         </div>

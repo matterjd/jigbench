@@ -136,3 +136,18 @@ describe('PromptsPane', () => {
     expect(onScrap).toHaveBeenCalledWith('0003');
   });
 });
+
+/**
+ * #67: the pane is the RECORD — the card is the peek. Whatever the card elides, the whole stream
+ * is here, in a scroll box of its own (`floor-build-stream-box.test.ts` pins the box; this pins
+ * that nothing is dropped on the way).
+ */
+describe('PromptsPane — #67: the whole build stream lives here', () => {
+  it('renders every stream line for the prompt in hand, however many there are', () => {
+    const stream = Array.from({ length: 40 }, (_, i) => ({ kind: 'text' as const, text: `step ${i} ` + 'x'.repeat(300) }));
+    const { container } = render(
+      <PromptsPane {...baseProps({ prompts: [prompt({ state: 'building' })], hand: prompt({ state: 'building' }), buildStream: stream })} />,
+    );
+    expect(container.querySelectorAll('.jig-prompts-pane__stream > div')).toHaveLength(40);
+  });
+});

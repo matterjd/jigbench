@@ -232,15 +232,26 @@
   margin-bottom: 6px;
 }
 
-.jig-prompt-card__stream ol {
+/* #67: the strip is a PEEK of fixed height — three lines at 17px plus the two 2px gaps between
+   them, and nothing else. Fixed, not bounded: a `max-height` box still grows until it hits the
+   bound, and a card that grows with the stream is a card that moves (#66), scrolls, or reaches
+   past the plate's bottom edge. The record — every line, scrolling in a box of its own — is the
+   Prompts pane's and the logbook drawer's. Clipped rather than scrolled on purpose: a scrollbar
+   inside an anchored card is the thing #67 was filed about. */
+.jig-prompt-card__stream-lines {
   list-style: none;
   margin: 0;
   padding: 0;
   display: grid;
   gap: 2px;
+  height: calc(3 * 17px + 2 * 2px);
+  overflow: hidden;
 }
 
 .jig-prompt-card__stream li {
-  font: 12px/1.4 var(--mono);
+  font: 12px/17px var(--mono);
   color: var(--wyrd);
+  /* a transcript line is a path, a command or a sentence — it wraps, it never runs past the
+     card's own edge and it never widens the card */
+  overflow-wrap: anywhere;
 }

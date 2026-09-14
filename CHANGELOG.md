@@ -6,6 +6,14 @@ semantic versioning strictly (pre-1.0).
 
 ## [Unreleased]
 
+- **the build stream is a peek on the card and a record in the pane** (#67) — the card rendered
+  every frame Claude sent, in a box with no width rule and no height of its own, inside a card
+  whose `max-height` + `overflow: auto` then took a scrollbar the anchored card should never have.
+  The card now shows the state line and the last three steps in a strip of fixed height, lines
+  wrapped, nothing clipped horizontally and nothing scrolling inside it; the Prompts pane keeps
+  the whole stream, wrapped, in a bounded scroll box of its own so it cannot push the tab panel's
+  scroll around (the logbook drawer already did both, and is pinned so it stays that way).
+
 Issue #37 — the hardening items from the fix-round verification, none of them a live defect, one
 PR each.
 
