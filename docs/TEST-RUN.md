@@ -192,6 +192,18 @@ arrive — only its contents change (Polish and Ready leave, the words lock, the
 under them). That the card never moves is pinned by a test; that it never *flashes* on the way
 is what only your eyes can judge, and it is the shape #66 was filed as.
 
+**And the stream, at 1280×720 [you only]:** the card shows a peek — the state line
+(*building · <the step>*, one line, in the same lower case as the status line) and **the last
+three steps only**, in a strip that stays the same height however long the build runs, with **no
+scrollbar inside the card**. The bottom line of the strip is **always the step Claude is on right
+now**: when a line wraps it is the OLDEST line that goes, never the newest. Under the strip the
+card says *the whole build is in Prompts*. **Prompts** shows the
+whole thing, scrolling **inside its own box** while the tab strip, the rail and the status line
+stay put. Nothing anywhere runs off the right-hand edge: a 300-character transcript line and a
+long file path both **wrap**, in the card, in the pane and in the logbook drawer. That is the
+shape #67 was filed as — long lines ran past the box and the card's own scroll fought the
+pane's.
+
 **17. Built.** In **Prompts** click the built prompt.
 PASS: its **built** line reads *built · N files* and lists the files Claude touched, with
 **refine — go again** beside it (opens a new draft on the same target with the words pre-filled).

@@ -150,7 +150,9 @@ describe('PromptCard', () => {
         })}
       />,
     );
-    expect(screen.getByText(/editing invoice-list.component.html/)).toBeTruthy();
+    // Twice over since #67: once in the strip's state line (`building · <the step>`) and once as
+    // the stream line itself. Both are the point, so the query says so rather than narrowing.
+    expect(screen.getAllByText(/editing invoice-list.component.html/)).toHaveLength(2);
   });
 
   it('the close button calls onClose', () => {
@@ -351,5 +353,69 @@ describe('PromptCard — retest #58: the hold sends what the card knows at 800 m
 
     expect(onReadyComplete).not.toHaveBeenCalled();
     expect(screen.getByText(/let go early — still a draft · \d+ ms of 800/i)).toBeTruthy();
+  });
+});
+
+/**
+ * #67 (the 0.2.0 desk retest, round 2): "the build stream overflows the prompt card and the
+ * Prompts pane; the card shows too much of it." The build has two tiers — the card is a PEEK
+ * (the state line and the last three lines) and the Prompts pane is the RECORD (all of it, in a
+ * scroll box of its own). What jsdom can judge is the count and the words; the fixed-height strip
+ * and the wrapping are pinned at the source in `floor-build-stream-box.test.ts`, and at the desk
+ * in `docs/TEST-RUN.md` step 16.
+ */
+describe('PromptCard — #67: the stream on the card is a peek, not the record', () => {
+  function frames(n: number): BuildStreamEvent[] {
+    return Array.from({ length: n }, (_, i) => ({ kind: 'text', text: `step ${i} ` + 'x'.repeat(300) }) as BuildStreamEvent);
+  }
+
+  it('shows the last three stream lines and no more, however long the build runs', () => {
+    const { container } = render(
+      <PromptCard {...baseProps({ state: 'building' as const, text: 'show days overdue', buildStream: frames(40) })} />,
+    );
+    const lines = [...container.querySelectorAll('.jig-prompt-card__stream li')];
+    expect(lines).toHaveLength(3);
+    expect(lines.map((li) => li.textContent?.slice(0, 7))).toEqual(['step 37', 'step 38', 'step 39']);
+  });
+
+  it('a build with fewer than three lines shows all of them', () => {
+    const { container } = render(
+      <PromptCard {...baseProps({ state: 'building' as const, text: 'show days overdue', buildStream: frames(2) })} />,
+    );
+    expect(container.querySelectorAll('.jig-prompt-card__stream li')).toHaveLength(2);
+  });
+
+  it('the strip is headed by the state line — the state and the step Claude is on', () => {
+    render(
+      <PromptCard
+        {...baseProps({
+          state: 'building' as const,
+          text: 'show days overdue',
+          buildStream: [
+            { kind: 'text', text: 'reading invoice-list.ts' },
+            { kind: 'tool', name: 'Edit', target: 'invoice-list.html' },
+          ] as BuildStreamEvent[],
+        })}
+      />,
+    );
+    expect(screen.getByText('building · Edit · invoice-list.html')).toBeTruthy();
+  });
+
+  it('the head carries the newest frame verbatim, 300 characters and all, and it is the strip\'s last line', () => {
+    const { container } = render(
+      <PromptCard {...baseProps({ state: 'building' as const, text: 'show days overdue', buildStream: frames(40) })} />,
+    );
+    const head = container.querySelector('.jig-prompt-card__stream-head');
+    const lines = [...container.querySelectorAll('.jig-prompt-card__stream li')];
+    // The head and the bottom of the strip say the same step — the one Claude is on. Whether the
+    // 300 characters FIT is CSS, pinned in floor-build-stream-box.test.ts; that they arrive here
+    // untruncated is what makes the CSS load-bearing.
+    expect(head?.textContent).toBe(`building · ${lines[lines.length - 1]?.textContent}`);
+    expect(head?.textContent?.length).toBeGreaterThan(300);
+  });
+
+  it('the card says where the whole build is, since the card itself only shows three lines', () => {
+    render(<PromptCard {...baseProps({ state: 'building' as const, text: 'show days overdue', buildStream: frames(40) })} />);
+    expect(screen.getByText('the whole build is in Prompts')).toBeTruthy();
   });
 });
