@@ -186,6 +186,11 @@ status line: the **logbook** drawer opens with every step as a `Claude` row, you
 survey as `human`/`bench` rows, and `ng serve`'s lines as `app` rows; the pills filter by who.
 When Claude exits: `Claude · built · N files · m:ss`, the prompt moves to **built**. FAIL: `Claude
 · not installed` → step 1.
+**And the card itself, from the moment you press Build [you only]:** it stays exactly where it
+is. It must not blink out and come back, and it must not creep up the plate as Claude's steps
+arrive — only its contents change (Polish and Ready leave, the words lock, the stream appears
+under them). That the card never moves is pinned by a test; that it never *flashes* on the way
+is what only your eyes can judge, and it is the shape #66 was filed as.
 
 **17. Built.** In **Prompts** click the built prompt.
 PASS: its **built** line reads *built · N files* and lists the files Claude touched, with

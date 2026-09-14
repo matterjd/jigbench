@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
+import type { BuildStreamEvent } from '@jigbench/core';
 import { PromptCard } from './PromptCard.js';
 
 afterEach(() => {
@@ -195,6 +196,87 @@ describe('PromptCard', () => {
     mockRect(plate, { left: 0, top: 0, width: 1044, height: 872 });
     render(<PromptCard {...baseProps({ anchorEl: anchor, plateEl: plate })} />);
     expect(screen.getByText(/the selection is larger than the room around it/i)).toBeTruthy();
+  });
+});
+
+/**
+ * #66 (the 0.2.0 desk retest, round 2): "pressing Build makes the prompt card disappear and
+ * reappear." The card is anchored once, when it opens — and then the build stream grows INSIDE
+ * it while `claude -p` runs. The placement effect re-ran on every `buildStream.length` change,
+ * measured a taller card each time and re-placed it, so the card walked up the plate frame by
+ * frame instead of staying under the selection it belongs to.
+ *
+ * jsdom computes no layout — every box is zero — so the card's own height has to be modelled for
+ * this to be visible at all: the `offsetHeight` stub below answers the way a browser would, from
+ * the stream lines the card is actually rendering. Without it the placement inputs never change
+ * and the defect is invisible to any test in this suite (which is why it reached the desk).
+ */
+describe('PromptCard — #66: it stays put while Claude builds', () => {
+  let originalOffsetHeight: PropertyDescriptor | undefined;
+
+  beforeEach(() => {
+    originalOffsetHeight = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'offsetHeight');
+    Object.defineProperty(HTMLElement.prototype, 'offsetHeight', {
+      configurable: true,
+      get(this: HTMLElement) {
+        if (!this.classList.contains('jig-prompt-card')) return 0;
+        return 300 + 60 * this.querySelectorAll('.jig-prompt-card__stream li').length;
+      },
+    });
+  });
+
+  afterEach(() => {
+    if (originalOffsetHeight) Object.defineProperty(HTMLElement.prototype, 'offsetHeight', originalOffsetHeight);
+  });
+
+  /** n stream frames, the shape `POST /api/prompts/:id/build` streams over the WS. */
+  function frames(n: number): BuildStreamEvent[] {
+    return Array.from({ length: n }, (_, i) => ({ kind: 'text', text: `editing invoice-list.html (${i})` }) as BuildStreamEvent);
+  }
+
+  const anchorRect = { x: 120, y: 140, w: 200, h: 60 };
+  const plateSize = { w: 1045, h: 700 };
+
+  it('the card does not move as the build stream grows under it', () => {
+    const props = baseProps({ anchorRect, plateSize, state: 'building' as const, text: 'show days overdue' });
+    const { container, rerender } = render(<PromptCard {...props} buildStream={frames(0)} />);
+    const card = container.querySelector('.jig-prompt-card') as HTMLElement;
+    const openedAt = { left: card.style.left, top: card.style.top, where: card.dataset.where };
+
+    rerender(<PromptCard {...props} buildStream={frames(6)} />);
+
+    // the SAME element — the card changes state in place, it is never unmounted and re-created
+    expect(container.querySelector('.jig-prompt-card')).toBe(card);
+    expect(card.style.top).toBe(openedAt.top);
+    expect(card.style.left).toBe(openedAt.left);
+    expect(card.dataset.where).toBe(openedAt.where);
+  });
+
+  it('stays the same element, at the same place, from ready through building to built', () => {
+    const props = baseProps({ anchorRect, plateSize, text: 'show days overdue' });
+    const { container, rerender } = render(<PromptCard {...props} state="ready" buildStream={frames(0)} />);
+    const card = container.querySelector('.jig-prompt-card') as HTMLElement;
+    const openedAt = { left: card.style.left, top: card.style.top };
+
+    rerender(<PromptCard {...props} state="building" buildStream={frames(3)} />);
+    expect(container.querySelector('.jig-prompt-card')).toBe(card);
+    rerender(<PromptCard {...props} state="built" buildStream={frames(9)} builtSummary={{ files: 3, durationMs: 72000 }} />);
+
+    expect(container.querySelector('.jig-prompt-card')).toBe(card);
+    expect({ left: card.style.left, top: card.style.top }).toEqual(openedAt);
+  });
+
+  // The detector control for the two above: placement is not simply frozen. A NEW anchor — the
+  // next Point pick — still re-places the card, which is the only thing that ever should.
+  it('detector control: a new anchor still re-places it', () => {
+    const props = baseProps({ plateSize, state: 'building' as const, text: 'show days overdue' });
+    const { container, rerender } = render(<PromptCard {...props} anchorRect={anchorRect} buildStream={frames(2)} />);
+    const card = container.querySelector('.jig-prompt-card') as HTMLElement;
+    const firstTop = card.style.top;
+
+    rerender(<PromptCard {...props} anchorRect={{ x: 300, y: 420, w: 120, h: 40 }} buildStream={frames(2)} />);
+
+    expect(card.style.top).not.toBe(firstTop);
   });
 });
 

@@ -6,6 +6,16 @@ semantic versioning strictly (pre-1.0).
 
 ## [Unreleased]
 
+The 0.2.0 desk retest, round 2 (issues #66 #67 #68 #69) — what Matter's second drive of the
+published package found, one PR each.
+
+- **the prompt card stays put while Claude builds** (#66) — the card is anchored to the selection
+  it opened on, but its placement effect re-ran on every `buildStream.length` change and a
+  ResizeObserver watched the card's own box, so each streamed frame measured a taller card and
+  re-placed it: the card walked up the plate, step by step, while `claude -p` ran. Placement now
+  depends on the anchor, the plate and a window resize — the three things that really do invalidate
+  it — and runs in a layout effect, so a card is never painted at the `{8,8}` standin first.
+
 Issue #37 — the hardening items from the fix-round verification, none of them a live defect, one
 PR each.
 

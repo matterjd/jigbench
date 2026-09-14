@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useLayoutEffect, useRef, useState } from 'react';
 import { buildStreamLine, type BuildStreamEvent, type PromptState } from '@jigbench/core';
 import { placeCardPosition, type CardPlacementSide, type PlateLocalRect } from './placeCardPosition.js';
 import { useReadyHold } from './useReadyHold.js';
@@ -74,7 +74,21 @@ export function PromptCard({
   });
   const [cancelMessage, setCancelMessage] = useState<string | null>(null);
 
-  useEffect(() => {
+  // #66: the card is anchored to ONE thing — the selection it was opened on, inside the plate it
+  // was opened in — and nothing it grows on its own should move it again. Two things used to: the
+  // dependency list carried `text`, `acceptance.length` and `buildStream.length`, and a
+  // ResizeObserver watched the card's own box. Both are the same mistake wearing different
+  // clothes: they turn "the card got taller" into "the card moves", and while `claude -p` runs
+  // the card gets taller on EVERY streamed frame, so it walked up the plate a step at a time.
+  // What stays: a new anchor (the next Point pick), a new plate size, and a window resize — the
+  // three things that really do invalidate a placement. The card's own height still decides where
+  // it lands, read at the moment it lands, and its `max-height` + `overflow: auto` (PromptCard.css)
+  // is what holds a grown card inside the plate afterwards.
+  //
+  // `useLayoutEffect`, not `useEffect`: the initial `placement` is the {8,8} standin above, so a
+  // passive effect paints the card once in the wrong corner and moves it on the next frame — a
+  // flash on open, and the same flash again on every re-placement.
+  useLayoutEffect(() => {
     function place(): void {
       if (!cardRef.current) return;
       if (anchorRect && plateSize) {
@@ -91,18 +105,9 @@ export function PromptCard({
       setPlacement(placeCardPosition(local, plateBox.width, plateBox.height, 340, cardRef.current.offsetHeight));
     }
     place();
-    if (typeof ResizeObserver !== 'undefined' && cardRef.current) {
-      const observer = new ResizeObserver(place);
-      observer.observe(cardRef.current);
-      window.addEventListener('resize', place);
-      return () => {
-        observer.disconnect();
-        window.removeEventListener('resize', place);
-      };
-    }
     window.addEventListener('resize', place);
     return () => window.removeEventListener('resize', place);
-  }, [anchorEl, plateEl, anchorRect, plateSize, text, acceptance.length, buildStream.length]);
+  }, [anchorEl, plateEl, anchorRect, plateSize]);
 
   const draftHasWords = text.trim().length > 0;
   const readyEnabled = state === 'draft' && draftHasWords && !polishing;
