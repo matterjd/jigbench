@@ -1,23 +1,22 @@
 # HANDOFF — next-session entry point
 
-> **S20 (issue #37, the hardening items) is MERGED: the nine PRs #65 #70 #71 #72 #74 #75 #76 #77 #78,
-> each test-first with its red line in the commit body, landed together as PR #80 → `fc4207b` on
-> 2026-09-12 after the lead's review (one verifier per PR, attackers on the security-adjacent ones);
-> #37 is closed and the review's follow-ups are #81.** The slice was **amber** — the lead merged; no tag, publish or
-> visibility change was touched. A ninth PR, **#78**, is not one of #37's items: it root-causes a
-> red windows-latest leg that surfaced during the slice (`target/runner.test.ts`'s unretried temp-dir
-> `rm` after a real `npm` spawn). `docs/ROADMAP.md`'s S20 row is deliberately unchanged and **#37 is
-> deliberately still open** — both move when the last item merges. Issue #1 carries every PR with its
-> head sha, run id and state. **This repo is AEDL-provisioned (2026-09-09):** the guards run here
+> **The 0.2.0 desk retest's SECOND batch (#66 #67 #68 #69) is BUILT AND WAITING ON THE LEAD.** Four
+> PRs — [#82](https://github.com/matterjd/jigbench/pull/82) · [#83](https://github.com/matterjd/jigbench/pull/83) · [#84](https://github.com/matterjd/jigbench/pull/84) · [#86](https://github.com/matterjd/jigbench/pull/86) — one per issue, each test-first with its red line in the
+> commit body, each green on both CI legs at its PR head. **The slice is amber: nothing was merged
+> from this seat, nothing tagged, nothing published.** A fifth PR, **[#85](https://github.com/matterjd/jigbench/pull/85)**, is not one of the four:
+> it root-causes a red windows-latest leg that surfaced during the slice (`cli`'s
+> `mcp.test.ts` waiting on the shop heartbeat inside vitest's implicit 1 s budget). Issue #1 carries
+> every PR with its head sha, run id and state. `docs/ROADMAP.md`'s **S18 row is deliberately
+> unchanged** — it moves when the last of these four merges, with the version it ships in.
+> **This repo is AEDL-provisioned (2026-09-09):** the guards run here
 > (`bash .claude/hooks/preflight-check.sh` → "Enforcement will run") and `bash scripts/qa-gate.sh` is
 > the fast set. `SUBAGENT-AUTHORIZATION.md` is unsigned, so delegation grants nothing until Matter
 > signs one.
 
 **seat:** Delivery (remote — no Browser pane, no Windows desk, no .NET SDK, no Ollama, no real
-`claude` binary; CI is the only gate) · **branch:** `main` · **written:** 2026-09-12 · code at
-`fc4207b` · **S20's nine PRs are merged (PR #80); S18 (#59 #60 #61) merged earlier the same day.
-Nothing was merged by the cloud seat itself, nothing tagged, nothing published; 0.2.0 remains the
-last release, with S18 + S20 unreleased on main.**
+`claude` binary; CI is the only gate) · **branch:** `main` · **written:** 2026-09-14 · main at
+`8fd3c6d`, untouched by this session · **five PRs open, all green at their heads, all waiting for
+the lead. 0.2.0 remains the last release, with S18, S20 and now this batch unreleased or unmerged.**
 
 ## State
 
@@ -27,97 +26,104 @@ Matter's first live test → **AMENDMENT 1** (`docs/design/AMENDMENT-1-the-simpl
 rulings A1–A6, binding): one loop, a Build button that runs `claude -p`, Polish on demand, the
 loop-only default view, the artifact is a Prompt; any app with a dev server (A5); setup happens
 in the app (A6). **v0.2.0 shipped 2026-09-08 19:09 CDT** — `jigbench@0.2.0` on npm, tag `v0.2.0`
-→ `a34fd89`, GitHub release with the tarball. **S19** (issue #24) landed 2026-09-09; **S18** (the
-0.2.0 desk-retest set, #56 #57 #58) merged 2026-09-12 as #61 `c9df97a` → #60 `2c83f3f` → #59
-`5bced66`, and `main` is at **`39496f2`** (that merge train plus the S18 docs PR #63).
+→ `a34fd89`, GitHub release with the tarball. **S19** (#24) landed 2026-09-09; **S18's first
+retest batch** (#56 #57 #58) merged 2026-09-12; **S20** (#37, the nine hardening PRs) merged the
+same day as PR #80 → `fc4207b`, with the review's follow-ups filed as **#81**. `main` is at
+**`8fd3c6d`**.
 
-### S20 — open, and the lead's to merge
+### The second retest batch — open, and the lead's to merge
 
 | # | item | PR | head · run | both legs |
 |---|---|---|---|---|
-| 1 | Origin checked on every method, GET included; `SECURITY.md` moved with it | [#65](https://github.com/matterjd/jigbench/pull/65) | `b833d45` · 34715458105 | ✅ |
-| 2 | `port` bounded to a whole 1–65535, in words | [#70](https://github.com/matterjd/jigbench/pull/70) | `e9f2ee4` · 34715808651 | ✅ |
-| 3 | the survey's dev-server hint goes through the repo's own allowlist | [#71](https://github.com/matterjd/jigbench/pull/71) | `fb38809` · 34715977103 | ✅ |
-| 4 | script-name charset on win32; the #17 payload is the form that splits | [#72](https://github.com/matterjd/jigbench/pull/72) | `8de9e1f` · 34717541078 | ✅ (first run red — see below) |
-| 5 | realpath before stat, at both spellings of the local-path guard | [#74](https://github.com/matterjd/jigbench/pull/74) | `bbbafc9` · 34717651107 | ✅ (first run red — not #74's; see below) |
-| 6 | a budget per `git` invocation, so a wedged git cannot hold a build open | [#75](https://github.com/matterjd/jigbench/pull/75) | `752ee7a` · 34716829905 | ✅ |
-| 7 | the migration's ENOENT guard narrowed to the read it was written for | [#76](https://github.com/matterjd/jigbench/pull/76) | `99d721c` · 34717027007 | ✅ |
-| 8 | the four test gaps, tests only, each proved by reverting its fix | [#77](https://github.com/matterjd/jigbench/pull/77) | `1c23e65` · 34717324883 | ✅ |
-| — | **not an item:** `target/runner.test.ts`'s teardown retry (the red leg above) | [#78](https://github.com/matterjd/jigbench/pull/78) | `294faaa` · 34717635499 | ✅ |
+| 1 | #66 the prompt card stays put while Claude builds | [#82](https://github.com/matterjd/jigbench/pull/82) | `96dfcc1` · 34795709125 | ✅ |
+| 2 | #69 the build-this-screen card opens inside the plate | [#83](https://github.com/matterjd/jigbench/pull/83) | `1dca7cb` · 34796688466 | ✅ (first run red — not #69's; see below) |
+| 3 | #67 the build stream is a peek on the card, a record in the pane | [#84](https://github.com/matterjd/jigbench/pull/84) | `7b056d0` · 34796504020 | ✅ |
+| 4 | #68 the sketch sheet says how to place a primitive | [#86](https://github.com/matterjd/jigbench/pull/86) | `8c12d03` · 34797040889 | ✅ |
+| — | **not an item:** the shop-heartbeat wait's implicit 1 s budget (the red leg above) | [#85](https://github.com/matterjd/jigbench/pull/85) | `eb24681` · 34796708271 | ✅ |
 
 Every PR body is a worker report: what changed, the red line verbatim, how it was verified, and
-what was deliberately not done. Every commit is `-s` (DCO). All eight items add a line to the same
+what was deliberately not done. Every commit is `-s` (DCO). All four items add a line to the same
 `## [Unreleased]` block in `CHANGELOG.md`, so **expect the CHANGELOG hunk to conflict on every merge
-after the first** — the same hand-union the S18 set needed.
+after the first** — the same hand-union the S18 and S20 sets needed.
 
-### Five judgement calls the lead should look at first
+### The one root cause worth reading before anything else
 
-- **#37 names `POST /api/clamp` as the second unbounded `port`. It is not one.** Its handler reads
-  only `repoRoot` (`bench/host.ts:342`) and the bench's own client posts only `{ repoRoot }`
-  (`packages/bench/src/clamp/api.ts:95`); a `port` sent there is accepted and ignored, and can
-  neither spawn nor bind. The second route that really takes one is **`POST /api/plate/mirror`**, and
-  that is what #70 bounds. No `port` was added to clamp's contract just to reject it.
-- **#70 keeps `0` on `POST /api/plate/mirror`,** the OS's "assign me any free port" sentinel, because
-  that route's 200 body reports the port actually bound — and because `trialfit/route.test.ts`'s real
-  end-to-end mirror test passes `0` for exactly that reason (its own comment says so). Refusing it
-  would have meant rewriting that test around a `freePort()` probe, re-introducing the collision its
-  author was avoiding, for no security gain. `POST /api/target/start` has no such exception.
-- **#72 left the #17 no-scripts 400 wording byte-for-byte alone** even though a win32 repo whose every
-  script name fails the charset now reads as "defines no scripts" where "defines none Jig can run" is
-  the truth. #77 pins that wording; changing it in both PRs would have made them depend on merge
-  order. There is a comment at the site saying so.
-- **#74 does not change any reported path to its canonical form.** `realpath` is used for the guards
-  and the filesystem calls; `resolved` — what the human typed or clicked — is still what every
-  message quotes, what every `entries[].path` is built from, and what a clamp records. On win32
-  `realpath` expands an 8.3 alias (`C:\Users\RUNNER~1\…`), which `build/git-diff.ts` already
-  documents as a real difference between two spellings of one directory; rewriting a clamp's
-  `repoRoot` to it is a separate change with its own Windows landmine.
-- **#37's fifth "test gap" bullet is not a test and was not actionable.** It reads *"PR #32's comment
-  misdescribes the mechanism (the listener holds the previous commit's null `plateOrigin`)"* — that is
-  a comment on a merged pull request, which is pushed history. Nothing in the current tree carries
-  that misdescription (`usePlateBridge.ts`'s own comments describe the ref and the three posts
-  correctly). If a **code** comment was meant, it needs pointing at.
+**#66 and #69 were the same bug, and neither issue guessed it.** `App.tsx` measured the plate's own
+box in a `useEffect` with an **empty dependency list**. That effect runs once, after the FIRST
+commit — and the first commit is the `state === null` holding screen, where none of the chassis is
+rendered and the ref is `null`. It returned early and, with `[]`, never ran again: **`plateSize` was
+`{ w: 0, h: 0 }` for the life of the page.** Proved by logging `placeCardPosition`'s own inputs from
+a rendered `App` with the boxes stubbed at 1045×700: `PLACE INPUTS {…} 0 0 320`.
 
-### Two CI stories worth reading before the next Windows push
+Fed a 0-wide plate, `placeCardPosition` comes apart. `clamp(v, 8, W - 340 - 8)` is `clamp(v, 8,
+-348)`, and `Math.min` runs first, so the answer is the LARGER of two numbers both outside the
+plate. `ch = Math.min(cardHeight, H - 16)` is **−16**, so the card's real height stopped mattering
+at all. Every **Point** card was therefore pinned to `left: 8px` at `top = rect.y + 4` instead of
+beside its selection (never filed — the card looked plausible there), and a **sketch** anchor
+(`{0, 0, plateSize.w, plateSize.h}` = `{0,0,0,0}`) satisfied no branch and fell through to the
+corner at `0 − 340 − 8` = **−348**: 348px left of the plate, under the rail. That is #69 exactly.
+The plate is now measured by a **callback ref**, which cannot miss a mount that happens after the
+first commit, and `placeCardPosition` never answers with a position outside the plate whatever it
+is handed.
 
-- **#72's first run (34716234717) was green on ubuntu and red on windows — and it was mine.** The
-  existing #17 case asserted `/package\.json/` on the 400 body; with the charset check running
-  *before* the membership test, `start&calc.exe` on win32 is refused for its characters and that
-  message speaks about cmd.exe, not package.json. Off win32 the old message still stands. So the
-  assertion was only ever true on one leg, and the payload change is what made that visible. Now
-  asserted per platform. **The lesson for this seat: `bash scripts/qa-gate.sh` cannot see win32
-  behaviour, so any change that forks on `process.platform` is only half-verified until the Windows
-  leg reports.**
-- **#74's first run (34716624245) was red on windows and it was NOT #74's.**
-  `target/runner.test.ts`'s real-`npm` case failed with `EBUSY … rmdir
-  'C:\Users\RUNNER~1\…\jig-runner-npm-dl84Jg'`, in a package that diff does not touch, while the same
-  test passed on the windows leg of the six other S20 PRs pushed in the same half hour. Root-caused
-  rather than re-run: that test spawns a real `npm run start`, which on Windows is three processes
-  deep (`cmd.exe` → `npm.cmd` → `node server.mjs`), and `stop()` resolving does not mean the OS has
-  released their handles into `repoRoot` — so the unretried `rm` in its `finally` can arrive an
-  instant early. `maxRetries: 5, retryDelay: 100`, the retry `build/runner.test.ts` already documents
-  for the same and shorter chain. Fixed in **#78** and **ported into #74** so that PR could reach a
-  green head without waiting; it no-ops once #78 merges. **No re-run was spent.** This is the fifth
-  Windows-timing failure of the general class on the record, after `3939bc0`→#32, `dece0fc`→#34,
-  `365ebef`→#45 and `c9df97a`→#62.
+### Four judgement calls the lead should look at first
+
+- **#66's "disappear and reappear" is not an unmount, and I could not make it one.** Driven through
+  the whole desk flow in jsdom — Point pick, type, hold Ready to completion, Build, three
+  `{type:'build'}` frames, `built` — the card's DOM node is the **same element by reference** at
+  every step and its `left`/`top` never change. What the fix removes is real and provable: the
+  placement effect carried `buildStream.length` and a ResizeObserver watched the card's own box, so
+  once the plate is measured the card walks up the plate a step per streamed frame. Element identity
+  is now asserted so a future remount is caught, and `docs/TEST-RUN.md` step 16 carries the half only
+  a browser can judge (no flash on the way).
+- **#67's card shows no clock.** The issue's tier-1 line is `building · 00:42 · editing
+  invoice-list.html`; the card gets the state and the step, not the elapsed time. A live clock
+  re-renders the card every second — exactly what #66 just stopped — and AMENDMENT-1 §4 puts the
+  clock on the status line, where it already is.
+- **#68 ships SIX primitives, not five.** The issue names *button · text · input · card · list*;
+  `docs/USING.md` and AMENDMENT-1 §4 both say five (*box · text · button · input · list*); the code
+  has had **six** since S9 — `box, text, button, input, image, list` — and there is no `card`. A
+  strip is the wrong place to silently drop a capability, so it shows what the sheet can actually
+  place and `docs/USING.md` now says the same. **Which of the two is wrong is a ruling, not a fix.**
+- **#67 left `say`'s built wording alone**, including *"look at the plate, flip before, or refine"* —
+  which names a control #8 removed and `docs/TEST-RUN.md` step 17 explicitly says does not exist.
+  It is a real wording defect on the surface #67 touches; changing it there would have made this PR
+  and a wording change depend on merge order. **Worth its own issue.**
+
+### The CI story, and the one thing to know before the next Windows push
+
+**#83's first run (34796088213) was green on ubuntu and red on windows — and it was NOT #83's.**
+`cli`'s `src/commands/mcp.test.ts` › *deletes the shop heartbeat before the returned promise
+resolves* failed with `AssertionError: expected null not to be null`, in a package that diff does
+not touch, while PR #82 — a bench-only diff pushed eleven minutes earlier — was green on both legs.
+Root-caused rather than re-run: the wait carried vitest's **implicit 1000 ms** budget, and what has
+to finish inside it is a chain — the `notifications/initialized` line written onto a `PassThrough`
+and not awaited, the SDK parsing it, `oninitialized` firing `heartbeat.start()` **fire-and-forget**
+(`server.ts:112`, deliberate), and only then `atomicWriteFile`'s mkdir + temp write + rename, **each
+of which is retried with a sleep on Windows** because that is what `atomic-write.ts` exists for.
+Reproduced deterministically here by shrinking the budget to 1 ms — identical failure, same message.
+Fixed in **#85** (an explicit 20 s budget, the shape `build/runner.test.ts`'s cancel test already
+uses) and **ported into #83** so that PR could reach a green head without waiting; it no-ops once
+#85 merges. **No re-run was spent.** This is the sixth Windows-timing failure of the general class
+on the record, after `3939bc0`→#32, `dece0fc`→#34, `365ebef`→#45, `c9df97a`→#62 and S20's #78.
 
 ### Still true, and still worth knowing before you touch this code
 
 - **There is no browser anywhere in this repo.** No Playwright, no Puppeteer, no Chromium, and none
-  installed on either CI leg. `packages/server/src/orders/http.trialfit.test.ts` boots a Node HTTP
-  server and talks to it with `fetch` — it is not a headless-Chromium harness, whatever #58's text
-  says. bench's vitest runs jsdom with CSS loading off and no layout engine, so `getComputedStyle`
-  and any box measurement are worthless there; rendering is proved by the desk steps in
-  `docs/TEST-RUN.md` and pinned in code by **source-contract tests** (`floor-control-ink.test.ts`,
-  `floor-viewport-scroll.test.ts`, in `floor-colour-literals.test.ts`'s idiom, each with detector
-  controls). A browser harness for the bench is **#64**, deliberately its own slice.
+  installed on either CI leg. bench's vitest runs jsdom with CSS loading off and **no layout engine**,
+  so every box measures 0 — which is why a card at `left: -348px` and a stream box with no width rule
+  were both invisible to the whole suite. Two idioms answer that, and this slice used both:
+  **model the missing layout** (stub `clientWidth`/`clientHeight`/`offsetHeight` so the inputs to a
+  pure placement function actually change) and **pin the contract at the source**
+  (`floor-*.test.ts`, now including `floor-build-stream-box.test.ts`, each with detector controls).
+  A browser harness for the bench is **#64**, deliberately its own slice.
 - **jsdom implements neither `setPointerCapture` nor `releasePointerCapture`** (both `undefined` on an
   element), so #58's capture half is proven against a stub, and `docs/TEST-RUN.md` step 15 is what
   proves it on a real pointer.
 - **Node exposes neither win32 file attribute**, so `fs/win32-hidden.ts` runs one `attrib /d <dir>\*`
   per listing and **fails open**. Its pure half (`parseAttribOutput`) is split out so it is provable
-  off Windows — the same seam #72's `isRunnableScriptName(name, platform)` now uses, and the one to
-  reach for whenever behaviour forks on the platform.
+  off Windows — the same seam `isRunnableScriptName(name, platform)` uses, and the one to reach for
+  whenever behaviour forks on the platform.
 - **`http-proxy@1.18.1` is unmaintained** and is where DEP0060 comes from, silenced in
   `packages/cli/src/quiet-deprecations.ts` rather than upgraded (a real upgrade means swapping the
   library under `plate/proxy.ts`, which carries #35's Host gate, and is its own slice).
@@ -130,33 +136,38 @@ after the first** — the same hand-union the S18 set needed.
   flight* — press and hold in the few ms between the first keystroke and the POST answering — still
   completes into `matchedPrompt && …` with nothing to send, and says nothing. One line in `App.tsx`
   if the lead wants it closed.
+- **`SketchProperties` is still mounted only through `PropertiesColumn`, which the quiet chassis does
+  not render.** #68 put the primitives on the sheet rather than mounting that panel; everything else
+  in it — the gauge slot pickers, the hotspot link, the element scrap bin — is still unreachable from
+  the default view. Not filed: it is a design question (does concept D want them at all?), not a bug.
 
 **The plan of record:** `docs/ROADMAP.md`, one row per slice, each with a goal, acceptance,
 depends-on, size, tier (green = a cloud session may merge on green CI; amber = the PR waits for
 the lead; ruling = Matter decides first) and the file name of its cloud prompt under
-`docs/team/cloud/`; read that folder's README first. R0, **S19**, **S18** and **S20** are shipped
-(S20 as PR #80 `fc4207b`; its review follow-ups are #81; the second retest batch #66–#69 is the next
-S18 run). Next in sequence: **S21** issue #23, the three rulings (ruling —
-Matter answers first) → v0.3, the stacks (S22 React/Next/Vite, S23 Vue/Svelte, S24 Expo web, S25
-server-rendered, S26 OpenAPI) → v0.3, the loop deepens (S27 a real before, S28 the stream and the
-logbook, S29 refine and build again, S30 the MCP door) → v0.4. **S22 is the first slice that can make
-#71's survey-hint tier live** — an adapter emitting a `devServer` is exactly what that item was
-written ahead of.
+`docs/team/cloud/`; read that folder's README first. R0, **S19** and **S20** are shipped; **S18**'s
+row says shipped for its first batch and **moves again when these four merge**. Next in sequence:
+**#81** (hardening round 2, the S20 review's follow-ups) as its own slice, then **S21** issue #23,
+the three rulings (ruling — Matter answers first) → v0.3, the stacks (S22 React/Next/Vite, S23
+Vue/Svelte, S24 Expo web, S25 server-rendered, S26 OpenAPI) → v0.3, the loop deepens (S27 a real
+before, S28 the stream and the logbook, S29 refine and build again, S30 the MCP door) → v0.4.
+**S22 is the first slice that can make #71's survey-hint tier live** — an adapter emitting a
+`devServer` is exactly what that item was written ahead of.
 
-**Debt:** **#23** the three rulings Matter owes · **#37** the eight hardening items (all eight built;
-the issue closes when the last PR merges) · **#58** open until the desk holds Ready with a mouse
-(`docs/TEST-RUN.md` step 15) · **#64** the browser harness for the bench · **#62** the git-diff
-fallback test's race, root-caused with a verified patch in the issue (a natural pair with **#3**,
-which the roadmap routes to S20's test-hardening pass; **#78** is a *different* race in a *different*
-file — do not fold them) · **#54** two tests that fail on the desk and pass in CI (a stray `~/.jig`
-captures `findRepoRoot` — and the product question under it: on any machine where a `.jig/` exists in
-`$HOME`, every `jigbench` started outside a repo silently clamps to the home directory; plus a
-`ledger-angular` gauge usage CI does not see). This seat is Linux with no `~/.jig` and no build output
-under `examples/`, so **both of #54's failures pass here** — it really is desk-only. Older: #2
-pdf-parse native · #3 trial-fit e2e flake · #4 esbuild advisory · #5 karma qs · #6 the legacy log
-does not survive a re-read. Seen once in CI and never root-caused: `plate/proxy.test.ts` letting an
+**Debt:** **#23** the three rulings Matter owes · **#81** hardening round 2 (six items; the first
+four have teeth) · **#58** open until the desk holds Ready with a mouse (`docs/TEST-RUN.md` step 15)
+· **#64** the browser harness for the bench — **this slice is the strongest argument yet for it:
+three of the four defects were things a real browser sees and jsdom cannot** · **#62** the git-diff
+fallback test's race, root-caused with a verified patch in the issue (a natural pair with **#3**) ·
+**#54** two tests that fail on the desk and pass in CI (a stray `~/.jig` captures `findRepoRoot` —
+and the product question under it: on any machine where a `.jig/` exists in `$HOME`, every
+`jigbench` started outside a repo silently clamps to the home directory; plus a `ledger-angular`
+gauge usage CI does not see). This seat is Linux with no `~/.jig` and no build output under
+`examples/`, so **both of #54's failures pass here** — it really is desk-only. Older: #2 pdf-parse
+native · #3 trial-fit e2e flake · #4 esbuild advisory · #5 karma qs · #6 the legacy log does not
+survive a re-read. Seen once in CI and never root-caused: `plate/proxy.test.ts` letting an
 interceptor short-circuit the proxy on ubuntu (run 34174031120 attempt 1; green on the re-run).
-**#24 is closed.**
+**#24 and #37 are closed.** **Not filed, and someone should:** the card's built message still says
+*"flip before"*, naming a switch #8 removed — see the judgement calls above.
 
 **Rules of record:** a slice is a branch (`delegate/build-sN` or `fix/<slug>`), test-first with the
 red line quoted in the commit body, `git commit -s`, a PR in the worker-report shape, both CI legs
@@ -174,26 +185,24 @@ which `typecheck` alone does not produce). Never edit `examples/` source, `QUALI
 visibility are Matter's. **A remote seat has no browser and no Windows desk: it never claims a live
 UI walkthrough.**
 
-**Matter owes the desk:** the three rulings in #23 (S21 cannot start without them) · **a re-run of
-`docs/TEST-RUN.md` now that #59, #60 and #61 are merged** — steps 14, 15 and 18 carry new lines
-written for exactly those three fixes, and all three are things only his browser can judge: **14**
-the text you type is light on the dark card, in the bench's sans and not the browser's monospace;
-**15** the ring fills from the moment the button goes down, the card says *hold — the ring fills*,
-drifting the mouse off the button mid-hold no longer ends it, a tap still says *let go early —
-still a draft · N ms of 800*, and a completed hold **actually makes the draft ready**; **18** at
-1440×900 and 1280×720 a long gauge list scrolls inside the tab panel while the window itself has no
-scrollbar and the tab strip, rail and status line stay put. Also still owed: delete
-`wo/0003-days-overdue`, and start the Ollama tray app before the demo (or `JIG_NO_MODEL=1`). Still
-only really judgeable on a Windows desk, from S19: a drive root showing no `$Recycle.Bin`,
-`$WINDOWS.~BT`, `System Volume Information` or `Recovery` (#42). **New from S20, and only judgeable
-on Windows:** a repo whose `package.json` names a script with a metacharacter (`"start&calc.exe"`)
-is refused with the charset message rather than run (#72), and the folder browser still lists a
-directory reached through a junction (#74).
+**Matter owes the desk:** the three rulings in #23 (S21 cannot start without them) · the five/six
+primitives ruling from #68 above · **a re-run of `docs/TEST-RUN.md` once these four merge** — steps
+**16**, **17** and **19** carry new lines written for exactly this batch, and all of them are things
+only his browser can judge: **16** the card stays put from the moment Build is pressed (no blink, no
+creep) and the stream is a three-line strip on the card with the whole record scrolling in Prompts,
+nothing running off the right edge at 1280×720; **19** the primitives strip is there and legible
+(*click a primitive, then click the sheet*), two clicks place a button, and **build this screen →**
+opens a fully visible card titled with the sketch's name at both viewports. Still owed from before:
+steps **14**, **15** and **18** for #59/#60/#61; delete `wo/0003-days-overdue`; start the Ollama tray
+app before the demo (or `JIG_NO_MODEL=1`). Only really judgeable on a Windows desk, from S19/S20: a
+drive root showing no `$Recycle.Bin`, `$WINDOWS.~BT`, `System Volume Information` or `Recovery`
+(#42); a repo whose `package.json` names a script with a metacharacter (`"start&calc.exe"`) refused
+with the charset message rather than run (#72); the folder browser still listing a directory reached
+through a junction (#74).
 
-**→ Next session: the second retest batch is the frontier — paste `docs/team/cloud/01-retest-fixes.md`
-again; its set is #66 #67 #68 #69 (Build re-mounting the card, the build stream overflowing the card
-and the pane, Sketch with no visible way to add a button, the build-this-screen card behind the
-rail), amber. After that: #81 (hardening round 2) as its own slice, then `04-rulings.md` (S21, issue
-#23) if Matter has answered, else `05-adapter-react.md` (S22) — and S22 is the slice that makes #71's
-survey-hint tier live, so read that PR before writing an adapter's `devServer`. #73 (Point like the
-inspector) is queued after S28.**
+**→ Next session: the frontier is #81 (hardening round 2) as its own slice — paste
+`docs/team/cloud/03-hardening.md`'s shape against #81's six items, amber. After that:
+`04-rulings.md` (S21, issue #23) if Matter has answered, else `05-adapter-react.md` (S22) — and S22
+is the slice that makes #71's survey-hint tier live, so read that PR before writing an adapter's
+`devServer`. #73 (Point like the inspector) is queued after S28, and #64 (the browser harness) has
+earned its place ahead of both.**
