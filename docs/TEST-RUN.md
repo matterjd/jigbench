@@ -216,9 +216,10 @@ scroll under a fixed head). Only a real browser lays this out, so this step is t
 PASS: a sheet at the app's size; draw a box, then a button; drag the button toward the box's edge:
 it snaps within 6px, an alignment line shows on each held axis, and the sheet says the coordinates.
 **build this screen →** opens the prompt card **titled `Overdue invoices`** — the sketch's own
-name, not the button's words — and the whole card is visible: **beside the sheet, inside the
-plate, never under the rail on the left, never under the right column, never under the status
-line**, at 1440×900 and at 1280×720. That is the shape #69 was filed as: the card opened 348px
+name, not the button's words — and the whole card is visible: **inside the plate, over the
+sheet's free corner, never under the rail on the left, never under the right column, never under
+the status line**, at 1440×900 and at 1280×720. The sheet is the app's size, so it is larger than
+the room around it and the card's own line says the card sits over its corner. That is the shape #69 was filed as: the card opened 348px
 to the LEFT of the plate and was clipped away entirely. `Esc` returns to Hand.
 
 **20. The palette.** `Ctrl+K`, type `design`, `Enter`.
