@@ -174,7 +174,20 @@ describe('runMcpCommand (S6: the real stdio MCP server)', () => {
 
     const runPromise = runMcpCommand({ repo: repoRoot, stdin: toServer, stdout: fromServer });
     await handshake(send, messages);
-    await vi.waitFor(async () => expect(await readShopHeartbeat(repoRoot)).not.toBeNull());
+    // An EXPLICIT budget, not vitest's implicit 1000 ms. What has to finish inside it is not one
+    // assertion but a chain: the `notifications/initialized` line is written onto a PassThrough
+    // and not awaited, the SDK reads and parses it, `oninitialized` fires `heartbeat.start()`
+    // FIRE-AND-FORGET (server.ts:112 — deliberate, the SDK never awaits that hook), and only then
+    // does `atomicWriteFile` mkdir, write a temp file and rename it. On Windows every one of those
+    // three steps is RETRIED WITH A SLEEP on EPERM/EBUSY/EACCES, because that is what
+    // `atomic-write.ts` was written for — a filter driver holding a file we created an instant
+    // ago. So the one budget on this wait is a Windows file write designed to be slow, plus four
+    // vitest forks competing for the same disk, against a second. Red on windows-latest in CI run
+    // 34796088213 (PR #83's first run, in a package that PR does not touch); the sixth failure of
+    // this general class on the record, after 3939bc0 -> #32, dece0fc -> #34, 365ebef -> #45,
+    // c9df97a -> #62 and the S20 slice's #78. 20 s is the shape `build/runner.test.ts`'s cancel
+    // test already uses: long enough that only a real hang fails it, short enough to be a test.
+    await vi.waitFor(async () => expect(await readShopHeartbeat(repoRoot)).not.toBeNull(), { timeout: 20_000, interval: 50 });
 
     toServer.end();
     await runPromise;

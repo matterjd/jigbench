@@ -67,4 +67,32 @@ describe('placeCardPosition', () => {
     const result = placeCardPosition({ x: 0, y: 0, w: 819, h: 558 }, 884, 692, CARD_W, 400);
     expect(result.where).toBe('corner');
   });
+
+  // #69 (the 0.2.0 desk retest, round 2): "the build-this-screen card opens off-screen behind
+  // the rail." A plate this function is told is smaller than the card inverts every clamp it
+  // has — `clamp(x, 8, W - 340 - 8)` is `clamp(x, 8, -348)`, and `Math.min` runs first, so the
+  // answer is the MAXIMUM of the two, not a position inside anything. The corner fallback has
+  // no clamp at all and simply returns `W - cw - EDGE`. Both land the card left of the plate's
+  // own left edge, which on the bench is under the rail. Whatever it is handed, this function
+  // answers with a position inside the plate — that is the only promise it makes.
+  describe('#69: it never answers with a position outside the plate', () => {
+    const cases: ReadonlyArray<readonly [string, number, number]> = [
+      ['a plate that was never measured (the defect on the desk)', 0, 0],
+      ['a plate narrower than the card', 200, 700],
+      ['a plate shorter than the card', 1045, 100],
+    ];
+    for (const [what, W, H] of cases) {
+      it(`${what}: ${W}x${H}`, () => {
+        for (const anchor of [
+          { x: 0, y: 0, w: W, h: H }, // the sketch sheet: the whole plate
+          { x: 100, y: 100, w: 200, h: 60 }, // a Point pick
+          { x: 0, y: 0, w: 0, h: 0 }, // a point with no size at the origin
+        ]) {
+          const result = placeCardPosition(anchor, W, H, CARD_W, 320);
+          expect(result.x).toBeGreaterThanOrEqual(8);
+          expect(result.y).toBeGreaterThanOrEqual(8);
+        }
+      });
+    }
+  });
 });

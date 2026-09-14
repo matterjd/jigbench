@@ -139,6 +139,10 @@
   overflow-wrap: anywhere;
 }
 
+/* #67: the pane is the RECORD — every line Claude sent, in a scroll box of ITS OWN. After #57
+   the tab panel is the one scroll container in this column, and a stream that sizes to its
+   content pushes that scroll around instead of scrolling itself; a long transcript line wraps
+   rather than running past the column's edge (there is no horizontal scroll anywhere here). */
 .jig-prompts-pane__stream {
   border-left: 3px solid var(--wyrd);
   padding: 6px 10px;
@@ -147,6 +151,11 @@
   border-radius: 0 var(--r-inner) var(--r-inner) 0;
   font: 12px/1.4 var(--mono);
   color: var(--wyrd);
+  max-height: 240px;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  overflow-wrap: anywhere;
 }
 
 .jig-prompts-pane__built-line {

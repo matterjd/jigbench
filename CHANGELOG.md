@@ -6,6 +6,46 @@ semantic versioning strictly (pre-1.0).
 
 ## [Unreleased]
 
+The 0.2.0 desk retest, round 2 (issues #66 #67 #68 #69) — what Matter's second drive of the
+published package found, one PR each.
+
+- **the prompt card stays put while Claude builds** (#66) — the card is anchored to the selection
+  it opened on, but its placement effect re-ran on every `buildStream.length` change and a
+  ResizeObserver watched the card's own box, so each streamed frame measured a taller card and
+  re-placed it: the card walked up the plate, step by step, while `claude -p` ran. Placement now
+  depends on the anchor, the plate and a window resize — the three things that really do invalidate
+  it — and runs in a layout effect, so a card is never painted at the `{8,8}` standin first.
+- **the build-this-screen card opens inside the plate, titled with the sketch's name** (#69) — the
+  plate's own box was measured in an effect with an empty dependency list, which runs once, after
+  the first commit — the `state === null` holding screen, where there is no plate and no ref. It
+  returned early and never ran again, so `plateSize` was `{0,0}` for the life of the page. Fed a
+  0-wide plate, every clamp in `placeCardPosition` inverts and a sketch anchor falls through to the
+  corner at `0 - 340 - 8`: 348px left of the plate, under the rail. The plate is measured by a
+  callback ref (which cannot miss the mount), `placeCardPosition` never answers with a position
+  outside the plate whatever it is handed, and the sheet now hands over its own name and box
+  instead of leaving both to be invented.
+- **the build stream is a peek on the card and a record in the pane** (#67) — the card rendered
+  every frame Claude sent, in a box with no width rule and no height of its own, inside a card
+  whose `max-height` + `overflow: auto` then took a scrollbar the anchored card should never have.
+  The card now shows the state line and the last three steps in a strip of fixed height, lines
+  wrapped, nothing clipped horizontally and nothing scrolling inside it; the Prompts pane keeps
+  the whole stream, wrapped, in a bounded scroll box of its own so it cannot push the tab panel's
+  scroll around (the logbook drawer already did both, and is pinned so it stays that way). The
+  state line is bounded on the same terms — it carries the latest step verbatim, so it is one
+  wrapped line that clips rather than a line that grows the card and runs past its edge — the
+  strip's window is anchored to its END, so a wrapped line costs the oldest step and never the one
+  Claude is on, and the card says in words where the rest of the build is.
+- **the sketch sheet says how to place a primitive** (#68) — the six primitives were reachable
+  only through `SketchProperties`'s palette, and that panel is mounted through `PropertiesColumn`,
+  which the quiet chassis does not render at all: nothing in the default view could set the sheet's
+  tool, so every click on the sheet dropped the default `box`, forever. The sheet now carries its
+  own **primitives strip** — `box · text · button · input · image · list` — with the pairing in
+  words (*click a primitive, then click the sheet*), an empty sheet that says what to do first, and
+  `sketch <primitive>` entries in the palette so the keyboard reaches the same act. Both of those
+  instruction lines are painted in the house secondary ink, not the provenance ink the floor bars
+  from carrying meaning, and the held primitive is marked with a storm underline as well as a
+  ground, so which one is armed never rests on colour alone.
+
 Issue #37 — the hardening items from the fix-round verification, none of them a live defect, one
 PR each.
 

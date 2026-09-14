@@ -105,10 +105,12 @@ of 800"*. Hold through and the prompt is **ready**: the Prompts row takes a gold
 
 **Build** (*"run Claude Code in the repo with this prompt"*) runs `claude -p` in the clamped repo
 with the prompt file on stdin — the requirement on top, then the context Jig appends. The stream
-shows on the card and in Prompts as a monospace ribbon (*reading … · editing … · running tests*),
-the status line counts the elapsed time and names the latest step, and every step lands in the
-logbook as a Claude row. The words are locked while it runs. It ends `Claude · built · N files ·
-m:ss`.
+shows in two places and they are not the same thing: **on the card** a peek — the state line
+(*building · editing invoice-list.html*) and the **last three** steps, in a strip that does not
+grow, so the card stays where you opened it; **in Prompts** the record — every step, in a scroll
+box of its own. The status line counts the elapsed time and names the latest step, and every step
+lands in the logbook as a Claude row. The words are locked while it runs. It ends `Claude · built
+· N files · m:ss`.
 
 ## Built
 
@@ -123,17 +125,21 @@ as it was at Ready — is not kept for a prompt yet (#8); the plate shows the ap
 The **Prompts** tab lists every prompt grouped **draft · ready · building · built**, with a
 collapsed *scrapped* count (**put back** restores one — nothing is deleted). Click a row and it
 is the prompt in hand: the requirement, the acceptance, **context Jig appends** (component ·
-file · gauges · routes · endpoints · docs — shown in the open before Build), the stream, and the
-built line. **scrap** sends a draft or ready prompt to the scrap bin.
+file · gauges · routes · endpoints · docs — shown in the open before Build), the whole stream in
+its own scroll box, and the built line. **scrap** sends a draft or ready prompt to the scrap bin.
 
 ## Sketch
 
-**Sketch** turns the plate into a sheet at the app's size, drawn only with the app's own gauges:
-box · text · button · input · list. Drag to draw on the 4px grid; drag an element and it snaps to
-the grid, then to other elements' edges and centres (and the sheet's centre) within 6px, with a
-storm alignment line on each held axis and the exact coordinates said in words. Delete scraps to
+**Sketch** turns the plate into a sheet at the app's size, drawn only with the app's own gauges.
+A **primitives strip** sits above the sheet — `box · text · button · input · image · list` — with
+the line *click a primitive, then click the sheet*, and the empty sheet says the same thing;
+`Ctrl+K`, `sketch button`, `Enter` arms the same primitive from anywhere. Two clicks place one.
+Drag an element and it snaps to the 4px grid, then to other elements' edges and centres (and the
+sheet's centre) within 6px, with a storm alignment line on each held axis and the exact
+coordinates said in words. Delete scraps to
 the bin; **put back** returns it. The sheet is a prompt target: **build this screen →** opens the
-card with that title.
+card inside the plate, titled with the sketch's own name. The sheet is the app's size, so it is
+larger than the room around it: the card lands over the sheet's free corner and says so.
 
 ## The logbook
 
