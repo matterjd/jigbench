@@ -41,7 +41,7 @@ Opus session may tag, cut the GitHub release and run the `npx` registry check, r
 
 ## 1 · v0.2.1, the retest fixes
 
-### S18 · what the retest files · SHIPPED 2026-09-12 (unreleased on main: #61 `c9df97a`, #60 `2c83f3f`, #59 `5bced66`; #58 open until the desk holds Ready; harness #64)
+### S18 · what the retest files · SHIPPED — first batch 2026-09-12, second batch 2026-09-13 (unreleased on main: batch 1 #61 `c9df97a`, #60 `2c83f3f`, #59 `5bced66`; batch 2 PR #88 `7f7d136`, follow-ups #89; #58 open until the desk holds Ready; harness #64)
 **M · amber (the list is unknown until the retest runs) · after R0 · prompt** `01-retest-fixes.md`
 
 **Goal.** Fix what the desk retest of the published 0.2.0 finds, one PR per item. **Why now.** The
@@ -73,9 +73,25 @@ HTTP test.) So both are pinned by source-contract tests in `floor-*.test.ts`'s i
 detector controls, and `docs/TEST-RUN.md` carries the desk steps that prove the rendering. A
 browser harness for the bench is worth its own slice; it has deliberately not been filed here.
 
-**Acceptance.** All three met: an issue and a PR per item, each red-first with the red line quoted
-in the commit body, and `CHANGELOG.md`'s Unreleased section naming each fix in one line. The
-version this ships in goes in this row when the lead merges.
+**The retest's second round filed four more** (#66 #67 #68 #69, from Matter's 0.2.0 desk retest),
+and they **merged 2026-09-13** as one integration PR — **#88** → `main` at **`7f7d136`**, both CI
+legs and DCO green — carrying five PRs: **#82** (#66 the prompt card stays put while Claude builds)
+· **#83** (#69 the build-this-screen card opens inside the plate, repaired head `e53231b`) · **#84**
+(#67 the build stream is a peek on the card, a record in the pane, repaired head `448b7f0`) · **#85**
+(not an item: a `cli` test budget found on the way) · **#86** (#68 the sketch sheet says how to
+place a primitive, repaired head `82e6032`). All four issues are closed. The lead's review **blocked
+#83, #84 and #86**, a repair round fixed every blocker, and a re-review cleared all three
+merge-with-follow-up; those follow-ups are **#89** — twelve of them, including one accessibility
+regression #84 created and two rulings Matter still owes.
+
+**#66 and #69 were one bug.** `App.tsx` measured the plate's box in a `useEffect` with an empty
+dependency list, so it ran only on the `state === null` holding screen and returned early:
+`plateSize` stayed `{ w: 0, h: 0 }` for the life of the page, every clamp in `placeCardPosition`
+inverted, and a sketch anchor fell through to the corner at `0 − 340 − 8` = −348, under the rail.
+
+**Acceptance.** All seven met: an issue and a PR per item, each red-first with the red line quoted
+in the commit body, and `CHANGELOG.md`'s Unreleased section naming each fix in one line. Both
+batches are merged and unreleased; the version they ship in goes in this row at that release.
 
 ### S19 · issue #24, the small fixes · SHIPPED 2026-09-09 (main at `ab89f7b`; record on issue #1)
 **M · green · after R0 · prompt** `02-small-fixes.md`
