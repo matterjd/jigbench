@@ -6,6 +6,14 @@ semantic versioning strictly (pre-1.0).
 
 ## [Unreleased]
 
+- **the sketch sheet says how to place a primitive** (#68) — the six primitives were reachable
+  only through `SketchProperties`'s palette, and that panel is mounted through `PropertiesColumn`,
+  which the quiet chassis does not render at all: nothing in the default view could set the sheet's
+  tool, so every click on the sheet dropped the default `box`, forever. The sheet now carries its
+  own **primitives strip** — `box · text · button · input · image · list` — with the pairing in
+  words (*click a primitive, then click the sheet*), an empty sheet that says what to do first, and
+  `sketch <primitive>` entries in the palette so the keyboard reaches the same act.
+
 Issue #37 — the hardening items from the fix-round verification, none of them a live defect, one
 PR each.
 

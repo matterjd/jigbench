@@ -11,6 +11,8 @@ import {
   moveElement,
   newSketch,
   openSketch,
+  PALETTE_TOOLS,
+  setPaletteTool,
   loadSketches,
   placeElementAt,
   printed,
@@ -269,6 +271,25 @@ export function SketchSheet({ gauges, fetchImpl = fetch, onBuildScreen }: Sketch
           </span>
         )}
       </div>
+      {/* #68: the primitives, on the sheet itself. They existed — but only in
+          `SketchProperties`, which the quiet chassis (S12) does not render, so nothing in the
+          default view could set `state.tool` and every click dropped the default `box`. The
+          hint is the pairing in words, the way the rail's tools carry theirs. */}
+      <div className="jig-sketch-sheet-panel__primitives" role="group" aria-label="primitives">
+        {PALETTE_TOOLS.map((kind) => (
+          <button
+            key={kind}
+            type="button"
+            aria-pressed={state.tool === kind}
+            aria-label={`${kind} — click a primitive, then click the sheet`}
+            className={'jig-sketch-sheet-panel__primitive' + (state.tool === kind ? ' jig-sketch-sheet-panel__primitive--active' : '')}
+            onClick={() => setPaletteTool(kind)}
+          >
+            {kind}
+          </button>
+        ))}
+        <span className="jig-sketch-sheet-panel__hint">click a primitive, then click the sheet</span>
+      </div>
       <div className="jig-sketch-sheet-panel__surface">
         <PlateRulers cursor={null} />
         <div className="jig-sketch-sheet-panel__viewport">
@@ -301,6 +322,11 @@ export function SketchSheet({ gauges, fetchImpl = fetch, onBuildScreen }: Sketch
                 />
               </div>
             ))}
+            {sketch.elements.length === 0 && (
+              <p className="jig-sketch-sheet-panel__sheet-empty">
+                nothing on this sheet yet — pick <b>{state.tool}</b> above (or another primitive) and click here to place it.
+              </p>
+            )}
             {alignLines.map((line, i) =>
               line.axis === 'v' ? (
                 <div

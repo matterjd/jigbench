@@ -164,3 +164,23 @@ describe('CommandPalette', () => {
     expect(document.activeElement).toBe(input);
   });
 });
+
+/**
+ * #68: "Sketch gives no visible way to add a button." The strip on the sheet is the answer with
+ * a mouse; this is the answer with the keyboard — `Ctrl+K`, `sketch button`, Enter, in the
+ * palette's own two moves.
+ */
+describe('CommandPalette — #68: sketch primitives', () => {
+  it('lists one entry per primitive and runs it on Enter', () => {
+    const onSelectSketchPrimitive = vi.fn();
+    render(<CommandPalette {...baseProps()} sketchPrimitives={['box', 'text', 'button']} onSelectSketchPrimitive={onSelectSketchPrimitive} />);
+    fireEvent.keyDown(window, { key: 'k', ctrlKey: true });
+
+    expect(screen.getByText('sketch button')).toBeTruthy();
+
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'sketch button' } });
+    fireEvent.keyDown(screen.getByRole('combobox'), { key: 'Enter' });
+
+    expect(onSelectSketchPrimitive).toHaveBeenCalledWith('button');
+  });
+});

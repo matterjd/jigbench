@@ -190,6 +190,22 @@ describe('App (S12: the quiet bench)', () => {
     expect(screen.getAllByText('Point').length).toBeGreaterThan(0);
   });
 
+  // #68: the palette is the keyboard's way to the sheet's primitives strip. The entry has to be
+  // WIRED, not merely renderable — `sketch button` from the bench's default view puts the rail
+  // on Sketch, which is the half a CommandPalette unit test cannot see.
+  it('#68: Ctrl+K, "sketch button", Enter arms the primitive and puts the rail on Sketch', async () => {
+    stubFetch((url) => (url.includes('/api/sketches') ? ({ ok: true, json: () => Promise.resolve({ sketches: [] }) } as Response) : undefined));
+    render(<App />);
+    sendState(clampedState);
+    fireEvent.keyDown(window, { key: 'k', ctrlKey: true });
+    expect(screen.getByText('sketch button')).toBeTruthy();
+
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'sketch button' } });
+    fireEvent.keyDown(screen.getByRole('combobox'), { key: 'Enter' });
+
+    expect(await screen.findByText(/no sketches yet/i)).toBeTruthy(); // the sheet is on the plate
+  });
+
   it('Point selects a component on the plate and opens the prompt card anchored to it', async () => {
     stubFetch((url) =>
       url.includes('/api/plate')

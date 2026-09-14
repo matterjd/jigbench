@@ -93,6 +93,59 @@
   padding: 3px 8px;
 }
 
+/* #68: the primitives strip — the sheet's own row, under the tab. Same register as the
+   properties column's palette (it is the same six primitives and the same `setPaletteTool`),
+   plus the pairing in words, because a first-time user has to be able to place a button with
+   nothing read. */
+.jig-sketch-sheet-panel__primitives {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--line-soft);
+}
+
+.jig-sketch-sheet-panel__primitive {
+  font: 11px var(--mono);
+  color: var(--dim);
+  border: 1px solid var(--line);
+  border-radius: var(--r-micro);
+  padding: 4px 8px;
+  background: var(--bg1);
+}
+
+.jig-sketch-sheet-panel__primitive:hover {
+  color: var(--ink);
+  background: var(--bg2);
+}
+
+.jig-sketch-sheet-panel__primitive--active {
+  color: var(--ink);
+  background: var(--bg3);
+  border-color: var(--line);
+}
+
+.jig-sketch-sheet-panel__hint {
+  margin-left: 6px;
+  font: 11px var(--mono);
+  color: var(--faint);
+}
+
+.jig-sketch-sheet-panel__sheet-empty {
+  position: absolute;
+  inset: 24px 24px auto 24px;
+  margin: 0;
+  font: 12px/1.5 var(--mono);
+  color: var(--faint);
+  pointer-events: none;
+}
+
+.jig-sketch-sheet-panel__sheet-empty b {
+  color: var(--dim);
+  font-weight: 600;
+}
+
 .jig-sketch-sheet-panel__surface {
   position: relative;
   flex: 1;

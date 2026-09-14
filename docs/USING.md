@@ -128,10 +128,13 @@ built line. **scrap** sends a draft or ready prompt to the scrap bin.
 
 ## Sketch
 
-**Sketch** turns the plate into a sheet at the app's size, drawn only with the app's own gauges:
-box · text · button · input · list. Drag to draw on the 4px grid; drag an element and it snaps to
-the grid, then to other elements' edges and centres (and the sheet's centre) within 6px, with a
-storm alignment line on each held axis and the exact coordinates said in words. Delete scraps to
+**Sketch** turns the plate into a sheet at the app's size, drawn only with the app's own gauges.
+A **primitives strip** sits above the sheet — `box · text · button · input · image · list` — with
+the line *click a primitive, then click the sheet*, and the empty sheet says the same thing;
+`Ctrl+K`, `sketch button`, `Enter` arms the same primitive from anywhere. Two clicks place one.
+Drag an element and it snaps to the 4px grid, then to other elements' edges and centres (and the
+sheet's centre) within 6px, with a storm alignment line on each held axis and the exact
+coordinates said in words. Delete scraps to
 the bin; **put back** returns it. The sheet is a prompt target: **build this screen →** opens the
 card with that title.
 
