@@ -129,6 +129,24 @@ charset check on script names; realpath before stat in `fs/route.ts` and
 - The Origin item ends with `SECURITY.md` and the code saying the same thing.
 - Each of the five test gaps closes with a test that fails if the fix it covers is reverted.
 
+### S20b · issue #81, hardening round 2
+**M · amber · after S20 · prompt** `03b-hardening-round-2.md`
+
+**Goal.** Close #81's nine items, one PR each. **Why now.** The lead's review of the nine S20 PRs
+cleared every one and left these behind. Four have teeth: `POST /api/docs/clamp` never meets the
+local-path guard; the guard's own `realpath` is the SMB open it exists to prevent, while the code
+comments and `CHANGELOG.md` say the opposite; a clamped root keeps a link's spelling, so a
+re-pointed link is followed with nothing looking again; and a port read out of `angular.json` or a
+survey hint still bypasses `valid-port.ts`. The rest are words that overstate, a `stop()` that does
+not await its child, a git that hits its budget silently, and eight small ones.
+`03b-hardening-round-2.md` carries each in full.
+
+**Acceptance.**
+- One PR per item, each red-first, with the red line quoted in the commit body.
+- Item 2 ends with no sentence in code or `CHANGELOG.md` promising a refusal that lands late.
+- Item 5 ends with `SECURITY.md` and `same-origin.ts` saying the same thing about every method.
+- Item 6 ends with #78's teardown retry deleted and both CI legs green without it.
+
 ### S21 · issue #23, the three rulings
 **S · ruling · after R0 · prompt** `04-rulings.md`
 
@@ -288,6 +306,7 @@ standing exception in question form, and stays a question until Matter rules on 
 | #23 | the three rulings Matter owes | S21 |
 | #24 | the small fixes from the 0.2.0 review and the walkthrough | S19 |
 | #37 | the hardening items from the fix round | S20 |
+| #81 | hardening round 2, the follow-ups the S20 review left | S20b |
 | #3 | the trial-fit e2e flakes under load | S20, the same test-hardening pass |
 | #6 | the legacy log does not survive a re-read, so a migrated prompt's elapsed timer freezes | S29, the slice that re-reads a prompt after a build |
 | #2 | `pdf-parse` pulls a native transitive dependency | no slice yet. The issue lists the options; the cheap one (PDF optional, said plainly in the clamp summary) is ruled when a locked-down machine actually blocks it |

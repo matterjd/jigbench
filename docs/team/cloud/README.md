@@ -31,8 +31,8 @@ One session per slice. Two sessions on one slice will fight over the same branch
 
 ## What every block already says
 
-Do not add these by hand. Every block that goes into a session — `01` through `17`, all seventeen —
-already carries them. (`00` is the desk runbook and carries the release rules instead.)
+Do not add these by hand. Every block that goes into a session — `01` through `17`, all seventeen,
+plus `03b` — already carries them. (`00` is the desk runbook and carries the release rules instead.)
 
 - no Browser pane, no Windows desk, no .NET SDK, no Ollama, no real `claude` binary
 - every server test runs with `JIG_NO_MODEL=1 JIG_OLLAMA_URL=http://127.0.0.1:9`
@@ -51,3 +51,6 @@ already carries them. (`00` is the desk runbook and carries the release rules in
 `docs/ROADMAP.md` is the sequence. In short: `00` (the desk publishes 0.2.0), then `01` through `04`
 for v0.2.1, then `05` through `09` for the stacks, then `10` through `13` for the loop, then `14`
 through `17`, which are questions for you and not work.
+
+`03b-hardening-round-2.md` sits after `03`: issue #81, the follow-ups the lead's review of the S20
+hardening round left behind (roadmap row S20b). It runs after `03` has merged, amber like `03`.
