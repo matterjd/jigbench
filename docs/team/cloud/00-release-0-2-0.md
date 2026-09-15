@@ -1,5 +1,6 @@
 # 00 · R0 · release 0.2.0 (the desk, not a session)
 **Tier** ruling (Matter's hands only) · **Depends on** nothing · **Expected PRs** 0 · **Roadmap row** R0
+*Desk session? Swap the seat line per README § Desk sessions.*
 
 This is the one file in this folder that is not pasted into a cloud session. **No session may
 publish or change repository visibility** — that stays your hands. The block below is for your own

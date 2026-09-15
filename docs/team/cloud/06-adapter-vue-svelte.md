@@ -1,5 +1,6 @@
 # 06 · S23 · Vue and Svelte
 **Tier** green (merge on green CI) · **Depends on** S22 (the same package shape) · **Expected PRs** 2, one per stack · **Roadmap row** S23
+*Desk session? Swap the seat line per README § Desk sessions.*
 
 ----8<---- paste from here ----8<----
 Open as the DELIVERY SEAT for matterjd/jigbench. You are a REMOTE session: no Browser pane, no

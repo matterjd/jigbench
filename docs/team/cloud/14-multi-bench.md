@@ -1,5 +1,6 @@
 # 14 · I1 · multi-bench
 **Tier** ruling (Matter decides first) · **Depends on** nothing built · **Expected PRs** 0 until Matter rules · **Roadmap row** I1
+*Desk session? Swap the seat line per README § Desk sessions.*
 
 ----8<---- paste from here ----8<----
 Open as the DELIVERY SEAT for matterjd/jigbench. You are a REMOTE session: no Browser pane, no

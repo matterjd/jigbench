@@ -1,5 +1,6 @@
 # 03 · S20 · issue #37, the hardening items
 **Tier** amber (two items touch the security gates) · **Depends on** R0 · **Expected PRs** 6 to 8 · **Roadmap row** S20
+*Desk session? Swap the seat line per README § Desk sessions.*
 
 ----8<---- paste from here ----8<----
 Open as the DELIVERY SEAT for matterjd/jigbench. You are a REMOTE session: no Browser pane, no

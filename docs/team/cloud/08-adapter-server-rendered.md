@@ -1,5 +1,6 @@
 # 08 · S25 · server-rendered stacks
 **Tier** green (merge on green CI) · **Depends on** S22 (the package shape) · **Expected PRs** 2 to 4 · **Roadmap row** S25
+*Desk session? Swap the seat line per README § Desk sessions.*
 
 ----8<---- paste from here ----8<----
 Open as the DELIVERY SEAT for matterjd/jigbench. You are a REMOTE session: no Browser pane, no
