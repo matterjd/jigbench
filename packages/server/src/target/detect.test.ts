@@ -150,6 +150,12 @@ describe('detectDevScript', () => {
           `{"defaultProject":"app","projects":{"app":{"architect":{"serve":{"options":{"port":${raw}}}}}}}`,
           'utf8',
         );
+        // The same #81-item-8 gate as the tier walk below: planted so this case tests the port
+        // rule rather than the tier's own availability, with or without PR #99.
+        await mkdir(join(repoRoot, 'node_modules', '.bin'), { recursive: true });
+        await writeFile(join(repoRoot, 'node_modules', '.bin', 'ng'), '#!/usr/bin/env node\n', 'utf8');
+        await writeFile(join(repoRoot, 'node_modules', '.bin', 'ng.cmd'), '@echo off\n', 'utf8');
+
         const result = detectDevScript(repoRoot);
         expect(result, raw).not.toBeNull();
         expect(isValidPort(result?.port), `angular.json port ${raw} -> ${String(result?.port)}`).toBe(true);
@@ -194,8 +200,17 @@ describe('detectDevScript', () => {
       expect(isValidPort(tier2?.port), `package.json -> ${String(tier2?.port)}`).toBe(true);
 
       // tier 3 — angular.json alone, which also puts the port on the command line.
+      //
+      // The local `ng` is planted deliberately: #81 item 8 (PR #99) gates this tier on the
+      // repo having its own `node_modules/.bin/ng`, because `npx ng serve` downloads one from
+      // the registry otherwise. Planting it here makes this case exercise tier 3 whether or not
+      // that PR has landed — without it, tier 3 declines once it does and this walk silently
+      // stops walking the tier it is named for.
       const ngTier = await freshDir();
       await writeFile(join(ngTier, 'angular.json'), badAngular, 'utf8');
+      await mkdir(join(ngTier, 'node_modules', '.bin'), { recursive: true });
+      await writeFile(join(ngTier, 'node_modules', '.bin', 'ng'), '#!/usr/bin/env node\n', 'utf8');
+      await writeFile(join(ngTier, 'node_modules', '.bin', 'ng.cmd'), '@echo off\n', 'utf8');
       const tier3 = detectDevScript(ngTier);
       expect(tier3?.source).toBe('angular.json');
       expect(isValidPort(tier3?.port), `angular.json -> ${String(tier3?.port)}`).toBe(true);
