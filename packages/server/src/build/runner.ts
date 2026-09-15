@@ -6,6 +6,7 @@ import { join } from 'node:path';
 import { jigPaths } from '@jigbench/core';
 import { logger } from '../logger.js';
 import { filesTouchedBetween, gitStatusSnapshot } from './git-diff.js';
+import type { BuildNoticeCode } from '@jigbench/core'; // #81
 import { extractFilesLine, parseStreamLine } from './stream-parser.js';
 import type { BuildOutcome, BuildRunnerLike, ClaudeStatus, StartBuildInput } from './types.js';
 
@@ -61,6 +62,12 @@ export interface BuildRunnerOptions {
    * `start()` awaits before it spawns anything. Default 15s — see that module for why it is
    * generous rather than tight. */
   gitTimeoutMs?: number;
+  /** #81: the git executable and the arguments before git's own — the same seam
+   * `command`/`commandArgsPrefix` gives the fake `claude`, forwarded to `git-diff.ts` so a test
+   * can point the snapshots at a `git` that never exits without needing one on PATH.
+   * Production passes neither. */
+  gitCommand?: string;
+  gitArgsPrefix?: string[];
 }
 
 const DEFAULT_ALLOWED_TOOLS = [
@@ -105,6 +112,8 @@ export class BuildRunner implements BuildRunnerLike {
   private readonly availabilityTimeoutMs: number;
   /** #37 — undefined leaves `git-diff.ts`'s own default in force. */
   private readonly gitTimeoutMs: number | undefined;
+  private readonly gitCommand: string | undefined;
+  private readonly gitArgsPrefix: string[] | undefined;
   private current: RunningBuild | null = null;
   private lastBuilt: LastBuilt | undefined;
 
@@ -116,6 +125,8 @@ export class BuildRunner implements BuildRunnerLike {
     this.maxDurationMs = opts.maxDurationMs ?? DEFAULT_MAX_DURATION_MS;
     this.availabilityTimeoutMs = opts.availabilityTimeoutMs ?? DEFAULT_AVAILABILITY_TIMEOUT_MS;
     this.gitTimeoutMs = opts.gitTimeoutMs;
+    this.gitCommand = opts.gitCommand;
+    this.gitArgsPrefix = opts.gitArgsPrefix;
   }
 
   currentBuild(): { promptId: string; buildId: string } | null {
@@ -211,10 +222,27 @@ export class BuildRunner implements BuildRunnerLike {
     }
     const transcript = createWriteStream(transcriptPath, { flags: 'a' });
 
+    const startedAt = running.startedAt;
+
+    // #81 item 7: one line, in words, whenever a snapshot cannot be taken — and a different line
+    // for each of the three reasons. #37 gave the git calls a budget and killed the ones that
+    // outlived it; what it did not do was TELL anyone, so a build whose git was wedged for the
+    // full fifteen seconds reported "no files touched" and read exactly like a build in a folder
+    // that is not a repo. The words live in core's `buildNoticeLine`, so the card, the ribbon,
+    // the status line and the logbook cannot phrase it differently.
+    //
+    // At most one notice per build: `gitStatusSnapshot` reports once per call, and the `after`
+    // call below only happens when `before` succeeded.
+    const gitOptions = {
+      timeoutMs: this.gitTimeoutMs,
+      command: this.gitCommand,
+      argsPrefix: this.gitArgsPrefix,
+      onUnavailable: (code: BuildNoticeCode) => input.onEvent({ kind: 'notice', code }, Date.now() - startedAt),
+    };
+
     // #37: with a budget now — a wedged `git` used to hold this await, and so the whole build,
     // open forever with nothing to cancel and nothing in the log.
-    const before = await gitStatusSnapshot(this.repoRoot, { timeoutMs: this.gitTimeoutMs }).catch(() => null);
-    const startedAt = running.startedAt;
+    const before = await gitStatusSnapshot(this.repoRoot, gitOptions).catch(() => null);
 
     return new Promise<BuildOutcome>((resolve) => {
       let child: ChildProcess;
@@ -292,7 +320,7 @@ export class BuildRunner implements BuildRunnerLike {
         }
 
         if (filesTouched === null && before) {
-          const after = await gitStatusSnapshot(this.repoRoot, { timeoutMs: this.gitTimeoutMs }).catch(() => null);
+          const after = await gitStatusSnapshot(this.repoRoot, gitOptions).catch(() => null);
           filesTouched = after ? filesTouchedBetween(before, after) : [];
         }
         filesTouched ??= [];

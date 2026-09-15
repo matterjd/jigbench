@@ -6,6 +6,20 @@ semantic versioning strictly (pre-1.0).
 
 ## [Unreleased]
 
+Issue #81 — hardening round 2, the follow-ups the S20 review left, one PR each.
+
+- **a git that runs out of budget says so, and says which of three things went wrong** — #37 gave
+  the before/after snapshots a budget and killed a `git` that outlived it, but told nobody:
+  `gitStatusSnapshot` answered `null`, `build/runner.ts` read that as "no diff information", and
+  neither the build stream nor the logbook carried a word about it. A build whose git was wedged
+  for the full fifteen seconds reported no files touched and read exactly like a build in a
+  folder that is not a repo. The three reasons a snapshot can be `null` are three reasons now —
+  `git-timed-out`, `git-not-found`, `not-a-git-repo` — and each reaches the stream as its own
+  sentence through a new `notice` event, whose words live in `@jigbench/core`'s `buildNoticeLine`
+  so the card, the Prompts ribbon, the status line, the logbook and `jigbench build` cannot
+  phrase the same code differently. Telling a killed git from a missing one needed one thing the
+  code did not have: whether the abort was ours, since both arrive as an empty-stdout `error`.
+
 The 0.2.0 desk retest, round 2 (issues #66 #67 #68 #69) — what Matter's second drive of the
 published package found, one PR each.
 

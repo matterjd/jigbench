@@ -74,6 +74,8 @@ export { ClaudeNotInstalledError, PolishUnavailableError, PromptBuildConflictErr
 export { BuildRunner } from './build/runner.js';
 export type { BuildRunnerOptions } from './build/runner.js';
 export type { BuildOutcome, BuildRunnerLike, BuildStreamEvent, ClaudeStatus, StartBuildInput } from './build/types.js';
+export { buildNoticeLine } from './build/types.js'; // #81: the words a `notice` event reads as
+export type { BuildNoticeCode } from './build/types.js';
 // === end S11 block ===
 
 // === S17a — setup happens in the app: the server side (AMENDMENT-1 §7, A6) ===
