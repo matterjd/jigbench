@@ -6,6 +6,22 @@ semantic versioning strictly (pre-1.0).
 
 ## [Unreleased]
 
+Issue #81 — hardening round 2, the follow-ups the S20 review left, one PR each.
+
+- **a UNC path is refused before the connection, and the words say only what is true** — the
+  guard judged the raw string and then handed `realpath` the RESOLVED path, which nothing had
+  judged: `path.resolve` takes a relative (or root-relative) value against `process.cwd()`, so a
+  bench started FROM a share turned `sub` into `\\host\share\dir\sub` and `\repo` into
+  `\\host\share\repo` — neither raw string UNC-spelled, both landing on the share, and
+  `realpath` is the SMB open on Windows. All three prefixes (`\\`, `//` and the
+  extended-length `\\?\UNC`) are now refused on the raw string, on `path.resolve`'s answer, and
+  on what that value resolves to under Windows rules — so the answer no longer depends on POSIX
+  collapsing `//host/share` into `/host/share`, and the two CI legs agree. The one refusal that
+  cannot come first is the one for a LOCAL spelling whose target is a share: what a link points
+  at is not in the string. That case fails closed after a single `realpath`, and four places
+  that claimed otherwise — `fs/local-path.ts`, `fs/route.ts`, `bench/validate-clamp-path.ts` and
+  this file's own #37 entry — now say which refusal happens when.
+
 The 0.2.0 desk retest, round 2 (issues #66 #67 #68 #69) — what Matter's second drive of the
 published package found, one PR each.
 
@@ -83,14 +99,18 @@ PR each.
   charset is win32-only and the rule takes the platform as a parameter, so both branches are
   proved on whichever CI leg runs.
 - **the UNC refusal judges what a path really is, not only how it is spelled** — #18 refused
-  `\\host\share` by its spelling, and a symlink (or NTFS junction) inside the home pointing at
-  `\\attacker\share` is spelled like any other local path: the `stat` that came next followed it,
-  which on Windows is the SMB connection the guard exists to prevent, made after the guard said
-  yes. The folder browser and clamp now share one rule (`fs/local-path.ts`) — refuse the spelling,
-  `realpath`, refuse that too, then do the filesystem work against the real path so nothing can be
-  re-pointed in between. Clamp also refuses a link whose target sits inside a `.jig/` directory,
-  the same lexical guard with the same hole. Every message, every `entries[].path` and the
-  `repoRoot` a clamp records keep the caller's own spelling.
+  `\\host\share` by its spelling, and a symlink inside the home pointing at `\\attacker\share` is
+  spelled like any other local path: the `stat` that came next followed it, which on Windows is
+  the SMB connection the guard exists to prevent, made after the guard said yes. The folder
+  browser and clamp now share one rule (`fs/local-path.ts`) — refuse the spelling, `realpath`,
+  refuse that too, then do the filesystem work against the real path so nothing can be
+  re-pointed in between. **That second refusal lands after the connection, not before it**
+  (corrected here by #81 item 2, which is also where the earlier wording is put right): what a
+  link points at is not in the string, so the only way to ask is to follow it, and the guard
+  fails closed once it has — nothing is read, listed or stat-ed through a share. Clamp also
+  refuses a link whose target sits inside a `.jig/` directory, the same lexical guard with the
+  same hole. Every message, every `entries[].path` and the `repoRoot` a clamp records keep the
+  caller's own spelling.
 - **a git that never answers no longer holds a build open** — `build/git-diff.ts` spawned `git`
   with no timeout of any kind, and `BuildRunner.start()` awaits the before-snapshot before it
   spawns `claude` at all: a wedged git (a credential helper waiting on a prompt, a dead network

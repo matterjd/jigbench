@@ -128,10 +128,13 @@ export function attachFsRoute(app: Express, options: FsRouteOptions = {}): void 
       }
 
       // #18: a UNC value would make Windows open an SMB connection to the named host on the
-      // `stat` below — refused by its spelling, before any filesystem call. #37: and again on
-      // what the path REALLY is, because a symlink or NTFS junction onto a UNC share is spelled
-      // like any other local path and the stat would follow it. `checkLocalPath` does both, plus
-      // the existence check (by `realpath`, which follows nothing further than the guard does).
+      // `stat` below — refused by its SPELLING, before any filesystem call, on the raw string
+      // and (#81) on what it resolves to. #37: and again on what the path REALLY is, because a
+      // symlink onto a UNC share is spelled like any other local path and the stat would follow
+      // it. That last refusal is the one that cannot come first: the only way to learn where a
+      // link goes is to follow it, so `checkLocalPath`'s own `realpath` IS the connection in
+      // that case, and the guard fails closed after it — nothing below is read, listed or
+      // stat-ed through a share. `fs/local-path.ts` sets out both moments in full.
       //
       // `resolved` there is `path.resolve(raw)`: `..`/`.` segments collapsed against
       // `process.cwd()` for a relative input, separators normalised — the ONLY handling `..`
