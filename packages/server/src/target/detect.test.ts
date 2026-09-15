@@ -227,7 +227,7 @@ describe('isRunnableScriptName', () => {
     }
   });
 
-  it('accepts everything off win32 — npm is an ordinary executable there and nothing re-parses its argv', () => {
+  it('accepts everything else off win32 — npm is an ordinary executable there and nothing re-parses its argv', () => {
     for (const name of [...SPLITS_UNDER_CMD, ...ORDINARY]) {
       expect(isRunnableScriptName(name, 'linux'), name).toBe(true);
       expect(isRunnableScriptName(name, 'darwin'), name).toBe(true);
@@ -237,5 +237,56 @@ describe('isRunnableScriptName', () => {
   it('refuses an empty name on win32, and defaults to this platform when none is named', () => {
     expect(isRunnableScriptName('', 'win32')).toBe(false);
     expect(isRunnableScriptName('start')).toBe(true); // every platform agrees about `start`
+  });
+
+  // #81: two shapes the win32 charset happens to cover and no platform should accept, because
+  // neither is about cmd.exe re-parsing a line.
+  //
+  // A leading `-` is read as an OPTION by whatever the argv reaches. `npm run -x` is npm being
+  // handed a flag, not a script name, on every platform — and `-` passes the win32 charset
+  // (`[A-Za-z0-9._:-]`), so even the strict leg let it through. There is no legitimate npm
+  // script whose name starts with one.
+  //
+  // Length is the other: a name is a key of the repo's own package.json, which means it is
+  // whatever a hostile clone wrote there. 214 is `npm run`'s own practical ceiling by a wide
+  // margin and well under every platform's argument limit.
+  describe('#81: the two rules that are not about cmd.exe, so they hold on every platform', () => {
+    const PLATFORMS = ['win32', 'linux', 'darwin'] as const;
+
+    it('refuses a name beginning with `-`, which every argv reads as an option', () => {
+      for (const platform of PLATFORMS) {
+        for (const name of ['-x', '--force', '-', '--', '-rf']) {
+          expect(isRunnableScriptName(name, platform), `${name} on ${platform}`).toBe(false);
+        }
+      }
+    });
+
+    it('refuses a name past the cap, and keeps the longest one under it', () => {
+      for (const platform of PLATFORMS) {
+        expect(isRunnableScriptName('a'.repeat(214), platform), `214 on ${platform}`).toBe(true);
+        expect(isRunnableScriptName('a'.repeat(215), platform), `215 on ${platform}`).toBe(false);
+        expect(isRunnableScriptName('a'.repeat(100_000), platform), `100k on ${platform}`).toBe(false);
+      }
+    });
+
+    it('refuses an empty name everywhere, not only on win32', () => {
+      for (const platform of PLATFORMS) {
+        expect(isRunnableScriptName('', platform), platform).toBe(false);
+      }
+    });
+
+    // The detector control: neither rule may cost an ordinary name on any platform, and the
+    // off-win32 leniency about metacharacters is untouched.
+    it('leaves every ordinary name, and every off-win32 metacharacter name, alone', () => {
+      for (const platform of PLATFORMS) {
+        for (const name of ORDINARY) expect(isRunnableScriptName(name, platform), `${name} on ${platform}`).toBe(true);
+      }
+      for (const name of SPLITS_UNDER_CMD) {
+        expect(isRunnableScriptName(name, 'linux'), name).toBe(true);
+      }
+      // A `-` that is not leading is a perfectly good npm script name and stays one.
+      expect(isRunnableScriptName('lint-all', 'linux')).toBe(true);
+      expect(isRunnableScriptName('lint-all', 'win32')).toBe(true);
+    });
   });
 });

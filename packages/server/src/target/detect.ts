@@ -108,6 +108,11 @@ function angularConfiguredPort(repoRoot: string): number | undefined {
  * `POST /api/target/url` for an app it starts itself. */
 const WIN32_RUNNABLE_SCRIPT_NAME = /^[A-Za-z0-9._:-]+$/;
 
+/** #81: a name is a key of the repo's OWN `package.json`, which means it is whatever a hostile
+ * clone wrote there. 214 is far past `npm run`'s practical ceiling and well under every
+ * platform's argument limit — a cap that no real script name can notice. */
+const MAX_SCRIPT_NAME_LENGTH = 214;
+
 /**
  * #37: may Jig put this script NAME on a command line? Being a key of the repo's own
  * `package.json` was the whole of #17's test, and a repo's own key can carry the
@@ -117,13 +122,28 @@ const WIN32_RUNNABLE_SCRIPT_NAME = /^[A-Za-z0-9._:-]+$/;
  * was never the danger; `&`, `|`, `^`, `%` with no space around them are passed through bare and
  * cmd.exe re-parses the line on them.
  *
- * Off win32 every name passes: `npm` is an ordinary executable there, the argv array is the argv
- * the process gets, and nothing re-parses it — a name the repo chose is the repo's business.
+ * Off win32 every OTHER name passes: `npm` is an ordinary executable there, the argv array is
+ * the argv the process gets, and nothing re-parses it — a name the repo chose is the repo's
+ * business. #81 carved out the two shapes that are not about re-parsing at all, and so hold
+ * everywhere: a leading `-` (an option, not a name, to any argv) and an unbounded length.
  *
  * `platform` is a parameter (defaulting to this process's) so the win32 rule is provable on any
  * leg, the same reason `fs/win32-hidden.ts` splits `parseAttribOutput` out of its spawn.
  */
 export function isRunnableScriptName(name: string, platform: string = process.platform): boolean {
+  // #81: two rules that hold on EVERY platform, because neither is about cmd.exe re-parsing a
+  // line — which is the only thing the win32 charset below is about.
+  //
+  // A leading `-` is read as an OPTION by whatever the argv reaches: `npm run -x` hands npm a
+  // flag, not a script name, on Windows and POSIX alike. It also slipped through the win32
+  // charset, which allows `-` so that `lint-all` works, so even the strict leg accepted it.
+  // No legitimate npm script name begins with one.
+  //
+  // And a length cap, for the same reason the charset exists: the name comes from a file the
+  // repo controls, not from Jig.
+  if (name.length === 0 || name.length > MAX_SCRIPT_NAME_LENGTH) return false;
+  if (name.startsWith('-')) return false;
+
   if (platform !== 'win32') return true;
   return WIN32_RUNNABLE_SCRIPT_NAME.test(name);
 }
