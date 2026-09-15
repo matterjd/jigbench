@@ -6,6 +6,30 @@ semantic versioning strictly (pre-1.0).
 
 ## [Unreleased]
 
+Issue #81 — hardening round 2, the follow-ups the S20 review left, one PR each.
+
+- **the small ones from round 2** — eight in one PR, a commit each. `POST /api/target/start` and
+  every detection tier refuse a **script name beginning with `-`** (an option, not a name, to any
+  argv — and it slipped past the win32 charset, which allows `-` so `lint-all` works) and cap its
+  length, on every platform rather than only win32, because neither rule is about cmd.exe
+  re-parsing a line. The **Origin half says what it means**: `http:` only (nothing in Jig serves
+  https, so an `https` Origin on an allowed Host cannot be the bench's own page), an `Origin:`
+  header present-and-empty is no longer read as a client that sent none, and `Origin: null` — a
+  sandboxed iframe's opaque origin — is pinned. A request **body that is not JSON** gets 415 and
+  a sentence saying to send `application/json`, instead of reaching the route unparsed and being
+  refused for a field it never had; a malformed body under `application/json` keeps its 400 and
+  gains the bench's own wording in place of the parser's V8 message. The **`angular.json` tier**
+  requires the repo's own `node_modules/.bin/ng` and passes `--no-install`, rather than letting
+  `npx` download `ng` from the registry and run it on nothing but the presence of a config file;
+  a repo with the config and not the tool declines the tier and says there is nothing to start.
+  **EPERM stops borrowing ENOENT's words** — a path you may not traverse said "no such path",
+  which sends a reader hunting for a typo in a path that is right there; ELOOP and ENOTDIR got
+  their own sentences with it. And three corrections in words only: the plate-bridge race
+  comment (the listener is attached, holding the previous commit's null `plateOrigin` — it is
+  not missing), a `target/route.test.ts` title that said the opposite of its body, and the claim
+  that an NTFS junction can point at a UNC share (it cannot — `mklink /J` refuses one; the
+  threat is a directory symlink).
+
 The 0.2.0 desk retest, round 2 (issues #66 #67 #68 #69) — what Matter's second drive of the
 published package found, one PR each.
 
