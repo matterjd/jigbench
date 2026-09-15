@@ -28,6 +28,48 @@ Jig runs locally. A few things are worth knowing if you are looking for security
   contacted — otherwise a rebound page would reach your running app through Jig, and the
   proxy's own `Host` rewrite would hide the attacker's name from the dev server's check too.
   Paths handed to the folder browser or to clamp are refused when they name a UNC share.
+
+- **A page on another site can still make Jig run a `GET`. It cannot read the answer, and it
+  cannot write.** This is the limit of the rule above, and it is worth stating plainly rather
+  than leaving to be inferred.
+
+  A browser sends no `Origin` header at all on a request it does not consider a fetch: an
+  `<img src>`, a `<script src>`, a `<link>`, an `<iframe>`, or a plain navigation. Such a
+  request from `https://evil.example` to `http://localhost:4600/api/state` carries
+  `Host: localhost:4600` — the bench's own name, because that is the URL that was used — and no
+  `Origin`. Both halves of the gate pass, and **the request runs.** Jig allows an absent
+  `Origin` on purpose: `curl`, an MCP client and the CLI itself never send one, and a local
+  bench that refused them would be a bench no local tool could talk to.
+
+  So assume any foreign page you have open can cause **any** `/api` `GET` to execute:
+  `/api/state` (the survey, the gauges, the wiring, the target's state), `/api/docs` (the
+  clamped docs index), `/api/prompts` and a build's transcript, `/api/sketches`,
+  `/api/fixtures`, `/api/toolpaths`, `/api/setup` (which also runs dev-script detection),
+  `/api/drafter` (which probes your local Ollama and records whether it answered), and
+  `/api/fs/roots` + `/api/fs/list` (folder names anywhere on the disk).
+
+  What such a page **cannot** do:
+
+  - **Read any of it.** The browser gives the response to the tag that asked, not to the page's
+    script: an `<img>` cannot parse JSON, and an `<iframe>`'s content is behind the same-origin
+    policy. The one API that *would* hand a page the body — `fetch`/`XHR` — sends an `Origin`,
+    and a foreign `Origin` is refused with 403 on every method, `GET` included. The request is
+    blind.
+  - **Write anything.** Every state-changing route is a `POST`, `PUT` or `DELETE`, and the only
+    way a page issues one cross-origin without JavaScript is an HTML `<form>` — which cannot set
+    `Content-Type: application/json`, the only type the bench parses, and which current browsers
+    send an `Origin` with anyway. Nothing that changes a file, clamps a repo, starts the target
+    or runs `claude -p` is reachable from a foreign page.
+  - **Rebind DNS.** A name the attacker controls is refused by the Host check before `Origin` is
+    even read; that is the case the allowlist exists for, and it is a different one from this.
+
+  What it costs is therefore the **work**, not the data: a folder walk, a detection run, a docs
+  read, an Ollama probe. That is inherent to a local HTTP server that must also answer
+  non-browser clients on the same port. One of those GETs leaves a trace, and it is in-memory
+  and self-correcting: `/api/drafter` sets the drafter-wiring status from what its probe just
+  observed. Nothing under `/api` writes a file, clamps a repo, starts
+  the target or runs an agent on a `GET` — that is the line, and a route that ever needed to
+  would need a method other than `GET` instead.
 - **The MCP server is stdio-only and local.** Jig does not expose MCP over a network transport. An
   agent talks to it over stdio, on the machine that launched it.
 - **Writes are confined to `.jig/` in the clamped repo.** Jig never writes outside the repo it is
