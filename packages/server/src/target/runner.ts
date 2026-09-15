@@ -117,8 +117,18 @@ async function killTree(pid: number): Promise<void> {
   }
 }
 
+/** #81 item 6: how long `stop()` will wait for a killed child's `close` before giving up and
+ * saying so. `close` needs the process reaped AND its stdio streams ended, and a grandchild that
+ * escaped the kill and inherited those pipes can hold the second half open forever — so the wait
+ * is bounded. Five seconds is far past any real teardown (the whole kill escalation is 300 ms)
+ * and short enough that an unclamp never looks hung. */
+const STOP_EXIT_TIMEOUT_MS = 5_000;
+
 export class TargetRunner implements TargetRunnerLike {
   private child: ChildProcess | null = null;
+  /** Resolves on this child's `close` (or `error`) — the same promise `start()` races, kept on
+   * the instance so `stop()` can wait for the exit it just asked for (#81). */
+  private childExited: Promise<unknown> | null = null;
   private state: TargetState = { status: 'none' };
   private ring: string[] = [];
   private readonly ringBufferSize: number;
@@ -192,9 +202,13 @@ export class TargetRunner implements TargetRunnerLike {
     void exited.then(({ code }) => {
       if (this.child === child) {
         this.child = null;
+        this.childExited = null;
         this.setState({ status: 'down', exitCode: code });
       }
     });
+    // #81: `stop()` needs this same promise. It is assigned after the handler above so the two
+    // can never disagree about which child they belong to.
+    this.childExited = exited;
 
     const url = `http://localhost:${input.port}`;
     let probing = true;
@@ -244,20 +258,61 @@ export class TargetRunner implements TargetRunnerLike {
     this.setState({ status: 'up', url });
   }
 
-  /** Kills the process THIS runner started, by its PID tree — a no-op (never an error) when
-   * nothing is running or the target came from `setUrl()`. */
+  /**
+   * Kills the process THIS runner started, by its PID tree — a no-op (never an error) when
+   * nothing is running or the target came from `setUrl()`.
+   *
+   * #81 item 6: and does not resolve until that process is actually gone. `killTree` answers
+   * when the KILLER is done — `taskkill` exiting on Windows, `process.kill(-pid, 'SIGKILL')`
+   * returning on POSIX — which is not the same instant the target dies. `stop()` used to return
+   * there, so a caller that took the resolution to mean "finished with this child" was wrong
+   * twice: the OS could still be holding the target's working directory (the EBUSY on
+   * windows-latest that #78 wrapped a teardown retry around rather than fixed), and this runner
+   * could still be draining the target's stdout into `onLog` afterwards.
+   *
+   * Waiting on the child's own `close` covers both — it fires once the process is reaped and its
+   * streams have ended — under a bounded wait, because a grandchild that escaped the kill and
+   * inherited those pipes can hold them open indefinitely. A wait that runs out is logged and
+   * `stop()` returns anyway: this call's job is to leave the runner restartable, and refusing to
+   * finish would be the worse failure.
+   */
   async stop(): Promise<void> {
     const child = this.child;
+    const exited = this.childExited;
+    this.child = null;
+    this.childExited = null;
     if (!child || child.pid === undefined) {
       this.setState({ status: 'none' });
       return;
     }
-    this.child = null;
     try {
       await killTree(child.pid);
     } catch (err) {
       logger.warn('target runner: killTree failed', String(err));
     }
+    await this.awaitExit(child, exited);
     this.setState({ status: 'none' });
+  }
+
+  /** #81: waits out the child's `close`, bounded. Returns immediately when Node has already
+   * reaped it — `exitCode`/`signalCode` are both null only while it is still running, and after
+   * that `close` may already have fired, so waiting on the event alone could hang forever. */
+  private async awaitExit(child: ChildProcess, exited: Promise<unknown> | null): Promise<void> {
+    if (child.exitCode !== null || child.signalCode !== null) return;
+    const closed =
+      exited ??
+      new Promise<void>((resolve) => {
+        child.once('close', () => resolve());
+        child.once('error', () => resolve());
+      });
+    const outcome = await Promise.race([
+      closed.then(() => 'exited' as const),
+      sleep(STOP_EXIT_TIMEOUT_MS).then(() => 'timeout' as const),
+    ]);
+    if (outcome === 'timeout') {
+      logger.warn(
+        `target runner: pid ${child.pid} had not exited ${STOP_EXIT_TIMEOUT_MS}ms after killTree; giving up the wait`,
+      );
+    }
   }
 }
