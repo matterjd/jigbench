@@ -6,10 +6,15 @@ import { isUncPath, UNC_REFUSED_MESSAGE } from './unc-path.js';
  * #37: the one place a caller-supplied path is turned into something Jig is willing to touch.
  *
  * #18 refused a UNC path by its SPELLING, on the raw string, before `path.resolve` — the right
- * check, and the same answer on every OS. But spelling is all it ever saw: a symlink (or an NTFS
- * junction) inside the home, pointing at `\\attacker\share`, is spelled like any other local
- * path, and the `stat` that came next follows it — which on Windows is the SMB connection the
- * guard exists to prevent, made on a caller's say-so after the guard said yes. Both call sites
+ * check, and the same answer on every OS. But spelling is all it ever saw: a directory SYMLINK
+ * inside the home, pointing at `\\attacker\share`, is spelled like any other local path, and the
+ * `stat` that came next follows it — which on Windows is the SMB connection the guard exists to
+ * prevent, made on a caller's say-so after the guard said yes.
+ *
+ * #81: a symlink, specifically — NOT a junction, which these comments used to offer as the
+ * alternative. A directory junction stores a substitute name that must be a local volume path;
+ * `mklink /J` refuses a UNC target outright. `mklink /D` does not, so the directory symbolic
+ * link is the whole of the threat on Windows and the only shape worth naming. Both call sites
  * had the same shape: `resolve()`, then `stat()`, with nothing in between that could see where
  * the path really went.
  *
@@ -36,9 +41,9 @@ export interface CheckedLocalPath {
 export type LocalPathCheck = ({ ok: true } & CheckedLocalPath) | { ok: false; error: string };
 
 export interface CheckLocalPathDeps {
-  /** Test-only override — the win32 shapes that make this matter (a junction onto a UNC share)
-   * cannot be planted on either CI leg without actually opening an SMB connection, so the rule
-   * is proved against an injected answer instead. Production passes nothing. */
+  /** Test-only override — the win32 shape that makes this matter (a directory symlink onto a
+   * UNC share) cannot be planted on either CI leg without actually opening an SMB connection, so
+   * the rule is proved against an injected answer instead. Production passes nothing. */
   realpath?: (path: string) => Promise<string>;
 }
 

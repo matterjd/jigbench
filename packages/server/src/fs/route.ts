@@ -92,9 +92,10 @@ export interface FsRouteOptions {
   /** The `--host` the server was bound to, when any — #18: the gate below accepts it as a
    * Host alongside the loopback names. Omitted: loopback only. */
   host?: string;
-  /** Test-only override, forwarded to `checkLocalPath` (#37) — a junction onto a UNC share
-   * cannot be planted on a CI runner without opening the SMB connection the guard exists to
-   * prevent, so the rule is proved against an injected answer. Production passes nothing. */
+  /** Test-only override, forwarded to `checkLocalPath` (#37) — a directory symlink onto a UNC
+   * share cannot be planted on a CI runner without opening the SMB connection the guard exists
+   * to prevent, so the rule is proved against an injected answer. Production passes nothing.
+   * (#81: a symlink, not a junction — `mklink /J` cannot target a UNC path at all.) */
   realpath?: (path: string) => Promise<string>;
 }
 
@@ -129,8 +130,8 @@ export function attachFsRoute(app: Express, options: FsRouteOptions = {}): void 
 
       // #18: a UNC value would make Windows open an SMB connection to the named host on the
       // `stat` below — refused by its spelling, before any filesystem call. #37: and again on
-      // what the path REALLY is, because a symlink or NTFS junction onto a UNC share is spelled
-      // like any other local path and the stat would follow it. `checkLocalPath` does both, plus
+      // what the path REALLY is, because a directory symlink onto a UNC share is spelled like
+      // any other local path and the stat would follow it. `checkLocalPath` does both, plus
       // the existence check (by `realpath`, which follows nothing further than the guard does).
       //
       // `resolved` there is `path.resolve(raw)`: `..`/`.` segments collapsed against

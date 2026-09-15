@@ -7,7 +7,7 @@ import { checkLocalPath } from './local-path.js';
 
 /**
  * #37: the rule both the folder browser and clamp go through. The shape that makes it matter —
- * a symlink or NTFS junction inside the home pointing at `\\attacker\share` — cannot be planted
+ * a directory symlink inside the home pointing at `\\attacker\share` — cannot be planted
  * for real on either CI leg without opening the very SMB connection the guard exists to prevent,
  * so the realpath answer is injected for that half. The link-following half is planted for real.
  */

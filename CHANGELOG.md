@@ -83,7 +83,7 @@ PR each.
   charset is win32-only and the rule takes the platform as a parameter, so both branches are
   proved on whichever CI leg runs.
 - **the UNC refusal judges what a path really is, not only how it is spelled** — #18 refused
-  `\\host\share` by its spelling, and a symlink (or NTFS junction) inside the home pointing at
+  `\\host\share` by its spelling, and a directory symlink inside the home pointing at
   `\\attacker\share` is spelled like any other local path: the `stat` that came next followed it,
   which on Windows is the SMB connection the guard exists to prevent, made after the guard said
   yes. The folder browser and clamp now share one rule (`fs/local-path.ts`) — refuse the spelling,
