@@ -1,5 +1,6 @@
 # 03b · S20b · issue #81, hardening round 2
 **Tier** amber (five items sit on the path guards) · **Depends on** S20 · **Expected PRs** 8 · **Roadmap row** S20b
+*Desk session? Swap the seat line per README § Desk sessions.*
 
 ----8<---- paste from here ----8<----
 Open as the DELIVERY SEAT for matterjd/jigbench. You are a REMOTE session: no Browser pane, no

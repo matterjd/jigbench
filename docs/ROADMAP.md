@@ -11,6 +11,12 @@ ready to paste into a new cloud session; read its README first. **Tier:** `green
 its own PR once both CI legs are green at the PR head; `amber` the PR waits for the lead; `ruling`
 Matter decides first. **Size:** `S` one sitting, `M` a session, `L` a session and a fix pass.
 
+**Two lanes, one writer.** A row is picked up on the desk, launched from command-center's launcher,
+or in the cloud, by pasting the row's prompt file into a new session. Both lanes read the same file
+and differ only in its first paragraph, the seat line (`docs/team/cloud/README.md` § Desk sessions).
+Only one writer works a repo at a time: never a desk session and a cloud session on `jigbench` at
+once.
+
 ## 0 · Release 0.2.0
 
 ### R0 · release 0.2.0 · Matter's hands only · SHIPPED 2026-09-08 19:09 CDT (jigbench@0.2.0 on npm, tag v0.2.0 → a34fd89, GitHub release with the tarball)

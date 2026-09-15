@@ -1,5 +1,6 @@
 # 04 · S21 · issue #23, the three rulings
 **Tier** ruling (Matter answers first) · **Depends on** R0 · **Expected PRs** 0 on the first run, then 1 per ruling · **Roadmap row** S21
+*Desk session? Swap the seat line per README § Desk sessions.*
 
 ----8<---- paste from here ----8<----
 Open as the DELIVERY SEAT for matterjd/jigbench. You are a REMOTE session: no Browser pane, no

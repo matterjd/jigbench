@@ -1,5 +1,6 @@
 # 05 · S22 · the React, Next and Vite adapter
 **Tier** amber (a new package and a new boundary) · **Depends on** R0 · **Expected PRs** 1, or 2 if you split the survey from the gauges · **Roadmap row** S22
+*Desk session? Swap the seat line per README § Desk sessions.*
 
 ----8<---- paste from here ----8<----
 Open as the DELIVERY SEAT for matterjd/jigbench. You are a REMOTE session: no Browser pane, no

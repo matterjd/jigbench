@@ -1,5 +1,6 @@
 # 02 · S19 · issue #24, the small fixes
 **Tier** green (merge on green CI) · **Depends on** R0 · **Expected PRs** 11 to 12, one per item · **Roadmap row** S19
+*Desk session? Swap the seat line per README § Desk sessions.*
 
 ----8<---- paste from here ----8<----
 Open as the DELIVERY SEAT for matterjd/jigbench. You are a REMOTE session: no Browser pane, no

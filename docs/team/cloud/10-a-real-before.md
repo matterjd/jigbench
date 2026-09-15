@@ -1,5 +1,6 @@
 # 10 · S27 · a real before for a built Prompt
 **Tier** amber (the lead reviews before merge) · **Depends on** S21 ruling 3 · **Expected PRs** 1 to 2 · **Roadmap row** S27
+*Desk session? Swap the seat line per README § Desk sessions.*
 
 ----8<---- paste from here ----8<----
 Open as the DELIVERY SEAT for matterjd/jigbench. You are a REMOTE session: no Browser pane, no

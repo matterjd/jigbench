@@ -1,5 +1,6 @@
 # 01 · S18 · what the 0.2.0 retest files
 **Tier** amber (the lead reviews before merge) · **Depends on** R0 · **Expected PRs** one per item the retest filed · **Roadmap row** S18
+*Desk session? Swap the seat line per README § Desk sessions.*
 
 ----8<---- paste from here ----8<----
 Open as the DELIVERY SEAT for matterjd/jigbench. You are a REMOTE session: no Browser pane, no

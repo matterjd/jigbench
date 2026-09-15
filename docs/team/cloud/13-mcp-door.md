@@ -1,5 +1,6 @@
 # 13 · S30 · the MCP door for Claude Desktop
 **Tier** amber (the live half is the desk's) · **Depends on** R0 · **Expected PRs** 1 to 2 · **Roadmap row** S30
+*Desk session? Swap the seat line per README § Desk sessions.*
 
 ----8<---- paste from here ----8<----
 Open as the DELIVERY SEAT for matterjd/jigbench. You are a REMOTE session: no Browser pane, no

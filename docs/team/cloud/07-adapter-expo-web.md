@@ -1,5 +1,6 @@
 # 07 · S24 · Expo web
 **Tier** green (merge on green CI) · **Depends on** S22 (the React resolver) · **Expected PRs** 1 · **Roadmap row** S24
+*Desk session? Swap the seat line per README § Desk sessions.*
 
 ----8<---- paste from here ----8<----
 Open as the DELIVERY SEAT for matterjd/jigbench. You are a REMOTE session: no Browser pane, no

@@ -1,5 +1,6 @@
 # 12 · S29 · refine and build again
 **Tier** amber (the lead reviews before merge) · **Depends on** S28 · **Expected PRs** 2 to 3 · **Roadmap row** S29
+*Desk session? Swap the seat line per README § Desk sessions.*
 
 ----8<---- paste from here ----8<----
 Open as the DELIVERY SEAT for matterjd/jigbench. You are a REMOTE session: no Browser pane, no

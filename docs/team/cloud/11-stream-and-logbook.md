@@ -1,5 +1,6 @@
 # 11 · S28 · the build stream and the logbook
 **Tier** green (merge on green CI) · **Depends on** R0 · **Expected PRs** 2, the status line then the drawer · **Roadmap row** S28
+*Desk session? Swap the seat line per README § Desk sessions.*
 
 ----8<---- paste from here ----8<----
 Open as the DELIVERY SEAT for matterjd/jigbench. You are a REMOTE session: no Browser pane, no
