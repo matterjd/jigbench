@@ -6,6 +6,18 @@ semantic versioning strictly (pre-1.0).
 
 ## [Unreleased]
 
+Issue #81 — hardening round 2, the follow-ups the S20 review left, one PR each.
+
+- **the folder browser probes each child through the spelling the guard checked** — the listing
+  read what `checkLocalPath` cleared (`readdir`, and #24's `attrib`) and then handed
+  `describeEntry` the caller's own spelling, which probed `.git`, `package.json`, `angular.json`,
+  `docs` and `*.csproj` through THAT: a second, unchecked traversal of the same link, made after
+  the guard had finished. A root re-pointed in between was simply followed with nothing looking
+  again, and the flags then described a different directory than the names beside them came
+  from. `describeEntry` now takes both spellings — the real one for every filesystem call, the
+  caller's for the one thing it is for, the `path` each entry reads back as — so `entries[].path`
+  is unchanged and nothing is probed through a spelling the guard did not see.
+
 The 0.2.0 desk retest, round 2 (issues #66 #67 #68 #69) — what Matter's second drive of the
 published package found, one PR each.
 
