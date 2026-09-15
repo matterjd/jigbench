@@ -42,6 +42,37 @@ export interface CheckLocalPathDeps {
   realpath?: (path: string) => Promise<string>;
 }
 
+/**
+ * #81: what a failed `realpath` actually means, in the caller's own spelling.
+ *
+ * `stat` used to do this job and the guard inherited its one sentence — `no such path` — for
+ * every failure. Three of them are not that, and each sends a reader somewhere different:
+ *
+ *   - EACCES / EPERM — the path is there and this process may not traverse it. A mode-700
+ *     directory owned by someone else, or a Windows ACL. Telling the human it does not exist is
+ *     the least useful thing that could be said about it.
+ *   - ELOOP — a symlink cycle. The path is there; following it does not terminate.
+ *   - ENOTDIR — something in the middle of the path is a file.
+ *
+ * ENOENT keeps the original words, and so does an error carrying no recognisable code: the
+ * common case must not be renamed on the way past, and a failure nobody anticipated is better
+ * described by the oldest true sentence than by a guess.
+ */
+function realpathFailureMessage(err: unknown, resolved: string): string {
+  const code = typeof err === 'object' && err !== null ? (err as { code?: unknown }).code : undefined;
+  switch (code) {
+    case 'EACCES':
+    case 'EPERM':
+      return `cannot read that path — permission denied: ${resolved}`;
+    case 'ELOOP':
+      return `too many symbolic links to follow: ${resolved}`;
+    case 'ENOTDIR':
+      return `a component of that path is not a directory: ${resolved}`;
+    default:
+      return `no such path: ${resolved}`;
+  }
+}
+
 export async function checkLocalPath(raw: string, deps: CheckLocalPathDeps = {}): Promise<LocalPathCheck> {
   // #18, unchanged: judged on the RAW string, before `resolve` turns `//host/share` into a plain
   // `/host/share` on POSIX and hides it.
@@ -53,10 +84,11 @@ export async function checkLocalPath(raw: string, deps: CheckLocalPathDeps = {})
   let real: string;
   try {
     real = await realpath(resolved);
-  } catch {
-    // `realpath` fails for exactly the reasons `stat` used to: nothing there, a broken link, a
-    // symlink loop, a component that is not a directory. Same words as before.
-    return { ok: false, error: `no such path: ${resolved}` };
+  } catch (err) {
+    // #81: `realpath` fails for more reasons than "nothing there", and every one of them used to
+    // get ENOENT's words. A directory the user cannot traverse was reported as `no such path`,
+    // which sends the human looking for a typo in a path that is right in front of them.
+    return { ok: false, error: realpathFailureMessage(err, resolved) };
   }
 
   if (isUncPath(real)) return { ok: false, error: UNC_REFUSED_MESSAGE };

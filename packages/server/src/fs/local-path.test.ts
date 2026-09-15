@@ -85,6 +85,67 @@ describe('checkLocalPath', () => {
     expect(result.real).toBe(await realpath(target));
   });
 
+  // #81: `realpath` fails for more reasons than "nothing there", and the guard gave every one of
+  // them ENOENT's words. A directory the user cannot traverse (EACCES/EPERM — a mode-700 folder
+  // owned by someone else, a Windows ACL) was reported as `no such path`, which sends the human
+  // looking for a typo in a path that is right there. A symlink loop (ELOOP) and a component
+  // that is not a directory (ENOTDIR) are the same class: real, findable, mis-described.
+  //
+  // The errno is injected because planting a real unreadable directory is not portable — on a
+  // CI runner the tests often run as root, for whom mode 000 is no obstacle at all, so a
+  // planted case would silently pass for the wrong reason on one leg and not the other.
+  it('#81: an unreadable path says so, rather than borrowing ENOENT\'s words', async () => {
+    const dir = await freshDir();
+    for (const code of ['EACCES', 'EPERM']) {
+      const result = await checkLocalPath(dir, {
+        realpath: async () => {
+          throw Object.assign(new Error(`${code}: permission denied, lstat`), { code });
+        },
+      });
+      expect(result.ok, code).toBe(false);
+      if (!result.ok) {
+        expect(result.error, code).toBe(`cannot read that path — permission denied: ${dir}`);
+        expect(result.error, code).not.toMatch(/no such path/);
+      }
+    }
+  });
+
+  it('#81: a symlink loop and a non-directory component each say what they are', async () => {
+    const dir = await freshDir();
+    const cases: Array<[string, RegExp]> = [
+      ['ELOOP', /too many symbolic links/i],
+      ['ENOTDIR', /not a directory/i],
+    ];
+    for (const [code, words] of cases) {
+      const result = await checkLocalPath(dir, {
+        realpath: async () => {
+          throw Object.assign(new Error(`${code}: something, lstat`), { code });
+        },
+      });
+      expect(result.ok, code).toBe(false);
+      if (!result.ok) {
+        expect(result.error, code).toMatch(words);
+        expect(result.error, code).not.toMatch(/no such path/);
+      }
+    }
+  });
+
+  // The detector control: ENOENT keeps the words it has always had, and so does an error with
+  // no recognisable code at all — a guard that renamed the common case would be worse than the
+  // defect it fixes.
+  it('#81: ENOENT keeps its own words, and an unrecognised failure falls back to them', async () => {
+    const dir = await freshDir();
+    for (const thrown of [Object.assign(new Error('ENOENT'), { code: 'ENOENT' }), new Error('something else'), 'a string']) {
+      const result = await checkLocalPath(dir, {
+        realpath: async () => {
+          throw thrown;
+        },
+      });
+      expect(result.ok).toBe(false);
+      if (!result.ok) expect(result.error).toBe(`no such path: ${dir}`);
+    }
+  });
+
   it('a path that is not there reads as "no such path", naming the resolved spelling', async () => {
     const missing = join(await freshDir(), 'nope-not-here');
     const result = await checkLocalPath(missing);
