@@ -1,9 +1,19 @@
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import express, { type Express } from 'express';
 import { createServer as createHttpServer, type Server as HttpServer } from 'node:http';
 import { mkdtemp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+// #81 item 1: the spy that proves `clampDocs` is never REACHED for a refused folder — not
+// merely that it wrote nothing. The real implementation is kept behind it so every other test
+// in this file still clamps for real.
+vi.mock('../docs/clamp.js', async (importOriginal) => {
+  const real = await importOriginal<typeof import('../docs/clamp.js')>();
+  return { ...real, clampDocs: vi.fn(real.clampDocs) };
+});
+
+import { clampDocs } from '../docs/clamp.js';
+import { UNC_REFUSED_MESSAGE } from '../fs/unc-path.js';
 import type { BuildOutcome, BuildRunnerLike, ClaudeStatus, StartBuildInput } from '../build/types.js';
 import { createBench, type Bench } from '../bench/bench.js';
 import type { TargetState } from '../target/runner.js';
@@ -54,6 +64,8 @@ async function boot(opts: {
   bench?: Bench | null;
   targetState?: TargetState;
   desktopConfigPath?: string;
+  /** #81 item 1 — the same test-only seam `FsRouteOptions` carries. */
+  realpath?: (path: string) => Promise<string>;
 }): Promise<{ app: Express; url: string }> {
   const app = express();
   app.use(express.json());
@@ -61,6 +73,7 @@ async function boot(opts: {
     getBench: () => opts.bench ?? null,
     getTargetState: () => opts.targetState ?? { status: 'none' },
     getDesktopConfigPath: () => opts.desktopConfigPath,
+    realpath: opts.realpath,
   });
   server = createHttpServer(app);
   await new Promise<void>((resolve) => server!.listen(0, '127.0.0.1', resolve));
@@ -241,5 +254,54 @@ describe('POST /api/docs/clamp', () => {
     expect(body.files).toBeGreaterThan(0);
 
     expect(bench.store.getState().wiring.docs).toBe('wired');
+  });
+
+  // #81 item 1 (the S20 review's first follow-up): this route refused only the UNC SPELLING
+  // (`setup/route.ts:179`), which is where `/api/fs/list` and `/api/clamp` were before #37. A
+  // symlink or NTFS junction inside the home pointing at `\\attacker\share` is spelled like any
+  // other local path, so it carried the share straight past that check and `clampDocs` walked
+  // it — `stat` and then `readdir`, every one of them the SMB connection the guard exists to
+  // prevent. Planting the win32 shape for real would make that connection on a CI runner, so
+  // the realpath answer is injected here, exactly as `fs/route.test.ts` does for the browser.
+  it('#81: 400s a locally-spelled folder whose real target is a UNC share, and never reaches clampDocs', async () => {
+    const repoRoot = await freshRepo();
+    const docsFolder = join(repoRoot, 'my-docs');
+    await mkdir(docsFolder, { recursive: true });
+    await writeFile(join(docsFolder, 'guide.md'), '# Guide\n\nSome content here.', 'utf8');
+
+    bench = await createBench(repoRoot, { benchOrigin: 'http://localhost:0', runner: new FakeBuildRunner() });
+    vi.mocked(clampDocs).mockClear();
+    const { url } = await boot({ bench, realpath: async () => '\\\\attacker.example\\share\\loot' });
+
+    const res = await fetch(`${url}/api/docs/clamp`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ folder: docsFolder }),
+    });
+
+    expect(res.status).toBe(400);
+    expect((await res.json()).error).toBe(UNC_REFUSED_MESSAGE);
+    expect(clampDocs).not.toHaveBeenCalled();
+    expect(bench.store.getState().wiring.docs).not.toBe('wired');
+  });
+
+  // The acceptance for #81 item 1: one input, three routes, one refusal in one wording. The
+  // other two pin the same constant in `fs/route.test.ts` and `bench/validate-clamp-path.test.ts`.
+  it('#18/#81: still 400s a raw UNC spelling, in the words the other two routes use', async () => {
+    const repoRoot = await freshRepo();
+    bench = await createBench(repoRoot, { benchOrigin: 'http://localhost:0', runner: new FakeBuildRunner() });
+    vi.mocked(clampDocs).mockClear();
+    const { url } = await boot({ bench });
+
+    for (const unc of ['\\\\evil.example\\share', '//evil.example/share']) {
+      const res = await fetch(`${url}/api/docs/clamp`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ folder: unc }),
+      });
+      expect(res.status, unc).toBe(400);
+      expect((await res.json()).error, unc).toBe(UNC_REFUSED_MESSAGE);
+    }
+    expect(clampDocs).not.toHaveBeenCalled();
   });
 });

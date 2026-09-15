@@ -6,6 +6,18 @@ semantic versioning strictly (pre-1.0).
 
 ## [Unreleased]
 
+Issue #81 — hardening round 2, the follow-ups the S20 review left, one PR each.
+
+- **`POST /api/docs/clamp` meets the same local-path guard as the other two routes** — it
+  refused the UNC SPELLING and nothing else, which is where `/api/fs/list` and `/api/clamp` both
+  were before #37: a symlink or NTFS junction inside the home pointing at `\\attacker\share` is
+  spelled like any other local path, so it carried the share straight past that check and
+  `clampDocs` walked it — a `stat`, then a `readdir` of every directory under it, each one the
+  SMB connection the guard exists to prevent. The route calls `checkLocalPath` before any read
+  now, and hands `clampDocs` the spelling the guard cleared, so nothing can be re-pointed
+  between the check and the walk. The three routes answer one input with one refusal in one
+  wording.
+
 The 0.2.0 desk retest, round 2 (issues #66 #67 #68 #69) — what Matter's second drive of the
 published package found, one PR each.
 
