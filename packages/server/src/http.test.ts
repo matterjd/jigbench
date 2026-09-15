@@ -438,6 +438,68 @@ async function waitUntilOrderLeavesState(url: string, id: string, awayFrom: stri
   }
 }
 
+// #81 item 8 (a #70 suggestion the S20 review carried): `express.json({limit:'64kb'})` parses
+// exactly `application/json`, and two different failures used to come out of that badly.
+describe("#81: a body that is not JSON", () => {
+  it('415s, in the bench\'s own words, when the body is sent under some other media type', async () => {
+    const { url } = await freshServer();
+    // A body-parser that does not recognise the type simply does not parse: `req.body` stayed
+    // empty and the request reached the route, which refused it for a missing field. A
+    // perfectly well-formed form submission was told `target is required`.
+    const res = await fetch(`${url}/api/marks`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/x-www-form-urlencoded', origin: url },
+      body: 'target=body+%3E+invoice-list&prompt=hello',
+    });
+    expect(res.status).toBe(415);
+    expect((await res.json()).error).toMatch(/not JSON.*application\/json/i);
+  });
+
+  it('415s for text/plain too — the type is the thing, not the payload', async () => {
+    const { url } = await freshServer();
+    const res = await fetch(`${url}/api/marks`, {
+      method: 'POST',
+      headers: { 'content-type': 'text/plain', origin: url },
+      // Valid JSON, wrong type: still 415, because the bench never read it.
+      body: JSON.stringify({ target: { path: 'x', component: 'X' }, prompt: 'hello' }),
+    });
+    expect(res.status).toBe(415);
+  });
+
+  it('400s a malformed body under application/json — with the bench\'s sentence, not the parser\'s', async () => {
+    const { url } = await freshServer();
+    const res = await fetch(`${url}/api/marks`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', origin: url },
+      body: 'not json at all{{{',
+    });
+    // 400, not 415: the media type WAS supported — the syntax was not. What changes is the
+    // wording, which used to be V8's ("Unexpected token 'o', ... is not valid JSON") reaching
+    // the wire through body-parser.
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.error).toMatch(/not valid JSON/i);
+    expect(body.error).not.toMatch(/Unexpected token/i);
+  });
+
+  // Two detector controls: neither rule may cost an ordinary request.
+  it('leaves a POST with no body at all alone — that is ordinary here', async () => {
+    const { url } = await freshServer();
+    const res = await fetch(`${url}/api/target/start`, { method: 'POST', headers: { origin: url } });
+    expect(res.status).not.toBe(415);
+  });
+
+  it('leaves a proper JSON body alone', async () => {
+    const { url } = await freshServer();
+    const res = await fetch(`${url}/api/marks`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json; charset=utf-8', origin: url },
+      body: JSON.stringify({ target: { path: 'body > invoice-list', component: 'InvoiceListComponent' }, prompt: 'hello' }),
+    });
+    expect(res.status).toBe(201);
+  });
+});
+
 describe('POST /api/marks', () => {
   it('creates a mark and a marked work order, then broadcasts state over WS for the mark and (seam 2) the auto-draft that follows', async () => {
     const { url } = await freshServer();
