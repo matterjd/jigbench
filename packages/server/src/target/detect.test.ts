@@ -126,21 +126,63 @@ describe('detectDevScript', () => {
     expect(result?.source).toBe('package.json');
   });
 
-  it('falls back to `npx ng serve --port <n>` when angular.json exists but no npm script does', async () => {
+  // #81: `npx ng serve` fetches `ng` FROM THE REGISTRY when the repo has no local install —
+  // a network download and then an execution, on nothing but the presence of an `angular.json`.
+  // The tier now requires the repo's own `node_modules/.bin/ng` (planted here) and passes
+  // `--no-install` so npx can never reach the registry even if the two disagree. The assertion
+  // that used to stand here expected no `--no-install` and no local binary at all.
+  async function plantLocalNg(repoRoot: string): Promise<void> {
+    const bin = join(repoRoot, 'node_modules', '.bin');
+    await mkdir(bin, { recursive: true });
+    // Both spellings, so the case runs identically on either CI leg: npm writes `ng` and
+    // `ng.cmd` side by side on Windows.
+    await writeFile(join(bin, 'ng'), '#!/usr/bin/env node\n', 'utf8');
+    await writeFile(join(bin, 'ng.cmd'), '@echo off\n', 'utf8');
+  }
+
+  it('falls back to `npx --no-install ng serve --port <n>` when angular.json exists, no npm script does, and ng is installed locally', async () => {
     const repoRoot = await freshDir();
-    await mkdir(repoRoot, { recursive: true });
     await writeFile(
       join(repoRoot, 'angular.json'),
       JSON.stringify({ defaultProject: 'app', projects: { app: {} } }),
       'utf8',
     );
+    await plantLocalNg(repoRoot);
+
     const result = detectDevScript(repoRoot);
     expect(result).toEqual({
-      ...expectedInvocation('npx', ['ng', 'serve', '--port', '4200']),
+      ...expectedInvocation('npx', ['--no-install', 'ng', 'serve', '--port', '4200']),
       cwd: repoRoot,
       port: 4200,
       source: 'angular.json',
     });
+  });
+
+  it('#81: declines the angular.json tier when the repo has no local ng — rather than fetching one from the registry', async () => {
+    const repoRoot = await freshDir();
+    await writeFile(
+      join(repoRoot, 'angular.json'),
+      JSON.stringify({ defaultProject: 'app', projects: { app: { architect: { serve: { options: { port: 4300 } } } } } }),
+      'utf8',
+    );
+    // No node_modules/.bin/ng anywhere. `npx ng serve` would have DOWNLOADED `ng` from the
+    // registry here and run it, on nothing but the presence of an angular.json in a folder the
+    // human pointed at. The honest answer is the one the module already has words for: nothing
+    // to start, so the checklist asks for a URL instead.
+    expect(detectDevScript(repoRoot)).toBeNull();
+  });
+
+  it('#81: a package.json script still wins, local ng or not — only the bare angular.json tier is gated', async () => {
+    const repoRoot = await freshDir();
+    await writeFile(join(repoRoot, 'package.json'), JSON.stringify({ scripts: { start: 'ng serve' } }), 'utf8');
+    await writeFile(
+      join(repoRoot, 'angular.json'),
+      JSON.stringify({ defaultProject: 'app', projects: { app: { architect: { serve: { options: { port: 4300 } } } } } }),
+      'utf8',
+    );
+    const result = detectDevScript(repoRoot);
+    expect(result?.source).toBe('package.json');
+    expect(result?.port).toBe(4300); // still reads the real configured port
   });
 });
 

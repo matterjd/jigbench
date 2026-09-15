@@ -13,8 +13,11 @@ import type { DetectedTargetSummary } from '@jigbench/core';
  *      `{script}` on `POST /api/target/start` — so no adapter's output can name a command.
  *   2. `package.json`'s own `start`/`dev`/`serve` script, in that priority order — whichever
  *      is defined first wins; a repo commonly has more than one.
- *   3. `angular.json` alone, with no npm script found at all — `npx ng serve --port <n>`
- *      directly.
+ *   3. `angular.json` alone, with no npm script found at all — `npx --no-install ng serve
+ *      --port <n>` directly, and ONLY when the repo has its own `node_modules/.bin/ng` (#81:
+ *      without that guard `npx` downloads `ng` from the registry and runs it, on nothing but
+ *      the presence of an `angular.json`). A repo that has the config and not the tool declines
+ *      the tier and answers `null` — "nothing to start" — rather than fetching one.
  * Every tier ALSO tries to read a real port out of `angular.json` (the same config
  * `packages/cli/src/commands/serve.ts`'s own `detectTarget` reads) — even when the command
  * came from a package.json script — since `ng serve` (whichever way it's invoked) binds to
@@ -112,6 +115,19 @@ const WIN32_RUNNABLE_SCRIPT_NAME = /^[A-Za-z0-9._:-]+$/;
  * clone wrote there. 214 is far past `npm run`'s practical ceiling and well under every
  * platform's argument limit — a cap that no real script name can notice. */
 const MAX_SCRIPT_NAME_LENGTH = 214;
+
+/**
+ * #81: the repo's OWN `ng`, when it has one. `npx ng serve` resolves a local
+ * `node_modules/.bin/ng` first — and DOWNLOADS `ng` from the registry when there is none, then
+ * runs it. That is a network fetch and an execution on nothing but the presence of an
+ * `angular.json` in a folder the human pointed at, which is not a thing a detector may decide
+ * to do. Both spellings are checked because npm writes `ng` and `ng.cmd` side by side on
+ * Windows, and only the `.cmd` is the executable one there.
+ */
+function hasLocalAngularCli(repoRoot: string): boolean {
+  const base = join(repoRoot, 'node_modules', '.bin', 'ng');
+  return existsSync(base) || existsSync(`${base}.cmd`);
+}
 
 /**
  * #37: may Jig put this script NAME on a command line? Being a key of the repo's own
@@ -227,10 +243,25 @@ export function detectDevScript(repoRoot: string, survey?: unknown): DetectedTar
     };
   }
 
+  // #81: this tier ran `npx ng serve`, and `npx` FETCHES `ng` from the registry when the repo
+  // has no local install — a download and then an execution, decided by a detector, on nothing
+  // but the presence of an `angular.json`. Two changes, and the second is the one that holds:
+  //
+  //   - the tier is declined outright unless the repo has its own `node_modules/.bin/ng`, so
+  //     the answer is the honest `null` this function already documents ("nothing to start",
+  //     which the checklist and `POST /api/target/start` read as "ask the human for a URL");
+  //   - and `--no-install` goes on the invocation regardless, so npx cannot reach the registry
+  //     even if the check and the spawn disagree — someone clearing `node_modules` in the
+  //     seconds between them, say.
+  //
+  // `npx` stays the launcher rather than the binary path itself: it already resolves the local
+  // `.bin` first, `invocation()`'s cmd.exe routing is proven for it on both CI legs, and a bare
+  // `node_modules/.bin/ng.cmd` path would have to survive cmd.exe's own quote handling on a
+  // desk whose home directory has a space in it.
   const angularPort = angularConfiguredPort(repoRoot);
-  if (angularPort !== undefined) {
+  if (angularPort !== undefined && hasLocalAngularCli(repoRoot)) {
     return {
-      ...invocation('npx', ['ng', 'serve', '--port', String(angularPort)]),
+      ...invocation('npx', ['--no-install', 'ng', 'serve', '--port', String(angularPort)]),
       cwd: repoRoot,
       port: angularPort,
       source: 'angular.json',
