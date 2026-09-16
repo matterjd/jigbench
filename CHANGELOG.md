@@ -49,6 +49,19 @@ Issue #81 — hardening round 2, the follow-ups the S20 review left, one PR each
   `jig serve`'s own `angular.json` read (`packages/cli/src/commands/serve.ts`, which cli may not
   reach `isValidPort` from without a public export) and the web adapter's `--port N` guess out of
   a package.json script (`packages/adapters/web/src/dev-server.ts`).
+- **the folder browser probes each child through the spelling the guard checked** — the listing
+  read what `checkLocalPath` cleared (`readdir`, and #24's `attrib`) and then handed
+  `describeEntry` the caller's own spelling, which probed `.git`, `package.json`, `angular.json`,
+  `docs` and `*.csproj` through THAT: a second, unchecked traversal of the same link, made after
+  the guard had finished. A root re-pointed in between was simply followed with nothing looking
+  again, and the flags then described a different directory than the names beside them came
+  from. `describeEntry` now takes both spellings — the real one for every filesystem call, the
+  caller's for the one thing it is for, the `path` each entry reads back as — so `entries[].path`
+  is unchanged and every probe is made through the PARENT spelling the guard cleared. What that
+  does not cover, and this entry will not claim: the guard resolves the root, so a `docs`,
+  `.git`, `package.json` or `angular.json` that is itself a link INSIDE a listed child is still
+  followed by the probe, and a component of the cleared path that is re-pointed after the guard
+  returns is still followed too. Both are their own items.
 
 The 0.2.0 desk retest, round 2 (issues #66 #67 #68 #69) — what Matter's second drive of the
 published package found, one PR each.

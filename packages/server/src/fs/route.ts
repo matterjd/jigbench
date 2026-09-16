@@ -74,18 +74,39 @@ async function hasAnyCsproj(dirPath: string): Promise<boolean> {
   }
 }
 
-async function describeEntry(parentPath: string, name: string): Promise<FsListEntry> {
-  const entryPath = join(parentPath, name);
+/**
+ * #81 item 4: two parents, deliberately. `realParent` is what `checkLocalPath` cleared and what
+ * `readdir` above actually listed — every filesystem call here goes through it. `reportedParent`
+ * is the caller's own spelling, and it is used for exactly one thing: the `path` this entry
+ * reads back as.
+ *
+ * They used to be the same value, and it was the caller's. The listing read `real` and then
+ * probed `resolved` — a SECOND traversal of the same link, made after the guard had finished,
+ * with nothing looking again. A root re-pointed in between was simply followed, and the flags
+ * ended up describing a different directory than the names beside them came from. Splitting the
+ * two keeps the guard's spelling on every call and the human's spelling on every answer, which
+ * is the same division `fs/local-path.ts` already draws for `real` and `resolved`.
+ */
+async function describeEntry(realParent: string, reportedParent: string, name: string): Promise<FsListEntry> {
+  const probePath = join(realParent, name);
   const [hasGit, hasPackageJson, hasAngularJson, hasDocs, hasCsproj] = await Promise.all([
     // `.git` is a directory in a normal repo, a FILE (containing `gitdir: ...`) in a
     // worktree or submodule — either way, its mere existence is the honest "yes".
-    Promise.resolve(existsSync(join(entryPath, '.git'))),
-    Promise.resolve(existsSync(join(entryPath, 'package.json'))),
-    Promise.resolve(existsSync(join(entryPath, 'angular.json'))),
-    isDirectory(join(entryPath, 'docs')),
-    hasAnyCsproj(entryPath),
+    Promise.resolve(existsSync(join(probePath, '.git'))),
+    Promise.resolve(existsSync(join(probePath, 'package.json'))),
+    Promise.resolve(existsSync(join(probePath, 'angular.json'))),
+    isDirectory(join(probePath, 'docs')),
+    hasAnyCsproj(probePath),
   ]);
-  return { name, path: entryPath, hasGit, hasPackageJson, hasAngularJson, hasCsproj, hasDocs };
+  return {
+    name,
+    path: join(reportedParent, name),
+    hasGit,
+    hasPackageJson,
+    hasAngularJson,
+    hasCsproj,
+    hasDocs,
+  };
 }
 
 export interface FsRouteOptions {
@@ -147,7 +168,17 @@ export function attachFsRoute(app: Express, options: FsRouteOptions = {}): void 
       }
       // `target` is the caller's own spelling — what every message says, what `entries[].path`
       // is built from, and what the browser navigates with; `real` is what the filesystem calls
-      // below actually touch, so nothing can be re-pointed between the guard and the use.
+      // below actually touch, so the caller's link is not traversed a second time after the
+      // guard. #81: that now holds for `describeEntry`'s probes as well, which used to take the
+      // caller's spelling and traverse the link on their own.
+      //
+      // What it does NOT mean, and used to say it did: `checkLocalPath` resolves THIS path, not
+      // the tree under it, and it returns a string rather than a handle. A `docs`/`.git`/
+      // `package.json`/`angular.json` that is itself a link inside a listed child is still
+      // followed by the probes below, and a component of `real` re-pointed between this line and
+      // the calls below is still followed — measured, not theoretical. Closing either one is its
+      // own item (an `lstat`-or-refuse on the probe names; a directory fd to make the reads
+      // relative), and neither is claimed here.
       const { resolved: target, real } = checked;
 
       const stats = await stat(real).catch(() => null);
@@ -173,7 +204,10 @@ export function attachFsRoute(app: Express, options: FsRouteOptions = {}): void 
       const flagged = await hiddenOrSystemNames(real, visible);
       const names = visible.filter((name) => !flagged.has(name)).sort((a, b) => a.localeCompare(b));
 
-      const entries = await Promise.all(names.map((name) => describeEntry(target, name)));
+      // #81: `real` for every probe (the PARENT spelling the guard cleared, and the one
+      // `readdir` and `attrib` above just used — not a promise about the children it probes for),
+      // `target` for every `path` that goes back on the wire.
+      const entries = await Promise.all(names.map((name) => describeEntry(real, target, name)));
       const parentPath = dirname(target);
 
       res.json({
