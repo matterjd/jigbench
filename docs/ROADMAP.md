@@ -135,7 +135,7 @@ charset check on script names; realpath before stat in `fs/route.ts` and
 - The Origin item ends with `SECURITY.md` and the code saying the same thing.
 - Each of the five test gaps closes with a test that fails if the fix it covers is reverted.
 
-### S20b · issue #81, hardening round 2
+### S20b · issue #81, hardening round 2 · SHIPPED 2026-09-15 (unreleased on main: PR #101 `af8de79`, the eight PRs merged together; follow-ups #102 #103)
 **M · amber · after S20 · prompt** `03b-hardening-round-2.md`
 
 **Goal.** Close #81's nine items, one PR each. **Why now.** The lead's review of the nine S20 PRs
@@ -312,7 +312,9 @@ standing exception in question form, and stays a question until Matter rules on 
 | #23 | the three rulings Matter owes | S21 |
 | #24 | the small fixes from the 0.2.0 review and the walkthrough | S19 |
 | #37 | the hardening items from the fix round | S20 |
-| #81 | hardening round 2, the follow-ups the S20 review left | S20b |
+| #81 | hardening round 2, the follow-ups the S20 review left | S20b — shipped 2026-09-15, closed |
+| #102 | hardening round 3: the auto-clamp docs walk unguarded, probes that follow links two levels down, a listing race, the smaller items, and #3's flake | no slice yet. Amber; its cloud prompt is written in the shape of `03b-hardening-round-2.md` when it is scheduled |
+| #103 | the seven small follow-ups the S20b re-review left, one per repaired PR | no slice yet. Green tier — docs and small code, one PR each, merge on green CI |
 | #3 | the trial-fit e2e flakes under load | S20, the same test-hardening pass |
 | #6 | the legacy log does not survive a re-read, so a migrated prompt's elapsed timer freezes | S29, the slice that re-reads a prompt after a build |
 | #2 | `pdf-parse` pulls a native transitive dependency | no slice yet. The issue lists the options; the cheap one (PDF optional, said plainly in the clamp summary) is ruled when a locked-down machine actually blocks it |
