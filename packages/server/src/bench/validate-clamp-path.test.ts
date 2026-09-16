@@ -3,6 +3,8 @@ import { mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { validateClampPath } from './validate-clamp-path.js';
+// #81 item 1: one input, three routes, one refusal in one wording — pinned as the constant.
+import { UNC_REFUSED_MESSAGE } from '../fs/unc-path.js';
 
 let dirs: string[] = [];
 afterEach(async () => {
@@ -49,7 +51,7 @@ describe('validateClampPath', () => {
     for (const unc of ['\\\\evil.example\\share\\repo', '//evil.example/share/repo']) {
       const result = await validateClampPath(unc);
       expect(result.ok, unc).toBe(false);
-      if (!result.ok) expect(result.error).toMatch(/UNC/);
+      if (!result.ok) expect(result.error).toBe(UNC_REFUSED_MESSAGE);
     }
   });
 
@@ -63,7 +65,7 @@ describe('validateClampPath', () => {
       const dir = await freshDir();
       const result = await validateClampPath(dir, { realpath: async () => real });
       expect(result.ok, real).toBe(false);
-      if (!result.ok) expect(result.error).toMatch(/UNC/);
+      if (!result.ok) expect(result.error).toBe(UNC_REFUSED_MESSAGE);
     }
   });
 

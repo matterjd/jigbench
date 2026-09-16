@@ -21,6 +21,18 @@ Issue #81 — hardening round 2, the follow-ups the S20 review left, one PR each
   at is not in the string. That case fails closed after a single `realpath`, and four places
   that claimed otherwise — `fs/local-path.ts`, `fs/route.ts`, `bench/validate-clamp-path.ts` and
   this file's own #37 entry — now say which refusal happens when.
+- **`POST /api/docs/clamp` meets the same local-path guard as the other two routes** — it
+  refused the UNC SPELLING and nothing else, which is where `/api/fs/list` and `/api/clamp` both
+  were before #37: a symlink inside the home pointing at `\\attacker\share` is
+  spelled like any other local path, so it carried the share straight past that check and
+  `clampDocs` walked it — a `stat`, then a `readdir` of every directory under it, each one the
+  SMB connection the guard exists to prevent. The route calls `checkLocalPath` before any read
+  now, and `clampDocs` WALKS the spelling the guard cleared, so nothing can be re-pointed
+  between the check and the read — while what the docs index RECORDS (its `root`, every
+  `files[].file` and every `chunks[].id`, all read back by `GET /api/docs`, the MCP `jig_docs`
+  tool and the prompt builder) stays the spelling you picked, so in-repo refs are still
+  `docs/guide.md` when your repo is reached through a link or an 8.3 alias. The three routes
+  answer one input with one refusal in one wording.
 
 The 0.2.0 desk retest, round 2 (issues #66 #67 #68 #69) — what Matter's second drive of the
 published package found, one PR each.
