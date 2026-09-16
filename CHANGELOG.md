@@ -62,6 +62,22 @@ Issue #81 — hardening round 2, the follow-ups the S20 review left, one PR each
   `.git`, `package.json` or `angular.json` that is itself a link INSIDE a listed child is still
   followed by the probe, and a component of the cleared path that is re-pointed after the guard
   returns is still followed too. Both are their own items.
+- **`SECURITY.md` says what a no-Origin `GET` can still reach** — the Host + Origin section was
+  true and still left a reader believing a foreign page cannot reach an `/api` `GET`. It can: a
+  browser sends no `Origin` at all on an `<img>`, a `<script>`, a `<link>`, an `<iframe>` or a
+  plain navigation, and `same-origin.ts` lets an absent one through on purpose, because curl, an
+  MCP client and the CLI never send one either. Such a request carries the bench's own name in
+  `Host` and runs. The section now names every `GET` that reaches — the whole bench state
+  (marks and work orders, prompts, target file paths, the clamped repo's path, the recent-repo
+  list), the docs index, prompts and a build transcript, sketches, fixtures, toolpaths, the
+  setup checklist, the drafter probe, the plate status (your dev server's URL and port, the
+  headers the proxy rewrites, the active fixture, the mirror) and a stored snapshot, health, and
+  folder names under `/api/fs/list` — and what such a page cannot do: read
+  any of it (the browser withholds the body from the page that asked, and the one API that would
+  hand it over sends an `Origin` and is refused), write anything (every state-changing route is
+  POST/PUT/DELETE, and a `<form>` cannot send the JSON content type the bench parses), or rebind
+  DNS. The cost is the work a `GET` does, not the data it answers with. `same-origin.ts`'s own
+  doc comment carries the same account, so the code and the document say one thing.
 
 The 0.2.0 desk retest, round 2 (issues #66 #67 #68 #69) — what Matter's second drive of the
 published package found, one PR each.
