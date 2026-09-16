@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest';
+import { spawn, type ChildProcess } from 'node:child_process';
 import { createServer as createTcpServer } from 'node:net';
 import { createServer } from 'node:http';
 import { copyFile, mkdtemp, rm, writeFile } from 'node:fs/promises';
@@ -14,6 +15,7 @@ const EXIT1_FIXTURE = join(fixturesDir, 'fake-target-exit1.mjs');
 const ANSI_FIXTURE = join(fixturesDir, 'fake-target-ansi.mjs');
 const IGNORES_SIGTERM_FIXTURE = join(fixturesDir, 'fake-target-ignores-sigterm.mjs');
 const CHATTY_SIGTERM_FIXTURE = join(fixturesDir, 'fake-target-chatty-ignores-sigterm.mjs');
+const EXITS_HOLDING_PIPE_FIXTURE = join(fixturesDir, 'fake-target-exits-holding-pipe.mjs');
 
 async function freePort(): Promise<number> {
   return new Promise((resolve, reject) => {
@@ -244,6 +246,45 @@ describe('TargetRunner', () => {
       await new Promise<void>((resolve) => answering.close(() => resolve()));
     }
   }, 30_000);
+
+  // #81 item 6, the lead's repair: `awaitExit` short-circuited on `exitCode`/`signalCode`, and
+  // those are set when `exit` fires — the process reaped — while `close` fires LATER, once the
+  // stdio streams have ended. The gap between them is the backlog the test above asserts is
+  // absent, so returning early skipped the half of the contract that matters. The test above
+  // cannot see it: on POSIX `killTree` resumes on a microtask, so `exit` has usually not fired
+  // by the time `stop()` reaches the wait. On win32 `killTree` awaits the spawned `taskkill`'s
+  // own `close`, a whole macrotask later, which is where the ordering flips — the leg this PR
+  // just removed #78's retry net from.
+  //
+  // So the ordering is made deterministic instead of hoped for: the fixture exits on its own,
+  // the test waits for that `exit` to fire, and only then hands the child to `awaitExit`. The
+  // pipe is still open — a detached grandchild holds it — so `close` is still to come. Called
+  // through the class rather than the runner's `stop()`, because a child whose `close` has not
+  // fired is still `this.child` and there is no other way to reach the wait in that state.
+  it('#81: awaits `close` even when `exit` has already fired — the win32 ordering', async () => {
+    const holdMs = 600;
+    const child = spawn(process.execPath, [EXITS_HOLDING_PIPE_FIXTURE, String(holdMs)], { cwd: fixturesDir });
+    let closed = false;
+    const exited = new Promise<void>((resolve) => {
+      child.once('close', () => {
+        closed = true;
+        resolve();
+      });
+    });
+
+    await new Promise<void>((resolve) => child.once('exit', () => resolve()));
+    // The control: if either of these is wrong the fixture is not producing the state under
+    // test, and a green below would prove nothing.
+    expect(child.exitCode ?? child.signalCode, 'the fixture did not exit on its own').not.toBeNull();
+    expect(closed, '`close` fired with `exit` — the grandchild is not holding the pipe').toBe(false);
+
+    const runnerUnderTest = new TargetRunner({ onLog: () => {}, onStateChange: () => {} });
+    await (
+      runnerUnderTest as unknown as { awaitExit(c: ChildProcess, e: Promise<unknown> | null): Promise<void> }
+    ).awaitExit(child, exited);
+
+    expect(closed, '`awaitExit` returned while the child still had stdio open').toBe(true);
+  }, 15_000);
 
   // #10 (S17a follow-up): "verify the win32 `cmd.exe /d /s /c npm run <script>` invocation on
   // the CI runner's Node". Every other test here spawns `node` directly; this one goes through

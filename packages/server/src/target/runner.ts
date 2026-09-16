@@ -206,8 +206,8 @@ export class TargetRunner implements TargetRunnerLike {
         this.setState({ status: 'down', exitCode: code });
       }
     });
-    // #81: `stop()` needs this same promise. It is assigned after the handler above so the two
-    // can never disagree about which child they belong to.
+    // #81: `stop()` needs this same promise — the one `exited` built above, so `stop()` waits on
+    // the very `close` this child resolves, not on a listener attached later.
     this.childExited = exited;
 
     const url = `http://localhost:${input.port}`;
@@ -294,17 +294,33 @@ export class TargetRunner implements TargetRunnerLike {
     this.setState({ status: 'none' });
   }
 
-  /** #81: waits out the child's `close`, bounded. Returns immediately when Node has already
-   * reaped it — `exitCode`/`signalCode` are both null only while it is still running, and after
-   * that `close` may already have fired, so waiting on the event alone could hang forever. */
+  /**
+   * #81: waits out the child's `close`, bounded.
+   *
+   * `exited` is `start()`'s own promise, resolved from the child's `close` (or `error`).
+   * Awaiting one that has already resolved cannot hang, so there is nothing to short-circuit —
+   * and short-circuiting on `exitCode`/`signalCode` would skip the wait that matters: those are
+   * set when `exit` fires, i.e. when the process is REAPED, while `close` fires later, once the
+   * stdio streams have ended. The gap between the two is the backlog this method exists to
+   * drain, and on win32 it is the likely ordering, because `killTree` there awaits the spawned
+   * `taskkill`'s own `close` — a whole macrotask, by which time the target's `exit` has usually
+   * been processed.
+   *
+   * The fallback below is different: a listener attached AFTER the fact, for a child this
+   * runner did not start (`exited` is null). That one really can wait forever on an event that
+   * has already fired, so the reaped check guards it — and only it.
+   */
   private async awaitExit(child: ChildProcess, exited: Promise<unknown> | null): Promise<void> {
-    if (child.exitCode !== null || child.signalCode !== null) return;
-    const closed =
-      exited ??
-      new Promise<void>((resolve) => {
+    let closed: Promise<unknown>;
+    if (exited) {
+      closed = exited;
+    } else {
+      if (child.exitCode !== null || child.signalCode !== null) return;
+      closed = new Promise<void>((resolve) => {
         child.once('close', () => resolve());
         child.once('error', () => resolve());
       });
+    }
     const outcome = await Promise.race([
       closed.then(() => 'exited' as const),
       sleep(STOP_EXIT_TIMEOUT_MS).then(() => 'timeout' as const),

@@ -18,8 +18,12 @@ Issue #81 — hardening round 2, the follow-ups the S20 review left, one PR each
   the child's own `close` (the process reaped and its streams ended) under a bounded five-second
   wait, because a grandchild that escaped the kill and inherited those pipes can hold them open
   indefinitely; a wait that runs out is logged and `stop()` returns anyway, since leaving the
-  runner restartable is its job. #78's `maxRetries` is gone from the runner test's teardown, and
-  a plain `rm` is enough.
+  runner restartable is its job. The wait is on the child's `close` in every case, including the
+  one where its `exit` has already fired — that pair is not simultaneous, and the gap between
+  them IS the undrained output. #78's `maxRetries` is gone from the runner test's teardown, and
+  a plain `rm` is enough. What this costs a user: stopping a target — `POST /api/target/stop`,
+  an unclamp, or the server closing — can now take as long as the child does to go, up to that
+  five-second bound, where it used to return at once and leave the mess behind.
 
 The 0.2.0 desk retest, round 2 (issues #66 #67 #68 #69) — what Matter's second drive of the
 published package found, one PR each.
