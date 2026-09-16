@@ -226,14 +226,6 @@ PR each.
   refuses a link whose target sits inside a `.jig/` directory, the same lexical guard with the
   same hole. Every message, every `entries[].path` and the `repoRoot` a clamp records keep the
   caller's own spelling.
-  `\\host\share` by its spelling, and a directory symlink inside the home pointing at
-  `\\attacker\share` is spelled like any other local path: the `stat` that came next followed it,
-  which on Windows is the SMB connection the guard exists to prevent, made after the guard said
-  yes. The folder browser and clamp now share one rule (`fs/local-path.ts`) — refuse the spelling,
-  `realpath`, refuse that too, then do the filesystem work against the real path so nothing can be
-  re-pointed in between. Clamp also refuses a link whose target sits inside a `.jig/` directory,
-  the same lexical guard with the same hole. Every message, every `entries[].path` and the
-  `repoRoot` a clamp records keep the caller's own spelling.
 - **a git that never answers no longer holds a build open** — `build/git-diff.ts` spawned `git`
   with no timeout of any kind, and `BuildRunner.start()` awaits the before-snapshot before it
   spawns `claude` at all: a wedged git (a credential helper waiting on a prompt, a dead network
