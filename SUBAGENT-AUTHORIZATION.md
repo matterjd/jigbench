@@ -30,8 +30,8 @@ authorization:
 
 | Field | Value |
 | --- | --- |
-| Control-plane repo (lock + guards) | `________________________` |
-| Work repo (where the worker writes) | `______  (blank = same as control-plane repo; else a registered sibling from workspace.yml repos:)` |
+| Control-plane repo (lock + guards) | `C:\Users\matte\source\repos\matter-notes` |
+| Work repo (where the worker writes) | `C:\Users\matte\source\repos\jigbench  (blank = same as control-plane repo; else a registered sibling from workspace.yml repos:)` |
 | Base branch to cut from | `origin/main` |
 | Work branch name | `________________________` |
 | Task / objective | `________________________` |
@@ -40,7 +40,7 @@ authorization:
 ## 2. Permission tier — *tick exactly one*
 
 ```
-[ ]  T1  full-commit-to-pr       most power
+[x]  T1  full-commit-to-pr       most power
 [ ]  T2  commit-to-push
 [ ]  T3  local-commit-to-branch
 [ ]  T4  readonly / logging      least power
@@ -103,8 +103,8 @@ Set the matching `tier:` value in the frontmatter (`T1`…`T4`).
 ## 5. Sign-off — *required before the sub-agent starts*
 
 ```
-Authorized by: ______________   Date: __________
-Tier granted:  [    ]   Scope confirmed: [ ]
+Authorized by: Jacob Matter   Date: 9/14/2026
+Tier granted:  [ T1 ]   Scope confirmed: [x]
 ```
 
 Mirror the sign-off into the frontmatter (`authorized_by`, `date`, `tier`,
