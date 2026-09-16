@@ -43,7 +43,9 @@ function carriesBody(req: Request): boolean {
 /**
  * Refuses, with 415 and words, a request that sent a body under a media type the bench does not
  * read. Mount on `/api` AFTER the Host/Origin gate, so a foreign origin still loses on 403
- * first, and after `express.json()`, which is what decides whether the body was parsed.
+ * first. Its position relative to `express.json()` does not matter: this middleware never reads
+ * `req.body` or any parse result, only the request's own headers (the lead's 2026-09-15
+ * review).
  */
 export function refuseNonJsonBody(req: Request, res: Response, next: NextFunction): void {
   if (!carriesBody(req)) {
@@ -51,7 +53,10 @@ export function refuseNonJsonBody(req: Request, res: Response, next: NextFunctio
     return;
   }
   // `req.is` answers `false` for a body whose type does not match and `null` when there is no
-  // body to type at all — the `carriesBody` guard above has already handled the second.
+  // body to type at all — the `carriesBody` guard above has already handled the second. A body
+  // sent with NO `Content-Type` header is the third case, and type-is answers `false` for it:
+  // it takes the 415 too, which is right — the bench cannot read what it cannot type — and
+  // `http.test.ts` pins it.
   if (req.is('application/json') === false) {
     res.status(415).json({ error: UNSUPPORTED_MEDIA_TYPE_MESSAGE });
     return;

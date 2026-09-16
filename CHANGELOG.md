@@ -18,10 +18,14 @@ Issue #81 — hardening round 2, the follow-ups the S20 review left, one PR each
   sandboxed iframe's opaque origin — is pinned. A request **body that is not JSON** gets 415 and
   a sentence saying to send `application/json`, instead of reaching the route unparsed and being
   refused for a field it never had; a malformed body under `application/json` keeps its 400 and
-  gains the bench's own wording in place of the parser's V8 message. The **`angular.json` tier**
-  requires the repo's own `node_modules/.bin/ng` and passes `--no-install`, rather than letting
-  `npx` download `ng` from the registry and run it on nothing but the presence of a config file;
-  a repo with the config and not the tool declines the tier and says there is nothing to start.
+  gains the bench's own wording in place of the parser's V8 message. The **`angular.json` tier** runs only on
+  the repo's OWN `node_modules/.bin/ng`, rather than letting `npx` download `ng` from the
+  registry and run it on nothing but the presence of a config file; a repo with the config and
+  no `ng` of its own declines the tier and says there is nothing to start. Read that literally:
+  an `ng` hoisted to a workspace root, or installed globally, declines too, even though `npx`
+  would have found it without a download. `--no-install` goes on the invocation as well, which
+  stops npx INSTALLING a package the repo does not have — it does not stop npx asking the
+  registry about one.
   **EPERM stops borrowing ENOENT's words** — a path you may not traverse said "no such path",
   which sends a reader hunting for a typo in a path that is right there; ELOOP and ENOTDIR got
   their own sentences with it. And three corrections in words only: the plate-bridge race

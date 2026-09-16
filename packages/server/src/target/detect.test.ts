@@ -158,7 +158,7 @@ describe('detectDevScript', () => {
     });
   });
 
-  it('#81: declines the angular.json tier when the repo has no local ng — rather than fetching one from the registry', async () => {
+  it('#81: declines the angular.json tier unless the repo has an ng of its own', async () => {
     const repoRoot = await freshDir();
     await writeFile(
       join(repoRoot, 'angular.json'),

@@ -16,8 +16,10 @@ import type { DetectedTargetSummary } from '@jigbench/core';
  *   3. `angular.json` alone, with no npm script found at all — `npx --no-install ng serve
  *      --port <n>` directly, and ONLY when the repo has its own `node_modules/.bin/ng` (#81:
  *      without that guard `npx` downloads `ng` from the registry and runs it, on nothing but
- *      the presence of an `angular.json`). A repo that has the config and not the tool declines
- *      the tier and answers `null` — "nothing to start" — rather than fetching one.
+ *      the presence of an `angular.json`). A repo with the config and no `ng` of its own
+ *      declines the tier and answers `null` — "nothing to start". The gate is the repo's own
+ *      `.bin`, nothing wider, so a hoisted or globally installed `ng` declines too, though npx
+ *      would have run it with no download.
  * Every tier ALSO tries to read a real port out of `angular.json` (the same config
  * `packages/cli/src/commands/serve.ts`'s own `detectTarget` reads) — even when the command
  * came from a package.json script — since `ng serve` (whichever way it's invoked) binds to
@@ -123,6 +125,13 @@ const MAX_SCRIPT_NAME_LENGTH = 214;
  * `angular.json` in a folder the human pointed at, which is not a thing a detector may decide
  * to do. Both spellings are checked because npm writes `ng` and `ng.cmd` side by side on
  * Windows, and only the `.cmd` is the executable one there.
+ *
+ * This is NARROWER than npx's own resolution, deliberately and at a cost (the lead's
+ * 2026-09-15 review): npx also finds an ancestor `node_modules/.bin` — a monorepo hoist — and
+ * a globally installed `ng` on PATH, and would have run either with no registry fetch at all.
+ * Both decline the tier here, so an Angular repo that starts fine from the human's own shell
+ * can read as "nothing to start". The narrow check is the one that can be made from a path
+ * alone, and declining is what #81 asked for; the cost belongs in the words, not hidden.
  */
 function hasLocalAngularCli(repoRoot: string): boolean {
   const base = join(repoRoot, 'node_modules', '.bin', 'ng');
@@ -250,9 +259,13 @@ export function detectDevScript(repoRoot: string, survey?: unknown): DetectedTar
   //   - the tier is declined outright unless the repo has its own `node_modules/.bin/ng`, so
   //     the answer is the honest `null` this function already documents ("nothing to start",
   //     which the checklist and `POST /api/target/start` read as "ask the human for a URL");
-  //   - and `--no-install` goes on the invocation regardless, so npx cannot reach the registry
-  //     even if the check and the spawn disagree — someone clearing `node_modules` in the
-  //     seconds between them, say.
+  //   - and `--no-install` goes on the invocation as well, which stops npx INSTALLING and
+  //     running a package the repo does not have — it does NOT stop npx asking the registry
+  //     about one. Measured on the lead's desk with npm 11.13.0:
+  //     `npx --no-install nonexistent-pkg-zzz9` answers with a 404 FROM the registry, and
+  //     `npx --no-install cowsay hi` cancels naming a resolved `cowsay@1.6.0` — a manifest
+  //     lookup. So the flag is a second belt, not the thing that prevents a fetch-and-run;
+  //     `hasLocalAngularCli` above is.
   //
   // `npx` stays the launcher rather than the binary path itself: it already resolves the local
   // `.bin` first, `invocation()`'s cmd.exe routing is proven for it on both CI legs, and a bare

@@ -489,6 +489,31 @@ describe("#81: a body that is not JSON", () => {
     expect(res.status).not.toBe(415);
   });
 
+
+  // The lead's 2026-09-15 review: a body that carries a content-length but NO `Content-Type`
+  // header at all is refused here too. `req.is` goes through type-is, which answers `false` —
+  // not `null` — for a body it cannot type, so it takes the 415 branch. Defensible (the bench
+  // genuinely cannot read it), but it was neither pinned nor stated. `fetch` types a string body
+  // for you, so this one speaks raw `node:http`.
+  it('415s a body sent with no Content-Type at all', async () => {
+    const { url } = await freshServer();
+    const payload = JSON.stringify({ target: { path: 'body > invoice-list', component: 'X' }, prompt: 'hello' });
+    const status = await new Promise<number>((resolvePromise, reject) => {
+      const req = httpRequest(
+        `${url}/api/marks`,
+        { method: 'POST', headers: { origin: url, 'content-length': String(Buffer.byteLength(payload)) } },
+        (res) => {
+          res.resume();
+          res.on('end', () => resolvePromise(res.statusCode ?? 0));
+        },
+      );
+      req.on('error', reject);
+      req.write(payload);
+      req.end();
+    });
+    expect(status).toBe(415);
+  });
+
   it('leaves a proper JSON body alone', async () => {
     const { url } = await freshServer();
     const res = await fetch(`${url}/api/marks`, {
