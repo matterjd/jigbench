@@ -12,9 +12,42 @@ import { z } from 'zod';
  * never drift the way the S12-era local mirror could.
  */
 
+/**
+ * #81 item 7: why a build has no diff information — the reasons `build/git-diff.ts`'s
+ * `gitStatusSnapshot` can answer `null`, which the caller used to read as one
+ * indistinguishable "no diff" and tell nobody about at all.
+ *
+ *   - `git-timed-out` — a `git` invocation outlived its budget and was killed (#37's timeout).
+ *     A credential helper waiting on a prompt, a dead network drive under the working tree, an
+ *     `index.lock` someone else holds.
+ *   - `git-not-found` — the spawn failed with ENOENT: there is no `git` at that name.
+ *   - `git-failed-to-start` — the spawn failed some OTHER way. EACCES on a `git` that is not
+ *     executable, EFTYPE on win32 for a file that is not an executable image, EMFILE, EAGAIN.
+ *     Separate from the one above because the code cannot tell WHY from an error event alone,
+ *     and a sentence that says "not on PATH" about a `git` that is right there sends the reader
+ *     looking in the wrong place (the lead's 2026-09-15 review).
+ *   - `not-a-git-repo` — `git` ran and reported no working tree here. Deliberately not worded
+ *     as "this folder is not a repo": a `safe.directory` / dubious-ownership refusal exits
+ *     non-zero from the same command, and that folder IS a repo.
+ *   - `git-refused-the-tree` — `git` acknowledged a working tree (`rev-parse --show-toplevel`
+ *     answered) and then would not read it: a corrupt index, a lock. Reproduced with a garbage
+ *     `.git/index`, where `rev-parse` exits 0 and `status` exits 128.
+ *
+ * They read differently on purpose: what a reader does next is different for each.
+ */
+export const BuildNoticeCodeSchema = z.enum([
+  'git-timed-out',
+  'git-not-found',
+  'git-failed-to-start',
+  'not-a-git-repo',
+  'git-refused-the-tree',
+]);
+export type BuildNoticeCode = z.infer<typeof BuildNoticeCodeSchema>;
+
 /** One compact, already-parsed event out of `claude -p --output-format stream-json`'s NDJSON
- * stream — see `build/runner.ts`'s `parseStreamEvent` (server) for exactly which raw event
- * shapes map to which `kind` here. */
+ * stream — plus (#81) `notice`, which the runner emits about the build itself. See
+ * `build/runner.ts`'s `parseStreamEvent` (server) for exactly which raw event shapes map to
+ * which `kind` here. */
 export const BuildStreamEventSchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('init'), sessionId: z.string() }),
   z.object({ kind: z.literal('text'), text: z.string() }),
@@ -29,6 +62,10 @@ export const BuildStreamEventSchema = z.discriminatedUnion('kind', [
     costUsd: z.number().optional(),
   }),
   z.object({ kind: z.literal('raw'), text: z.string() }),
+  // #81 item 7: the build saying something about ITSELF rather than relaying something Claude
+  // said. A `notice` carries a code, never a sentence — the words live in `buildStreamLine`
+  // below, so the card, the ribbon, the status line and the logbook cannot word it differently.
+  z.object({ kind: z.literal('notice'), code: BuildNoticeCodeSchema }),
 ]);
 export type BuildStreamEvent = z.infer<typeof BuildStreamEventSchema>;
 
@@ -39,6 +76,35 @@ export const ClaudeStatusSchema = z.discriminatedUnion('state', [
   z.object({ state: z.literal('built'), id: z.string(), files: z.array(z.string()), elapsed: z.number() }),
 ]);
 export type ClaudeStatus = z.infer<typeof ClaudeStatusSchema>;
+
+/**
+ * #81 item 7: why a before/after diff is unavailable, one sentence per reason and no two alike.
+ * Each says what happened AND what it costs, because the cost is the same in every one and the
+ * cause is not: the build still ran, and the files it reports are whatever Claude named itself
+ * on a `FILES:` line. No sentence here claims more than the code that picked it knows — a spawn
+ * that failed for an unknown reason does not say "not on PATH", and a tree git refused does not
+ * say the folder is not a repo (the lead's 2026-09-15 review).
+ *
+ * Before this the git snapshot simply answered `null`, the runner read that as "no diff
+ * information", and nothing reached the stream or the logbook at all — a build whose `git` was
+ * wedged for fifteen seconds looked exactly like a build in a folder that is not a repo.
+ */
+export function buildNoticeLine(code: BuildNoticeCode): string {
+  switch (code) {
+    case 'git-timed-out':
+      return 'git ran out of time and was stopped — no before/after diff for this build; the files listed are the ones Claude named itself';
+    case 'git-not-found':
+      return 'git is not on PATH — no before/after diff for this build; the files listed are the ones Claude named itself';
+    case 'git-failed-to-start':
+      return 'git could not be started — no before/after diff for this build; the files listed are the ones Claude named itself';
+    case 'not-a-git-repo':
+      return 'git reports no working tree here — no before/after diff for this build; the files listed are the ones Claude named itself';
+    case 'git-refused-the-tree':
+      return 'git found a working tree here but would not read it — a corrupt index, or a lock; no before/after diff for this build; the files listed are the ones Claude named itself';
+    default:
+      return '';
+  }
+}
 
 /** One line of the stream, in words — shared by the prompt card, the Prompts tab's ribbon,
  * the status line's "latest step" and the logbook's Claude rows, so all four say the same
@@ -57,6 +123,8 @@ export function buildStreamLine(event: BuildStreamEvent): string {
       return event.summary ?? (event.ok ? 'done' : 'failed');
     case 'raw':
       return event.text;
+    case 'notice':
+      return buildNoticeLine(event.code);
     default:
       return '';
   }

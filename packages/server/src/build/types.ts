@@ -12,6 +12,12 @@
 export type { BuildStreamEvent, ClaudeStatus } from '@jigbench/core';
 import type { BuildStreamEvent, ClaudeStatus } from '@jigbench/core';
 
+// #81 item 7: `notice` events carry a code, and core owns the sentence each one reads as — so
+// `cli`'s own event formatter can say exactly what the bench says. Re-exported for the same
+// reason as the two above: `cli` may import `server`'s public API and nothing else.
+export { buildNoticeLine } from '@jigbench/core';
+export type { BuildNoticeCode } from '@jigbench/core';
+
 export interface BuildOutcome {
   /** `null` only when the process could not be spawned at all (see `ClaudeNotInstalledError`
    * upstream) or was killed by a signal rather than exiting — `cancelled` disambiguates the

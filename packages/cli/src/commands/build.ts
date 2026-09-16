@@ -2,6 +2,7 @@ import {
   BuildRunner,
   PromptService,
   PromptStore,
+  buildNoticeLine,
   initJigTree,
   logger,
   type BuildStreamEvent,
@@ -49,6 +50,10 @@ function formatEvent(event: BuildStreamEvent): string {
         .join(' — ');
     case 'raw':
       return event.text;
+    // #81: the build speaking about itself rather than relaying Claude. Core owns the words, so
+    // the CLI and the bench say the same sentence about the same code.
+    case 'notice':
+      return buildNoticeLine(event.code);
   }
 }
 

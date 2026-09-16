@@ -94,6 +94,23 @@ Issue #81 — hardening round 2, the follow-ups the S20 review left, one PR each
   a plain `rm` is enough. What this costs a user: stopping a target — `POST /api/target/stop`,
   an unclamp, or the server closing — can now take as long as the child does to go, up to that
   five-second bound, where it used to return at once and leave the mess behind.
+- **a git that runs out of budget says so, and says which of five things went wrong** — #37 gave
+  the before/after snapshots a budget and killed a `git` that outlived it, but told nobody:
+  `gitStatusSnapshot` answered `null`, `build/runner.ts` read that as "no diff information", and
+  neither the build stream nor the logbook carried a word about it. A build whose git was wedged
+  for the full fifteen seconds reported no files touched and read exactly like a build in a
+  folder that is not a repo. Every reason a snapshot can be `null` is its own reason now —
+  `git-timed-out`, `git-not-found` (the spawn said ENOENT), `git-failed-to-start` (the spawn
+  failed some other way — a git that is there but will not run), `not-a-git-repo` (git reported
+  no working tree) and `git-refused-the-tree` (git named a working tree and then would not read
+  it: a corrupt index, a lock) — and each reaches the stream as its own
+  sentence through a new `notice` event, whose words live in `@jigbench/core`'s `buildNoticeLine`
+  so the card, the Prompts ribbon, the status line, the logbook and `jigbench build` cannot
+  phrase the same code differently. Telling a killed git from a missing one needed one thing the
+  code did not have: whether the abort was ours, since both arrive as an empty-stdout `error`.
+  No sentence claims more than the code knows — a spawn that failed for an unknown reason no
+  longer reads as "git is not on PATH", and a working tree git named and then refused no longer
+  reads as "this folder is not a git working tree".
 
 The 0.2.0 desk retest, round 2 (issues #66 #67 #68 #69) — what Matter's second drive of the
 published package found, one PR each.
