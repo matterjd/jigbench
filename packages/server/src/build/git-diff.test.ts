@@ -6,6 +6,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
 import { filesTouchedBetween, gitStatusSnapshot, __test__ } from './git-diff.js';
+import { buildNoticeLine, BuildNoticeCodeSchema, type BuildNoticeCode } from '@jigbench/core';
 
 const execFileAsync = promisify(execFile);
 const { parsePorcelainZ } = __test__;
@@ -151,5 +152,94 @@ describe('#37: a git that never answers', () => {
 
     expect(snapshot).not.toBeNull();
     expect([...(snapshot?.paths ?? [])]).toEqual(['a.txt']);
+  });
+});
+
+// #81 item 7: #37 gave these calls a budget and killed the ones that outlived it. What it did
+// not do was tell anyone — every one of the three ways this function answers `null` reached the
+// caller as the same bare `null`, which `build/runner.ts` read as "no diff information" and said
+// nothing about. A build whose `git` was wedged for the full fifteen seconds reported no files
+// touched and read exactly like a build in a folder that is not a repo.
+//
+// One test per reason, because the acceptance is that the three read differently.
+describe('#81: why a snapshot is null, in words', () => {
+  let repoRoot: string;
+
+  beforeEach(async () => {
+    repoRoot = await mkdtemp(join(tmpdir(), 'jig-git-reason-'));
+  });
+
+  afterEach(async () => {
+    await rm(repoRoot, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
+  });
+
+  async function reasonFor(options: Parameters<typeof gitStatusSnapshot>[1]): Promise<BuildNoticeCode[]> {
+    const codes: BuildNoticeCode[] = [];
+    const snapshot = await gitStatusSnapshot(repoRoot, { ...options, onUnavailable: (code) => codes.push(code) });
+    expect(snapshot).toBeNull();
+    return codes;
+  }
+
+  it('reason 1 — a git that outlives its budget says so, and says it was time', async () => {
+    expect(await reasonFor({ timeoutMs: 300, command: process.execPath, argsPrefix: [FAKE_GIT_HANGS] })).toEqual([
+      'git-timed-out',
+    ]);
+  }, 20_000);
+
+  it('reason 2 — no git on PATH is a different answer, not the same one', async () => {
+    // A command that cannot be spawned at all: the `error` (ENOENT) path, which before this item
+    // was indistinguishable from the abort above because both arrive as an empty-stdout error.
+    expect(await reasonFor({ command: join(here, '__fixtures__', 'no-such-git-binary') })).toEqual(['git-not-found']);
+  });
+
+  it('reason 3 — a folder that is not a working tree is the ordinary one', async () => {
+    // A real `git` in a real temp directory with no repo in it or above it. `--show-toplevel`
+    // exits non-zero, which is git answering the question rather than failing to run.
+    expect(await reasonFor({ argsPrefix: ['-c', 'safe.directory=*', '--literal-pathspecs'] })).toEqual([
+      'not-a-git-repo',
+    ]);
+  });
+
+
+  // The lead's 2026-09-15 review, finding 1: EVERY spawn failure that was not our own abort said
+  // "git is not on PATH". EACCES on a git that is not executable, EMFILE, ENOMEM, EAGAIN — all
+  // of them arrive on the same `error` handler, and the sentence claimed a cause the code never
+  // knew. One file, two platforms, two different mechanisms, one answer: on POSIX a plain
+  // non-executable file is an asynchronous EACCES; on win32 it is a SYNCHRONOUS EFTYPE out of
+  // `spawn` itself (measured on the lead's desk — which is also why the old comment on that
+  // catch, "on win32 that is what a missing git looks like", was wrong: a missing binary is
+  // async ENOENT everywhere).
+  it('reason 4 — a spawn that failed some other way does not claim git is missing', async () => {
+    const notAnExecutable = join(repoRoot, 'git-but-not-really.txt');
+    await writeFile(notAnExecutable, 'this is not an executable image\n', 'utf8');
+    expect(await reasonFor({ command: notAnExecutable })).toEqual(['git-failed-to-start']);
+  });
+
+  // Finding 2: `status --porcelain -z` exiting non-zero AFTER `rev-parse --show-toplevel` has
+  // already answered is git refusing the tree it just acknowledged — a corrupt index, a lock —
+  // and the old code called that "this folder is not a git working tree" about a folder that
+  // demonstrably is one.
+  it('reason 5 — a tree git acknowledged and then refused is not "not a working tree"', async () => {
+    expect(
+      await reasonFor({ command: process.execPath, argsPrefix: [join(here, '__fixtures__', 'fake-git-refuses-index.mjs')] }),
+    ).toEqual(['git-refused-the-tree']);
+  });
+
+  it('every reason reads differently — that is the whole acceptance', () => {
+    const codes = BuildNoticeCodeSchema.options;
+    const lines = codes.map(buildNoticeLine);
+    // The ALLOWED set, not a list this test happens to know: a code added without a sentence
+    // of its own shows up here as a duplicate or an empty string, not as a silent pass.
+    expect(new Set(lines).size, lines.join(' | ')).toBe(codes.length);
+    for (const line of lines) expect(line.length).toBeGreaterThan(0);
+    // Each names its own cause, not just the shared cost.
+    expect(buildNoticeLine('git-timed-out')).toMatch(/time/i);
+    expect(buildNoticeLine('git-not-found')).toMatch(/PATH/i);
+    expect(buildNoticeLine('git-failed-to-start')).toMatch(/could not be started/i);
+    expect(buildNoticeLine('not-a-git-repo')).toMatch(/no working tree/i);
+    expect(buildNoticeLine('git-refused-the-tree')).toMatch(/would not read it/i);
+    // ...and the two that used to share one sentence no longer do.
+    expect(buildNoticeLine('not-a-git-repo')).not.toBe(buildNoticeLine('git-refused-the-tree'));
+    expect(buildNoticeLine('git-not-found')).not.toBe(buildNoticeLine('git-failed-to-start'));
   });
 });

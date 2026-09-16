@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest';
+import { spawn, type ChildProcess } from 'node:child_process';
 import { createServer as createTcpServer } from 'node:net';
 import { createServer } from 'node:http';
 import { copyFile, mkdtemp, rm, writeFile } from 'node:fs/promises';
@@ -13,6 +14,8 @@ const SERVER_FIXTURE = join(fixturesDir, 'fake-target-server.mjs');
 const EXIT1_FIXTURE = join(fixturesDir, 'fake-target-exit1.mjs');
 const ANSI_FIXTURE = join(fixturesDir, 'fake-target-ansi.mjs');
 const IGNORES_SIGTERM_FIXTURE = join(fixturesDir, 'fake-target-ignores-sigterm.mjs');
+const CHATTY_SIGTERM_FIXTURE = join(fixturesDir, 'fake-target-chatty-ignores-sigterm.mjs');
+const EXITS_HOLDING_PIPE_FIXTURE = join(fixturesDir, 'fake-target-exits-holding-pipe.mjs');
 
 async function freePort(): Promise<number> {
   return new Promise((resolve, reject) => {
@@ -28,6 +31,19 @@ async function freePort(): Promise<number> {
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/** #81 item 6: signal 0 asks the OS whether a PID exists without sending anything. On POSIX a
+ * killed-but-unreaped child is a ZOMBIE and still answers yes here — which is exactly the state
+ * `stop()` used to return in, because `killTree`'s `process.kill(-pid, 'SIGKILL')` returns the
+ * instant the kernel accepts the signal, not when the process is gone. */
+function isProcessAlive(pid: number): boolean {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 let runner: TargetRunner | undefined;
@@ -170,6 +186,106 @@ describe('TargetRunner', () => {
     }
   }, 20_000);
 
+  // #81 item 6 (the S20 review's eighth follow-up): `stop()` cleared `this.child`, awaited
+  // `killTree`, and returned — but `killTree` resolves when the KILLER is done, not when the
+  // TARGET is. On Windows that is `taskkill` exiting; on POSIX it is `process.kill(-pid,
+  // 'SIGKILL')` returning, which happens the instant the kernel accepts the signal. Either way
+  // the child can still hold its working directory when `stop()` resolves, which is what #78's
+  // teardown retry was papering over.
+  //
+  // Two things make the window deterministic rather than hopeful. The fixture refuses SIGTERM,
+  // so `killTree` has to spend its full 300 ms and escalate to SIGKILL — the return lands in the
+  // gap rather than long after the process happened to die. And it keeps its stdout pipe full,
+  // so there are always unread bytes at that instant: `close` fires only once the process is
+  // reaped AND its streams have ended, which is the guarantee `killTree` alone cannot give.
+  //
+  // Measured on this seat before the fix, three runs out of three, lines arriving from a child
+  // `stop()` had already reported gone: +171, +65, +38. On POSIX the PID itself is reaped inside
+  // the same turn, so the pipe is the half that shows the gap here; on Windows `taskkill` exits
+  // before the tree does and both halves show it — which is what CI run 34716624245's EBUSY was.
+  it('#81: stop() does not resolve until the child is gone and its output is drained', async () => {
+    const port = await freePort();
+    let lines = 0;
+    runner = new TargetRunner({
+      onLog: () => {
+        lines++;
+      },
+      onStateChange: () => {},
+      probeIntervalMs: 25,
+      probeTimeoutMs: 10_000,
+    });
+
+    // The fixture binds no port (it exists to refuse SIGTERM and keep its pipe full), so the
+    // test owns the server that answers the probe — the same shape #24's race test uses.
+    const answering = createServer((_req, res) => res.end('ok'));
+    await new Promise<void>((resolve) => answering.listen(port, resolve));
+    try {
+      await runner.start({ command: process.execPath, args: [CHATTY_SIGTERM_FIXTURE], cwd: fixturesDir, port });
+      const state = runner.getState();
+      if (state.status !== 'up' || state.pid === undefined) {
+        throw new Error(`expected an up target with a pid, got ${JSON.stringify(state)}`);
+      }
+      const pid = state.pid;
+
+      // Let it boot and install its own SIGTERM handler — a SIGTERM sent before that lands on
+      // the default action and the child simply dies, which would make this pass for the wrong
+      // reason. The same 500 ms #24's race test needs, and for the same reason.
+      await sleep(500);
+      expect(lines, 'the fixture never spoke — nothing to be late').toBeGreaterThan(0);
+
+      await runner.stop();
+      const atStop = lines;
+
+      // The contract: when `stop()` resolves the runner is FINISHED with this child. Nothing
+      // more arrives from it, and the OS no longer has it.
+      await sleep(300);
+      expect(lines - atStop, 'lines arrived from a child stop() had already reported gone').toBe(0);
+      expect(isProcessAlive(pid), `pid ${pid} was still alive when stop() resolved`).toBe(false);
+      expect(runner.getState()).toEqual({ status: 'none' });
+    } finally {
+      await new Promise<void>((resolve) => answering.close(() => resolve()));
+    }
+  }, 30_000);
+
+  // #81 item 6, the lead's repair: `awaitExit` short-circuited on `exitCode`/`signalCode`, and
+  // those are set when `exit` fires — the process reaped — while `close` fires LATER, once the
+  // stdio streams have ended. The gap between them is the backlog the test above asserts is
+  // absent, so returning early skipped the half of the contract that matters. The test above
+  // cannot see it: on POSIX `killTree` resumes on a microtask, so `exit` has usually not fired
+  // by the time `stop()` reaches the wait. On win32 `killTree` awaits the spawned `taskkill`'s
+  // own `close`, a whole macrotask later, which is where the ordering flips — the leg this PR
+  // just removed #78's retry net from.
+  //
+  // So the ordering is made deterministic instead of hoped for: the fixture exits on its own,
+  // the test waits for that `exit` to fire, and only then hands the child to `awaitExit`. The
+  // pipe is still open — a detached grandchild holds it — so `close` is still to come. Called
+  // through the class rather than the runner's `stop()`, because a child whose `close` has not
+  // fired is still `this.child` and there is no other way to reach the wait in that state.
+  it('#81: awaits `close` even when `exit` has already fired — the win32 ordering', async () => {
+    const holdMs = 600;
+    const child = spawn(process.execPath, [EXITS_HOLDING_PIPE_FIXTURE, String(holdMs)], { cwd: fixturesDir });
+    let closed = false;
+    const exited = new Promise<void>((resolve) => {
+      child.once('close', () => {
+        closed = true;
+        resolve();
+      });
+    });
+
+    await new Promise<void>((resolve) => child.once('exit', () => resolve()));
+    // The control: if either of these is wrong the fixture is not producing the state under
+    // test, and a green below would prove nothing.
+    expect(child.exitCode ?? child.signalCode, 'the fixture did not exit on its own').not.toBeNull();
+    expect(closed, '`close` fired with `exit` — the grandchild is not holding the pipe').toBe(false);
+
+    const runnerUnderTest = new TargetRunner({ onLog: () => {}, onStateChange: () => {} });
+    await (
+      runnerUnderTest as unknown as { awaitExit(c: ChildProcess, e: Promise<unknown> | null): Promise<void> }
+    ).awaitExit(child, exited);
+
+    expect(closed, '`awaitExit` returned while the child still had stdio open').toBe(true);
+  }, 15_000);
+
   // #10 (S17a follow-up): "verify the win32 `cmd.exe /d /s /c npm run <script>` invocation on
   // the CI runner's Node". Every other test here spawns `node` directly; this one goes through
   // the SAME `invocation('npm', ...)` `POST /api/target/start` builds — `cmd.exe /d /s /c npm
@@ -200,15 +316,16 @@ describe('TargetRunner', () => {
       await runner.stop();
       expect(runner.getState()).toEqual({ status: 'none' });
     } finally {
-      // This test spawns a REAL `npm run start` — on Windows that is three processes deep
-      // (`cmd.exe` -> `npm.cmd` -> `node server.mjs`), and `stop()` resolving does not mean the
-      // OS has released their handles into `repoRoot` yet. An unretried `rm` reproduces as
-      // EBUSY/ENOTEMPTY on windows-latest, not as a real leak: CI run 34716624245 failed here
-      // with `EBUSY: resource busy or locked, rmdir
-      // 'C:\Users\RUNNER~1\AppData\Local\Temp\jig-runner-npm-dl84Jg'` on a PR whose diff does not
-      // touch this package. The retry is the same one `build/runner.test.ts` documents for the
-      // identical (and shorter) chain, and `atomic-write.ts` for writes.
-      await rm(repoRoot, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
+      // #78 wrapped this in `{maxRetries: 5, retryDelay: 100}` after CI run 34716624245 failed
+      // here on windows-latest with `EBUSY: resource busy or locked, rmdir
+      // 'C:\Users\RUNNER~1\AppData\Local\Temp\jig-runner-npm-dl84Jg'`. #81 item 6 names that
+      // retry as masking rather than fixing: this test spawns a REAL `npm run start`, three
+      // processes deep on Windows (`cmd.exe` -> `npm.cmd` -> `node server.mjs`), and `stop()`
+      // was resolving before any of them had exited, so the OS still held handles into
+      // `repoRoot`. `stop()` awaits the child's `close` now, so a plain `rm` is enough — and
+      // being plain is the point: with the retry here, a regression in `stop()` would be hidden
+      // again rather than failing this leg.
+      await rm(repoRoot, { recursive: true, force: true });
     }
   }, 40_000);
 });

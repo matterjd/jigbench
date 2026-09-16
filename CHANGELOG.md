@@ -6,6 +6,137 @@ semantic versioning strictly (pre-1.0).
 
 ## [Unreleased]
 
+Issue #81 — hardening round 2, the follow-ups the S20 review left, one PR each.
+
+- **a UNC path is refused before the connection, and the words say only what is true** — the
+  guard judged the raw string and then handed `realpath` the RESOLVED path, which nothing had
+  judged: `path.resolve` takes a relative (or root-relative) value against `process.cwd()`, so a
+  bench started FROM a share turned `sub` into `\\host\share\dir\sub` and `\repo` into
+  `\\host\share\repo` — neither raw string UNC-spelled, both landing on the share, and
+  `realpath` is the SMB open on Windows. All three prefixes (`\\`, `//` and the
+  extended-length `\\?\UNC`) are now refused on the raw string, on `path.resolve`'s answer, and
+  on what that value resolves to under Windows rules — so the answer no longer depends on POSIX
+  collapsing `//host/share` into `/host/share`, and the two CI legs agree. The one refusal that
+  cannot come first is the one for a LOCAL spelling whose target is a share: what a link points
+  at is not in the string. That case fails closed after a single `realpath`, and four places
+  that claimed otherwise — `fs/local-path.ts`, `fs/route.ts`, `bench/validate-clamp-path.ts` and
+  this file's own #37 entry — now say which refusal happens when.
+- **`POST /api/docs/clamp` meets the same local-path guard as the other two routes** — it
+  refused the UNC SPELLING and nothing else, which is where `/api/fs/list` and `/api/clamp` both
+  were before #37: a symlink inside the home pointing at `\\attacker\share` is
+  spelled like any other local path, so it carried the share straight past that check and
+  `clampDocs` walked it — a `stat`, then a `readdir` of every directory under it, each one the
+  SMB connection the guard exists to prevent. The route calls `checkLocalPath` before any read
+  now, and `clampDocs` WALKS the spelling the guard cleared, so nothing can be re-pointed
+  between the check and the read — while what the docs index RECORDS (its `root`, every
+  `files[].file` and every `chunks[].id`, all read back by `GET /api/docs`, the MCP `jig_docs`
+  tool and the prompt builder) stays the spelling you picked, so in-repo refs are still
+  `docs/guide.md` when your repo is reached through a link or an 8.3 alias. The three routes
+  answer one input with one refusal in one wording.
+- **every port `detectDevScript` can answer with is a whole number from 1 to 65535** — #70 bounded a
+  `port` that arrives in a request body and stopped there. Two more reached the runner without
+  ever meeting `valid-port.ts`: one read out of the clamped repo's own `angular.json`
+  (`"port": 1e999`), one out of a survey hint (`{script:'start', port:1e999}`). Both are data
+  from outside, exactly like a request body, and JSON has no Infinity literal but no exponent
+  ceiling either — so a parser reads `1e999` as `Infinity`, a value that IS a number, is not a
+  port, and used to spawn the app and then burn the whole 120-second availability probe waiting
+  for a port that cannot exist. `0`, `-1`, `65536` and `4200.5` are the same class, quieter.
+  Both now go through `isValidPort`, and an out-of-range value reads as NO configured port — the
+  tier below answers for it, and an unusable hint port never costs the hint its script. One test
+  walks all four tiers to say no path out of `detectDevScript` can hand the runner a port that
+  cannot be bound. Bounded here: the survey hint and `angular.json`, the two sources the bench
+  detects a target from. Two other readers of a port are NOT bounded and are their own items —
+  `jig serve`'s own `angular.json` read (`packages/cli/src/commands/serve.ts`, which cli may not
+  reach `isValidPort` from without a public export) and the web adapter's `--port N` guess out of
+  a package.json script (`packages/adapters/web/src/dev-server.ts`).
+- **the folder browser probes each child through the spelling the guard checked** — the listing
+  read what `checkLocalPath` cleared (`readdir`, and #24's `attrib`) and then handed
+  `describeEntry` the caller's own spelling, which probed `.git`, `package.json`, `angular.json`,
+  `docs` and `*.csproj` through THAT: a second, unchecked traversal of the same link, made after
+  the guard had finished. A root re-pointed in between was simply followed with nothing looking
+  again, and the flags then described a different directory than the names beside them came
+  from. `describeEntry` now takes both spellings — the real one for every filesystem call, the
+  caller's for the one thing it is for, the `path` each entry reads back as — so `entries[].path`
+  is unchanged and every probe is made through the PARENT spelling the guard cleared. What that
+  does not cover, and this entry will not claim: the guard resolves the root, so a `docs`,
+  `.git`, `package.json` or `angular.json` that is itself a link INSIDE a listed child is still
+  followed by the probe, and a component of the cleared path that is re-pointed after the guard
+  returns is still followed too. Both are their own items.
+- **`SECURITY.md` says what a no-Origin `GET` can still reach** — the Host + Origin section was
+  true and still left a reader believing a foreign page cannot reach an `/api` `GET`. It can: a
+  browser sends no `Origin` at all on an `<img>`, a `<script>`, a `<link>`, an `<iframe>` or a
+  plain navigation, and `same-origin.ts` lets an absent one through on purpose, because curl, an
+  MCP client and the CLI never send one either. Such a request carries the bench's own name in
+  `Host` and runs. The section now names every `GET` that reaches — the whole bench state
+  (marks and work orders, prompts, target file paths, the clamped repo's path, the recent-repo
+  list), the docs index, prompts and a build transcript, sketches, fixtures, toolpaths, the
+  setup checklist, the drafter probe, the plate status (your dev server's URL and port, the
+  headers the proxy rewrites, the active fixture, the mirror) and a stored snapshot, health, and
+  folder names under `/api/fs/list` — and what such a page cannot do: read
+  any of it (the browser withholds the body from the page that asked, and the one API that would
+  hand it over sends an `Origin` and is refused), write anything (every state-changing route is
+  POST/PUT/DELETE, and a `<form>` cannot send the JSON content type the bench parses), or rebind
+  DNS. The cost is the work a `GET` does, not the data it answers with. `same-origin.ts`'s own
+  doc comment carries the same account, so the code and the document say one thing.
+- **`TargetRunner.stop()` does not resolve until the child is gone** — it cleared `this.child`,
+  awaited `killTree`, and returned, but `killTree` answers when the KILLER is done (`taskkill`
+  exiting on Windows, `process.kill(-pid, 'SIGKILL')` returning on POSIX), which is not the
+  instant the target dies. A caller taking that resolution to mean "finished with this child"
+  was wrong twice: the OS could still be holding the target's working directory — the EBUSY on
+  windows-latest that #78 wrapped a teardown retry around rather than fixed — and the runner
+  could still be draining the target's stdout into `onLog` afterwards. `stop()` now waits for
+  the child's own `close` (the process reaped and its streams ended) under a bounded five-second
+  wait, because a grandchild that escaped the kill and inherited those pipes can hold them open
+  indefinitely; a wait that runs out is logged and `stop()` returns anyway, since leaving the
+  runner restartable is its job. The wait is on the child's `close` in every case, including the
+  one where its `exit` has already fired — that pair is not simultaneous, and the gap between
+  them IS the undrained output. #78's `maxRetries` is gone from the runner test's teardown, and
+  a plain `rm` is enough. What this costs a user: stopping a target — `POST /api/target/stop`,
+  an unclamp, or the server closing — can now take as long as the child does to go, up to that
+  five-second bound, where it used to return at once and leave the mess behind.
+- **a git that runs out of budget says so, and says which of five things went wrong** — #37 gave
+  the before/after snapshots a budget and killed a `git` that outlived it, but told nobody:
+  `gitStatusSnapshot` answered `null`, `build/runner.ts` read that as "no diff information", and
+  neither the build stream nor the logbook carried a word about it. A build whose git was wedged
+  for the full fifteen seconds reported no files touched and read exactly like a build in a
+  folder that is not a repo. Every reason a snapshot can be `null` is its own reason now —
+  `git-timed-out`, `git-not-found` (the spawn said ENOENT), `git-failed-to-start` (the spawn
+  failed some other way — a git that is there but will not run), `not-a-git-repo` (git reported
+  no working tree) and `git-refused-the-tree` (git named a working tree and then would not read
+  it: a corrupt index, a lock) — and each reaches the stream as its own
+  sentence through a new `notice` event, whose words live in `@jigbench/core`'s `buildNoticeLine`
+  so the card, the Prompts ribbon, the status line, the logbook and `jigbench build` cannot
+  phrase the same code differently. Telling a killed git from a missing one needed one thing the
+  code did not have: whether the abort was ours, since both arrive as an empty-stdout `error`.
+  No sentence claims more than the code knows — a spawn that failed for an unknown reason no
+  longer reads as "git is not on PATH", and a working tree git named and then refused no longer
+  reads as "this folder is not a git working tree".
+- **the small ones from round 2** — eight in one PR, a commit each. `POST /api/target/start` and
+  every detection tier refuse a **script name beginning with `-`** (an option, not a name, to any
+  argv — and it slipped past the win32 charset, which allows `-` so `lint-all` works) and cap its
+  length, on every platform rather than only win32, because neither rule is about cmd.exe
+  re-parsing a line. The **Origin half says what it means**: `http:` only (nothing in Jig serves
+  https, so an `https` Origin on an allowed Host cannot be the bench's own page), an `Origin:`
+  header present-and-empty is no longer read as a client that sent none, and `Origin: null` — a
+  sandboxed iframe's opaque origin — is pinned. A request **body that is not JSON** gets 415 and
+  a sentence saying to send `application/json`, instead of reaching the route unparsed and being
+  refused for a field it never had; a malformed body under `application/json` keeps its 400 and
+  gains the bench's own wording in place of the parser's V8 message. The **`angular.json` tier** runs only on
+  the repo's OWN `node_modules/.bin/ng`, rather than letting `npx` download `ng` from the
+  registry and run it on nothing but the presence of a config file; a repo with the config and
+  no `ng` of its own declines the tier and says there is nothing to start. Read that literally:
+  an `ng` hoisted to a workspace root, or installed globally, declines too, even though `npx`
+  would have found it without a download. `--no-install` goes on the invocation as well, which
+  stops npx INSTALLING a package the repo does not have — it does not stop npx asking the
+  registry about one.
+  **EPERM stops borrowing ENOENT's words** — a path you may not traverse said "no such path",
+  which sends a reader hunting for a typo in a path that is right there; ELOOP and ENOTDIR got
+  their own sentences with it. And three corrections in words only: the plate-bridge race
+  comment (the listener is attached, holding the previous commit's null `plateOrigin` — it is
+  not missing), a `target/route.test.ts` title that said the opposite of its body, and the claim
+  that an NTFS junction can point at a UNC share (it cannot — `mklink /J` refuses one; the
+  threat is a directory symlink).
+
 The 0.2.0 desk retest, round 2 (issues #66 #67 #68 #69) — what Matter's second drive of the
 published package found, one PR each.
 
@@ -83,14 +214,18 @@ PR each.
   charset is win32-only and the rule takes the platform as a parameter, so both branches are
   proved on whichever CI leg runs.
 - **the UNC refusal judges what a path really is, not only how it is spelled** — #18 refused
-  `\\host\share` by its spelling, and a symlink (or NTFS junction) inside the home pointing at
-  `\\attacker\share` is spelled like any other local path: the `stat` that came next followed it,
-  which on Windows is the SMB connection the guard exists to prevent, made after the guard said
-  yes. The folder browser and clamp now share one rule (`fs/local-path.ts`) — refuse the spelling,
-  `realpath`, refuse that too, then do the filesystem work against the real path so nothing can be
-  re-pointed in between. Clamp also refuses a link whose target sits inside a `.jig/` directory,
-  the same lexical guard with the same hole. Every message, every `entries[].path` and the
-  `repoRoot` a clamp records keep the caller's own spelling.
+  `\\host\share` by its spelling, and a symlink inside the home pointing at `\\attacker\share` is
+  spelled like any other local path: the `stat` that came next followed it, which on Windows is
+  the SMB connection the guard exists to prevent, made after the guard said yes. The folder
+  browser and clamp now share one rule (`fs/local-path.ts`) — refuse the spelling, `realpath`,
+  refuse that too, then do the filesystem work against the real path so nothing can be
+  re-pointed in between. **That second refusal lands after the connection, not before it**
+  (corrected here by #81 item 2, which is also where the earlier wording is put right): what a
+  link points at is not in the string, so the only way to ask is to follow it, and the guard
+  fails closed once it has — nothing is read, listed or stat-ed through a share. Clamp also
+  refuses a link whose target sits inside a `.jig/` directory, the same lexical guard with the
+  same hole. Every message, every `entries[].path` and the `repoRoot` a clamp records keep the
+  caller's own spelling.
 - **a git that never answers no longer holds a build open** — `build/git-diff.ts` spawned `git`
   with no timeout of any kind, and `BuildRunner.start()` awaits the before-snapshot before it
   spawns `claude` at all: a wedged git (a credential helper waiting on a prompt, a dead network

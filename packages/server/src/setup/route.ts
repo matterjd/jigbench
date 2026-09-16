@@ -9,7 +9,7 @@ import { detectDevScript, summarizeDetectedTarget } from '../target/detect.js';
 import { claudeDesktopConfigPath, formatClaudeDesktopConfigDiff, mergeClaudeDesktopConfig } from './desktop-config.js';
 import { formatMcpJsonDiff, mergeMcpJson } from './mcp-json.js';
 import { ensureGitignoreEntry } from './gitignore.js';
-import { isUncPath, UNC_REFUSED_MESSAGE } from '../fs/unc-path.js';
+import { checkLocalPath } from '../fs/local-path.js'; // #81
 
 /**
  * S17a (AMENDMENT-1 §7, A6): "A setup checklist lives one click from the status line" plus
@@ -34,6 +34,12 @@ export interface SetupRouteContext {
   getTargetState: () => TargetState;
   /** Test-only override — defaults to the real `claudeDesktopConfigPath()`. */
   getDesktopConfigPath?: () => string | undefined;
+  /** Test-only override, forwarded to `checkLocalPath` (#81) — the same seam
+   * `FsRouteOptions.realpath` carries, and for the same reason: a symlink onto a
+   * UNC share cannot be planted on a CI runner without opening the SMB connection the guard
+   * exists to prevent, so the rule is proved against an injected answer. Production passes
+   * nothing. */
+  realpath?: (path: string) => Promise<string>;
 }
 
 async function readJsonIfPresent(path: string): Promise<unknown> {
@@ -174,14 +180,35 @@ export function attachSetupRoute(app: Express, ctx: SetupRouteContext): void {
         res.status(400).json({ error: 'folder is required' });
         return;
       }
-      // #18: the same refusal `/api/fs/list` and `/api/clamp` give a UNC value — this route
-      // walks the folder it is handed too.
-      if (isUncPath(folder)) {
-        res.status(400).json({ error: UNC_REFUSED_MESSAGE });
+      // #81 (the S20 review): the SAME guard `/api/fs/list` and `/api/clamp` use, not just the
+      // half of it. This route used to refuse the UNC SPELLING and nothing else — which is
+      // where the other two were before #37 — so a symlink inside the home
+      // pointing at `\\attacker\share` carried the share past it spelled like any other local
+      // path, and `clampDocs` walked it: a `stat`, then a `readdir` of every directory under
+      // it, each one the SMB connection the guard exists to prevent. `checkLocalPath` judges
+      // the raw spelling, resolves, follows every link, and judges what the path REALLY is —
+      // before any read here.
+      const checked = await checkLocalPath(folder, { realpath: ctx.realpath });
+      if (!checked.ok) {
+        res.status(400).json({ error: checked.error });
         return;
       }
 
-      const result = await clampDocs({ repoRoot: bench.repoRoot, folder });
+      // Both spellings, kept apart the way `fs/route.ts` keeps `realParent` from
+      // `reportedParent`. The WALK goes through the REAL path — the one the guard cleared, so
+      // nothing can be re-pointed between the check and the read. What the clamp RECORDS stays
+      // the caller's spelling: the HTTP response here is only counts, but the route rewrites
+      // `.jig/survey/docs.json`, whose `root`, `files[].file` and `chunks[].id` are all
+      // spellings, and `GET /api/docs`, the MCP `jig_docs` tool and the prompt builder read
+      // them back. `bench.repoRoot` is the caller's spelling too (`validate-clamp-path.ts`
+      // returns `resolved`), so recording the real one would make `relative()` escape and every
+      // in-repo ref go absolute wherever the two forms differ — a junction, a symlink, or the
+      // 8.3 alias `build/git-diff.ts` documents against a real CI failure.
+      const result = await clampDocs({
+        repoRoot: bench.repoRoot,
+        folder: checked.real,
+        reportedFolder: checked.resolved,
+      });
       await bench.store.reload();
 
       res.json({

@@ -83,11 +83,19 @@ function sendState(state: unknown): void {
   });
 }
 
-/** Points at something on the plate and waits for the prompt card. The plate bridge attaches
- * its `message` listener in an effect AFTER the iframe first renders, so ONE dispatch right after
- * "the iframe exists" can land before the listener does and is simply lost — CI run 34161356867
- * (windows-latest) did exactly that. The pick is re-dispatched on every retry until the card is
- * open; a repeated identical pick re-opens the same card, so the retries are idempotent. */
+/** Points at something on the plate and waits for the prompt card.
+ *
+ * #81: this said the bridge attaches its listener after the iframe renders, so a dispatch could
+ * "land before the listener does". It cannot — `usePlateBridge` adds the `message` listener
+ * unconditionally on mount, so one has been attached since the first commit. The listener that
+ * receives that dispatch is holding a closure over `plateOrigin`, which is `null` until
+ * `usePlatePoll` reports the plate up, and its first line drops any message while that is so.
+ * The iframe appears in the same commit that gives `plateOrigin` a value, but the passive effect
+ * swapping in a listener that knows the new origin flushes after commit — and `waitFor` can see
+ * the iframe first. So the dispatch IS received, by a listener that discards it. CI run
+ * 34161356867 (windows-latest) did exactly that. The pick is re-dispatched on every retry until
+ * the card is open; a repeated identical pick re-opens the same card, so the retries are
+ * idempotent. */
 async function pickOnPlate(pick: Record<string, unknown>): Promise<HTMLElement> {
   await waitFor(() => {
     if (!document.querySelector('iframe')) throw new Error('no iframe yet');

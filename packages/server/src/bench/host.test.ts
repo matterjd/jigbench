@@ -7,6 +7,7 @@ import { join } from 'node:path';
 import type { BuildOutcome, BuildRunnerLike, ClaudeStatus, StartBuildInput } from '../build/types.js';
 import { FakeOllamaDrafter } from '../orders/drafters/fake.js';
 import { createBenchHost, type BenchHostHandle } from './host.js';
+import { MALFORMED_JSON_MESSAGE, UNSUPPORTED_MEDIA_TYPE_MESSAGE } from '../json-body.js';
 
 class FakeBuildRunner implements BuildRunnerLike {
   async isClaudeAvailable(): Promise<boolean> {
@@ -333,6 +334,39 @@ describe('#18: the Host allowlist and UNC rejection on the bench host', () => {
 // on an OS-assigned port, 56258) while README.md:49 and docs/TEST-RUN.md:12 promise 4601." The
 // CLI parsed the number and `createBench` already knew what to do with one; nothing carried it
 // from `serve.ts` through `createJigServer` to the host, so every runtime clamp got port 0.
+// #81 item 8: the bench HOST mounts its own `express.json()` and its own error handler, so the
+// two servers have to be pinned separately — `http.test.ts` covers the other one. Both reach the
+// same `json-body.ts`, which is the point of putting it there.
+describe("#81: a body that is not JSON, on the bench host", () => {
+  it('415s a body sent under another media type, in the same words the other server uses', async () => {
+    const h = await boot();
+    const res = await fetch(`${h.url}/api/clamp`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/x-www-form-urlencoded' },
+      body: 'repoRoot=%2Ftmp',
+    });
+    expect(res.status).toBe(415);
+    expect((await res.json()).error).toBe(UNSUPPORTED_MEDIA_TYPE_MESSAGE);
+  });
+
+  it("400s a malformed JSON body with the bench's sentence, not the parser's", async () => {
+    const h = await boot();
+    const res = await fetch(`${h.url}/api/clamp`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: '{{{ not json',
+    });
+    expect(res.status).toBe(400);
+    expect((await res.json()).error).toBe(MALFORMED_JSON_MESSAGE);
+  });
+
+  it('leaves a POST with no body at all alone — the unclamp route takes none', async () => {
+    const h = await boot();
+    const res = await fetch(`${h.url}/api/unclamp`, { method: 'POST' });
+    expect(res.status).not.toBe(415);
+  });
+});
+
 describe('#24: the plate binds the port it was given (--plate-port on the Clamp path)', () => {
   it('a clamp made at runtime binds platePort, and something really answers there', async () => {
     const platePort = await freePort();
