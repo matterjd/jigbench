@@ -1,9 +1,10 @@
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { mkdtempSync, mkdirSync, rmSync, symlinkSync } from 'node:fs';
 import { mkdir, mkdtemp, realpath, rm, symlink } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { checkLocalPath } from './local-path.js';
+import { UNC_REFUSED_MESSAGE } from './unc-path.js';
 
 /**
  * #37: the rule both the folder browser and clamp go through. The shape that makes it matter —
@@ -51,6 +52,67 @@ describe('checkLocalPath', () => {
       });
       expect(result.ok, unc).toBe(false);
       if (!result.ok) expect(result.error).toMatch(/UNC/);
+    }
+  });
+
+  // #81 item 2: the three prefixes, each pinned with a spy — `realpath` is what OPENS the SMB
+  // connection on Windows when it is handed a share, so "refused" has to mean "refused before
+  // that call", not "refused after it". `\\?\UNC\host\share` is the extended-length spelling of
+  // exactly the same share and `\\.\` is the device namespace; both share the two-separator
+  // prefix, which is why one rule covers all three.
+  it('#81: refuses every UNC prefix spelling — `\\\\`, `//` and `\\\\?\\UNC` — with zero realpath calls', async () => {
+    const spellings = [
+      '\\\\evil.example\\share\\repo',
+      '//evil.example/share/repo',
+      '\\\\?\\UNC\\evil.example\\share\\repo',
+      '//?/UNC/evil.example/share/repo',
+      '\\\\?\\unc\\evil.example\\share',
+      '\\\\.\\evil.example\\share',
+    ];
+    for (const unc of spellings) {
+      const spy = vi.fn(async (p: string) => p);
+      const result = await checkLocalPath(unc, { realpath: spy });
+      expect(result.ok, unc).toBe(false);
+      if (!result.ok) expect(result.error, unc).toBe(UNC_REFUSED_MESSAGE);
+      expect(spy, unc).toHaveBeenCalledTimes(0);
+    }
+  });
+
+  // #81 item 2, the hole a raw-string test cannot see: `checkLocalPath` judged `raw` and then
+  // handed `realpath` the RESOLVED path, which it never judged. `path.resolve` takes a relative
+  // — or a root-relative — value against `process.cwd()`, so a bench started FROM a share turns
+  // `sub` into `\\host\share\dir\sub` and `\repo` into `\\host\share\repo`: neither raw
+  // string is UNC-spelled, both land on the share, and `realpath` opened it.
+  //
+  // The cwd is spied rather than changed, because no CI runner can chdir into a UNC path without
+  // the SMB connection this test exists to prove never happens. Both cases run identically on
+  // both legs: the guard asks the question the WIN32 way (see `local-path.ts`), so the answer
+  // does not depend on POSIX's `path.resolve` collapsing `//host/share` to `/host/share`.
+  it('#81: refuses a relative or root-relative path that resolves onto a share, with zero realpath calls', async () => {
+    const cwd = vi.spyOn(process, 'cwd').mockReturnValue('\\\\evil.example\\share\\dir');
+    try {
+      for (const raw of ['sub', '.', '..', 'a/b', '\\repo', '/repo']) {
+        const spy = vi.fn(async (p: string) => p);
+        const result = await checkLocalPath(raw, { realpath: spy });
+        expect(result.ok, raw).toBe(false);
+        if (!result.ok) expect(result.error, raw).toBe(UNC_REFUSED_MESSAGE);
+        expect(spy, raw).toHaveBeenCalledTimes(0);
+      }
+    } finally {
+      cwd.mockRestore();
+    }
+  });
+
+  // The detector control for the case above: an ordinary local cwd must still let an ordinary
+  // relative path through, or the rule above would be "refuse everything relative".
+  it('#81: a relative path under an ordinary cwd is untouched by that rule', async () => {
+    const dir = await freshDir();
+    const cwd = vi.spyOn(process, 'cwd').mockReturnValue(dir);
+    try {
+      const result = await checkLocalPath('.');
+      expect(result.ok).toBe(true);
+    } finally {
+      cwd.mockRestore();
     }
   });
 
