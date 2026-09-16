@@ -35,7 +35,7 @@ export interface SetupRouteContext {
   /** Test-only override — defaults to the real `claudeDesktopConfigPath()`. */
   getDesktopConfigPath?: () => string | undefined;
   /** Test-only override, forwarded to `checkLocalPath` (#81) — the same seam
-   * `FsRouteOptions.realpath` carries, and for the same reason: a symlink or junction onto a
+   * `FsRouteOptions.realpath` carries, and for the same reason: a symlink onto a
    * UNC share cannot be planted on a CI runner without opening the SMB connection the guard
    * exists to prevent, so the rule is proved against an injected answer. Production passes
    * nothing. */
@@ -182,7 +182,7 @@ export function attachSetupRoute(app: Express, ctx: SetupRouteContext): void {
       }
       // #81 (the S20 review): the SAME guard `/api/fs/list` and `/api/clamp` use, not just the
       // half of it. This route used to refuse the UNC SPELLING and nothing else — which is
-      // where the other two were before #37 — so a symlink or NTFS junction inside the home
+      // where the other two were before #37 — so a symlink inside the home
       // pointing at `\\attacker\share` carried the share past it spelled like any other local
       // path, and `clampDocs` walked it: a `stat`, then a `readdir` of every directory under
       // it, each one the SMB connection the guard exists to prevent. `checkLocalPath` judges
@@ -194,11 +194,21 @@ export function attachSetupRoute(app: Express, ctx: SetupRouteContext): void {
         return;
       }
 
-      // The REAL path, not the caller's spelling: that is the one the guard cleared, so
-      // nothing can be re-pointed between the check and the walk. (`fs/route.ts` and
-      // `validate-clamp-path.ts` do the same; both keep the caller's spelling for what they
-      // REPORT, and the only spelling this route reports is the file count.)
-      const result = await clampDocs({ repoRoot: bench.repoRoot, folder: checked.real });
+      // Both spellings, kept apart the way `fs/route.ts` keeps `realParent` from
+      // `reportedParent`. The WALK goes through the REAL path — the one the guard cleared, so
+      // nothing can be re-pointed between the check and the read. What the clamp RECORDS stays
+      // the caller's spelling: the HTTP response here is only counts, but the route rewrites
+      // `.jig/survey/docs.json`, whose `root`, `files[].file` and `chunks[].id` are all
+      // spellings, and `GET /api/docs`, the MCP `jig_docs` tool and the prompt builder read
+      // them back. `bench.repoRoot` is the caller's spelling too (`validate-clamp-path.ts`
+      // returns `resolved`), so recording the real one would make `relative()` escape and every
+      // in-repo ref go absolute wherever the two forms differ — a junction, a symlink, or the
+      // 8.3 alias `build/git-diff.ts` documents against a real CI failure.
+      const result = await clampDocs({
+        repoRoot: bench.repoRoot,
+        folder: checked.real,
+        reportedFolder: checked.resolved,
+      });
       await bench.store.reload();
 
       res.json({

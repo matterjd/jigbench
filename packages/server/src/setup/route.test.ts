@@ -258,7 +258,7 @@ describe('POST /api/docs/clamp', () => {
 
   // #81 item 1 (the S20 review's first follow-up): this route refused only the UNC SPELLING
   // (`setup/route.ts:179`), which is where `/api/fs/list` and `/api/clamp` were before #37. A
-  // symlink or NTFS junction inside the home pointing at `\\attacker\share` is spelled like any
+  // symlink inside the home pointing at `\\attacker\share` is spelled like any
   // other local path, so it carried the share straight past that check and `clampDocs` walked
   // it — `stat` and then `readdir`, every one of them the SMB connection the guard exists to
   // prevent. Planting the win32 shape for real would make that connection on a CI runner, so
@@ -285,8 +285,48 @@ describe('POST /api/docs/clamp', () => {
     expect(bench.store.getState().wiring.docs).not.toBe('wired');
   });
 
+  // #81 item 1, the lead's repair: the guard's two spellings must stay APART. The walk goes
+  // through `real` (the spelling the guard cleared, so nothing can be re-pointed between the
+  // check and the read), but everything the index RECORDS — its `root`, every `files[].file`
+  // and every `chunks[].id` — is the caller's spelling, because `bench.repoRoot` is the
+  // caller's spelling too (`bench/validate-clamp-path.ts` returns `resolved`, not `real`) and
+  // `relative()` between the two forms escapes: the same 8.3/junction mismatch
+  // `build/git-diff.ts` documents against a real CI failure. `DocsIndex.root` and those refs
+  // are reported back by `GET /api/docs`, by the MCP `jig_docs` tool and by the prompt builder,
+  // so a mismatch is caller-facing. The realpath answer is injected, the same seam the two
+  // tests above use — planting a junction for real would need a privilege CI does not have.
+  it('#81: records the caller\'s spelling even when the real one differs — refs stay repo-relative', async () => {
+    const linkRepo = await freshRepo(); // the spelling the human picked, and `bench.repoRoot`
+    const realRepo = await freshRepo(); // what `realpath` says it really is
+    await mkdir(join(realRepo, 'docs'), { recursive: true });
+    await writeFile(join(realRepo, 'docs', 'guide.md'), '# Guide\n\nSome content here.', 'utf8');
+
+    bench = await createBench(linkRepo, { benchOrigin: 'http://localhost:0', runner: new FakeBuildRunner() });
+    vi.mocked(clampDocs).mockClear();
+    const { url } = await boot({ bench, realpath: async (p: string) => p.replace(linkRepo, realRepo) });
+
+    const res = await fetch(`${url}/api/docs/clamp`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ folder: join(linkRepo, 'docs') }),
+    });
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.files).toBe(1);
+
+    // The walk went through the real spelling — that is the TOCTOU fix, and it stays.
+    expect(vi.mocked(clampDocs).mock.calls[0][0].folder).toBe(join(realRepo, 'docs'));
+
+    const index = JSON.parse(await readFile(body.file, 'utf8'));
+    expect(index.files[0].file).toBe('docs/guide.md');
+    expect(index.chunks[0].id.startsWith('docs/guide.md#')).toBe(true);
+    expect(index.root).toBe(join(linkRepo, 'docs').split('\\').join('/'));
+  });
+
   // The acceptance for #81 item 1: one input, three routes, one refusal in one wording. The
-  // other two pin the same constant in `fs/route.test.ts` and `bench/validate-clamp-path.test.ts`.
+  // other two now assert the same constant — `fs/route.test.ts` and
+  // `bench/validate-clamp-path.test.ts` both import `UNC_REFUSED_MESSAGE` and pin it, so the
+  // wording cannot drift in one route without a red in that route's own file.
   it('#18/#81: still 400s a raw UNC spelling, in the words the other two routes use', async () => {
     const repoRoot = await freshRepo();
     bench = await createBench(repoRoot, { benchOrigin: 'http://localhost:0', runner: new FakeBuildRunner() });

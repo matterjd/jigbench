@@ -7,6 +7,9 @@ import { join } from 'node:path';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { attachFsRoute } from './route.js';
+// #81 item 1: the three routes' acceptance is one input, one refusal, one wording — so this
+// file pins the constant itself, not a substring of it.
+import { UNC_REFUSED_MESSAGE } from './unc-path.js';
 
 const execFileAsync = promisify(execFile);
 
@@ -221,7 +224,7 @@ describe('GET /api/fs/list', () => {
     for (const unc of ['\\\\evil.example\\share', '//evil.example/share']) {
       const res = await fetch(`${url}/api/fs/list?path=${encodeURIComponent(unc)}`);
       expect(res.status, unc).toBe(400);
-      expect((await res.json()).error).toMatch(/UNC/);
+      expect((await res.json()).error, unc).toBe(UNC_REFUSED_MESSAGE);
     }
   });
 
@@ -240,7 +243,7 @@ describe('GET /api/fs/list', () => {
 
     expect(res.status).toBe(400);
     const body = await res.json();
-    expect(body.error).toMatch(/UNC/);
+    expect(body.error).toBe(UNC_REFUSED_MESSAGE);
     expect(body.entries).toBeUndefined();
   });
 
