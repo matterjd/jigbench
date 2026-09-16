@@ -1,6 +1,7 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { DetectedTargetSummary } from '@jigbench/core';
+import { isValidPort } from '../valid-port.js'; // #81
 
 /**
  * S17a (AMENDMENT-1 §7, A6): "Start the app runs the detected dev script inside the repo".
@@ -13,14 +14,26 @@ import type { DetectedTargetSummary } from '@jigbench/core';
  *      `{script}` on `POST /api/target/start` — so no adapter's output can name a command.
  *   2. `package.json`'s own `start`/`dev`/`serve` script, in that priority order — whichever
  *      is defined first wins; a repo commonly has more than one.
- *   3. `angular.json` alone, with no npm script found at all — `npx ng serve --port <n>`
- *      directly.
+ *   3. `angular.json` alone, with no npm script found at all — `npx --no-install ng serve
+ *      --port <n>` directly, and ONLY when the repo has its own `node_modules/.bin/ng` (#81:
+ *      without that guard `npx` downloads `ng` from the registry and runs it, on nothing but
+ *      the presence of an `angular.json`). A repo with the config and no `ng` of its own
+ *      declines the tier and answers `null` — "nothing to start". The gate is the repo's own
+ *      `.bin`, nothing wider, so a hoisted or globally installed `ng` declines too, though npx
+ *      would have run it with no download.
  * Every tier ALSO tries to read a real port out of `angular.json` (the same config
  * `packages/cli/src/commands/serve.ts`'s own `detectTarget` reads) — even when the command
  * came from a package.json script — since `ng serve` (whichever way it's invoked) binds to
  * that configured port, not a guessed one. `4200` (Angular's own default) is the last-resort
  * numeric guess when no `angular.json` exists at all; it is honestly a guess for a non-Angular
  * app with an unknown dev-server port, disclosed here rather than silently wrong.
+ *
+ * #81: every port this module can answer with goes through `valid-port.ts` first — the rule #70
+ * put on a `port` in a REQUEST body, applied to the two that come from data instead: a clamped
+ * repo's `angular.json` and an adapter's survey hint. Both are outside input, and `1e999` reads
+ * as `Infinity` out of either. An out-of-range value is treated as NO configured port and the
+ * tier below answers for it, so no path out of `detectDevScript` can hand the runner a port
+ * that cannot be bound (`detect.test.ts` walks all four tiers and says so).
  */
 
 const DEFAULT_PORT_GUESS = 4200;
@@ -73,7 +86,12 @@ function readDevServerHint(survey: unknown): DevServerHint | undefined {
   const hint = raw as Record<string, unknown>;
   return {
     script: typeof hint.script === 'string' ? hint.script : undefined,
-    port: typeof hint.port === 'number' ? hint.port : undefined,
+    // #81: `typeof x === 'number'` passed anything JSON can carry, and `1e999` is the one that
+    // bites — a parser reads it as `Infinity`, which IS a number and is not a port. An adapter's
+    // survey is data from outside exactly as a request body is (#70), so it meets the same rule.
+    // An unusable hint port is not an error and does not cost the hint its SCRIPT: it reads as
+    // no port at all, and the tier below answers for it.
+    port: isValidPort(hint.port) ? hint.port : undefined,
     url: typeof hint.url === 'string' ? hint.url : undefined,
   };
 }
@@ -94,7 +112,11 @@ function angularConfiguredPort(repoRoot: string): number | undefined {
     const parsed = JSON.parse(readFileSync(angularJsonPath, 'utf8')) as AngularJsonShape;
     const projectName = parsed.defaultProject ?? Object.keys(parsed.projects ?? {})[0];
     const port = projectName ? parsed.projects?.[projectName]?.architect?.serve?.options?.port : undefined;
-    return typeof port === 'number' ? port : DEFAULT_PORT_GUESS;
+    // #81: same rule, same reason — `"port": 1e999` in a clamped repo's own angular.json parses
+    // to `Infinity`, and this number goes onto `ng serve`'s command line AND into the runner's
+    // 120-second availability probe. A value outside 1-65535 reads as the "exists but sets no
+    // explicit port" case this function already has words for, not as a port.
+    return isValidPort(port) ? port : DEFAULT_PORT_GUESS;
   } catch {
     return DEFAULT_PORT_GUESS;
   }
@@ -108,6 +130,31 @@ function angularConfiguredPort(repoRoot: string): number | undefined {
  * `POST /api/target/url` for an app it starts itself. */
 const WIN32_RUNNABLE_SCRIPT_NAME = /^[A-Za-z0-9._:-]+$/;
 
+/** #81: a name is a key of the repo's OWN `package.json`, which means it is whatever a hostile
+ * clone wrote there. 214 is far past `npm run`'s practical ceiling and well under every
+ * platform's argument limit — a cap that no real script name can notice. */
+const MAX_SCRIPT_NAME_LENGTH = 214;
+
+/**
+ * #81: the repo's OWN `ng`, when it has one. `npx ng serve` resolves a local
+ * `node_modules/.bin/ng` first — and DOWNLOADS `ng` from the registry when there is none, then
+ * runs it. That is a network fetch and an execution on nothing but the presence of an
+ * `angular.json` in a folder the human pointed at, which is not a thing a detector may decide
+ * to do. Both spellings are checked because npm writes `ng` and `ng.cmd` side by side on
+ * Windows, and only the `.cmd` is the executable one there.
+ *
+ * This is NARROWER than npx's own resolution, deliberately and at a cost (the lead's
+ * 2026-09-15 review): npx also finds an ancestor `node_modules/.bin` — a monorepo hoist — and
+ * a globally installed `ng` on PATH, and would have run either with no registry fetch at all.
+ * Both decline the tier here, so an Angular repo that starts fine from the human's own shell
+ * can read as "nothing to start". The narrow check is the one that can be made from a path
+ * alone, and declining is what #81 asked for; the cost belongs in the words, not hidden.
+ */
+function hasLocalAngularCli(repoRoot: string): boolean {
+  const base = join(repoRoot, 'node_modules', '.bin', 'ng');
+  return existsSync(base) || existsSync(`${base}.cmd`);
+}
+
 /**
  * #37: may Jig put this script NAME on a command line? Being a key of the repo's own
  * `package.json` was the whole of #17's test, and a repo's own key can carry the
@@ -117,13 +164,28 @@ const WIN32_RUNNABLE_SCRIPT_NAME = /^[A-Za-z0-9._:-]+$/;
  * was never the danger; `&`, `|`, `^`, `%` with no space around them are passed through bare and
  * cmd.exe re-parses the line on them.
  *
- * Off win32 every name passes: `npm` is an ordinary executable there, the argv array is the argv
- * the process gets, and nothing re-parses it — a name the repo chose is the repo's business.
+ * Off win32 every OTHER name passes: `npm` is an ordinary executable there, the argv array is
+ * the argv the process gets, and nothing re-parses it — a name the repo chose is the repo's
+ * business. #81 carved out the two shapes that are not about re-parsing at all, and so hold
+ * everywhere: a leading `-` (an option, not a name, to any argv) and an unbounded length.
  *
  * `platform` is a parameter (defaulting to this process's) so the win32 rule is provable on any
  * leg, the same reason `fs/win32-hidden.ts` splits `parseAttribOutput` out of its spawn.
  */
 export function isRunnableScriptName(name: string, platform: string = process.platform): boolean {
+  // #81: two rules that hold on EVERY platform, because neither is about cmd.exe re-parsing a
+  // line — which is the only thing the win32 charset below is about.
+  //
+  // A leading `-` is read as an OPTION by whatever the argv reaches: `npm run -x` hands npm a
+  // flag, not a script name, on Windows and POSIX alike. It also slipped through the win32
+  // charset, which allows `-` so that `lint-all` works, so even the strict leg accepted it.
+  // No legitimate npm script name begins with one.
+  //
+  // And a length cap, for the same reason the charset exists: the name comes from a file the
+  // repo controls, not from Jig.
+  if (name.length === 0 || name.length > MAX_SCRIPT_NAME_LENGTH) return false;
+  if (name.startsWith('-')) return false;
+
   if (platform !== 'win32') return true;
   return WIN32_RUNNABLE_SCRIPT_NAME.test(name);
 }
@@ -207,10 +269,29 @@ export function detectDevScript(repoRoot: string, survey?: unknown): DetectedTar
     };
   }
 
+  // #81: this tier ran `npx ng serve`, and `npx` FETCHES `ng` from the registry when the repo
+  // has no local install — a download and then an execution, decided by a detector, on nothing
+  // but the presence of an `angular.json`. Two changes, and the second is the one that holds:
+  //
+  //   - the tier is declined outright unless the repo has its own `node_modules/.bin/ng`, so
+  //     the answer is the honest `null` this function already documents ("nothing to start",
+  //     which the checklist and `POST /api/target/start` read as "ask the human for a URL");
+  //   - and `--no-install` goes on the invocation as well, which stops npx INSTALLING and
+  //     running a package the repo does not have — it does NOT stop npx asking the registry
+  //     about one. Measured on the lead's desk with npm 11.13.0:
+  //     `npx --no-install nonexistent-pkg-zzz9` answers with a 404 FROM the registry, and
+  //     `npx --no-install cowsay hi` cancels naming a resolved `cowsay@1.6.0` — a manifest
+  //     lookup. So the flag is a second belt, not the thing that prevents a fetch-and-run;
+  //     `hasLocalAngularCli` above is.
+  //
+  // `npx` stays the launcher rather than the binary path itself: it already resolves the local
+  // `.bin` first, `invocation()`'s cmd.exe routing is proven for it on both CI legs, and a bare
+  // `node_modules/.bin/ng.cmd` path would have to survive cmd.exe's own quote handling on a
+  // desk whose home directory has a space in it.
   const angularPort = angularConfiguredPort(repoRoot);
-  if (angularPort !== undefined) {
+  if (angularPort !== undefined && hasLocalAngularCli(repoRoot)) {
     return {
-      ...invocation('npx', ['ng', 'serve', '--port', String(angularPort)]),
+      ...invocation('npx', ['--no-install', 'ng', 'serve', '--port', String(angularPort)]),
       cwd: repoRoot,
       port: angularPort,
       source: 'angular.json',

@@ -7,6 +7,9 @@ import { join } from 'node:path';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { attachFsRoute } from './route.js';
+// #81 item 1: the three routes' acceptance is one input, one refusal, one wording — so this
+// file pins the constant itself, not a substring of it.
+import { UNC_REFUSED_MESSAGE } from './unc-path.js';
 
 const execFileAsync = promisify(execFile);
 
@@ -221,12 +224,12 @@ describe('GET /api/fs/list', () => {
     for (const unc of ['\\\\evil.example\\share', '//evil.example/share']) {
       const res = await fetch(`${url}/api/fs/list?path=${encodeURIComponent(unc)}`);
       expect(res.status, unc).toBe(400);
-      expect((await res.json()).error).toMatch(/UNC/);
+      expect((await res.json()).error, unc).toBe(UNC_REFUSED_MESSAGE);
     }
   });
 
-  // #37: the same guard, applied to what the path really IS. A symlink or NTFS junction inside
-  // the home pointing at `\\attacker\share` is spelled like any other local path, and the `stat`
+  // #37: the same guard, applied to what the path really IS. A directory symlink inside the
+  // home pointing at `\\attacker\share` is spelled like any other local path, and the `stat`
   // that came next follows it — the SMB connection #18's guard exists to prevent, made after that
   // guard had said yes. Planting the win32 shape for real would make that connection on a CI
   // runner, so the realpath answer is injected here (`fs/local-path.test.ts` plants the
@@ -240,8 +243,49 @@ describe('GET /api/fs/list', () => {
 
     expect(res.status).toBe(400);
     const body = await res.json();
-    expect(body.error).toMatch(/UNC/);
+    expect(body.error).toBe(UNC_REFUSED_MESSAGE);
     expect(body.entries).toBeUndefined();
+  });
+
+  // #81 item 4 (the S20 review's third follow-up): `checkLocalPath` answers with TWO spellings —
+  // `resolved`, what the caller typed, and `real`, what it is after every link is followed. The
+  // listing read `real` (`readdir`, and #24's `attrib`), but `describeEntry` was handed
+  // `resolved` and probed `.git`, `package.json`, `angular.json`, `docs` and `*.csproj` through
+  // THAT: a second, unchecked traversal of the same link, made after the guard had finished.
+  // A root re-pointed in between is simply followed, with nothing looking again — and the flags
+  // then describe a different directory than the names they sit beside came from.
+  //
+  // The re-point is injected rather than raced: `realpath` answers one directory on the first
+  // call and another on the second, which is the same seam #37 uses and the only way to make
+  // the window deterministic on both CI legs. No symlink is planted, so this runs identically
+  // on windows-latest, where creating one needs a privilege.
+  it('#81: probes each child through the spelling the guard checked, not the one the caller typed', async () => {
+    const first = await freshDir();
+    const second = await freshDir();
+    await mkdir(join(first, 'alpha', '.git'), { recursive: true });
+    await mkdir(join(second, 'beta'), { recursive: true });
+    await writeFile(join(second, 'beta', 'package.json'), '{}', 'utf8');
+
+    // The caller's spelling never changes; what it really is does, between the two listings.
+    const answers = [first, second];
+    const { url } = await boot({ realpath: async () => answers.shift() ?? second });
+
+    const before = await (await fetch(`${url}/api/fs/list?path=${encodeURIComponent(first)}`)).json();
+    expect(before.entries.map((e: { name: string }) => e.name)).toEqual(['alpha']);
+    expect(before.entries[0].hasGit).toBe(true);
+
+    const after = await (await fetch(`${url}/api/fs/list?path=${encodeURIComponent(first)}`)).json();
+
+    // The names come from the NEW target, because the guard was re-run and `readdir` followed
+    // its answer. The flags have to come from the same place, or they describe the old one.
+    expect(after.entries.map((e: { name: string }) => e.name)).toEqual(['beta']);
+    expect(after.entries[0].hasPackageJson).toBe(true);
+    expect(after.entries[0].hasGit).toBe(false);
+
+    // ...and `entries[].path` still reads back in the caller's own spelling, which is what the
+    // browser navigates with and what a clamp records. Probing elsewhere never changes that.
+    expect(after.path).toBe(first);
+    expect(after.entries[0].path).toBe(join(first, 'beta'));
   });
 
   it("#18: refuses a listing whose Host is not the bench's own address (DNS rebinding), with no Origin at all", async () => {

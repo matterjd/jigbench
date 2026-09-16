@@ -9,8 +9,8 @@ import { checkLocalPath, type CheckLocalPathDeps } from '../fs/local-path.js';
  * booting a server.
  *
  * #37: the UNC refusal and the existence check now come from `fs/local-path.ts`, shared with the
- * folder browser — a symlink or junction spelled like a local path used to carry both guards
- * past a `stat` that followed it. Every rejection keeps its exact words.
+ * folder browser — a directory symlink spelled like a local path used to carry both guards past
+ * a `stat` that followed it. Every rejection keeps its exact words.
  */
 
 export type ClampPathValidation = { ok: true; resolved: string } | { ok: false; error: string };
@@ -26,8 +26,11 @@ export async function validateClampPath(rawPath: string, deps: CheckLocalPathDep
     return { ok: false, error: 'repoRoot is required' };
   }
 
-  // #18/#37: the UNC spelling, on the raw string AND on what the path really resolves to; then
-  // existence, by `realpath` rather than by a `stat` that would follow a link to a UNC host.
+  // #18/#81: the UNC spelling, on the raw string and on what `path.resolve` answers, both before
+  // any filesystem call; #37: then on what the path REALLY is, which only `realpath` can say —
+  // so for a LOCAL spelling pointing at a share that refusal lands after one connection, not
+  // before it, and fails closed. Either way the `stat` below never follows a link to a UNC host.
+  // `fs/local-path.ts` sets out exactly which refusal happens when.
   const checked = await checkLocalPath(rawPath, deps);
   if (!checked.ok) {
     return { ok: false, error: checked.error };

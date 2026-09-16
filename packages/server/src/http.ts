@@ -13,6 +13,7 @@ import { logger } from './logger.js';
 import { JigWatcher } from './watcher.js'; // S6
 import { watchShopFreshness, SHOP_FRESHNESS_TICK_MS } from './shop-freshness.js'; // S6 fix (wave-4 finding 3)
 import { HOST_REFUSED_MESSAGE, isAllowedHost, isSameOriginOrAbsent } from './same-origin.js'; // S17a — extracted so fs/route.ts can reuse it too
+import { isMalformedJsonError, MALFORMED_JSON_MESSAGE, refuseNonJsonBody } from './json-body.js'; // #81
 // === S5 orders: imports (delimited block; owned by packages/server/src/orders/*) ===
 import { OrdersService } from './orders/service.js';
 import { OrderConflictError, OrderNotFoundError } from './orders/errors.js';
@@ -242,6 +243,12 @@ function buildApp(
     next();
   });
 
+  // #81: and then, with the origin settled, what the body actually was. A body sent under a
+  // media type `express.json()` does not read reached the routes unparsed and was refused for
+  // whatever field it found missing — the wrong answer to the wrong question. 415 says the one
+  // useful thing instead. Mounted after the gate, so a foreign origin still loses on 403 first.
+  app.use('/api', refuseNonJsonBody);
+
   app.get('/api/health', (_req, res) => {
     res.json({ ok: true, repoRoot: store.repoRoot });
   });
@@ -452,6 +459,15 @@ function buildApp(
   // Keep API errors JSON — this is a local tool, not a public API, so the message itself is
   // fine to return; it is never a stack trace, never a secret.
   app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
+    // #81: body-parser's own phrasing for an unparseable payload is V8's (`Unexpected token
+    // 'o', "not json" is not valid JSON`) and has changed spelling between Node releases. The
+    // STATUS it carries is right — 400: the media type was supported, the syntax was not — so
+    // only the sentence is replaced, in the bench's voice like every other refusal here.
+    if (isMalformedJsonError(err)) {
+      logger.warn('request failed', MALFORMED_JSON_MESSAGE);
+      res.status(400).json({ error: MALFORMED_JSON_MESSAGE });
+      return;
+    }
     const message = err instanceof Error ? err.message : String(err);
     // Most thrown errors here (a ZodError from MarkTargetSchema/HumanFacePatchSchema) have
     // no status of their own -> 400 (malformed request), same as always. body-parser's own

@@ -5,13 +5,14 @@ import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
-import { jigPaths } from '@jigbench/core';
+import { buildNoticeLine, buildStreamLine, jigPaths } from '@jigbench/core';
 import { BuildRunner } from './runner.js';
 import type { BuildStreamEvent } from './types.js';
 
 const execFileAsync = promisify(execFile);
 const here = dirname(fileURLToPath(import.meta.url));
 const FAKE_CLAUDE = join(here, '__fixtures__', 'fake-claude.mjs');
+const FAKE_GIT_HANGS = join(here, '__fixtures__', 'fake-git-hangs.mjs');
 
 let repoRoot: string;
 
@@ -280,4 +281,68 @@ describe('BuildRunner — one build at a time', () => {
       delete process.env.FAKE_CLAUDE_SLOW_MS;
     }
   }, 10_000);
+});
+
+// #81 item 7: #37 gave `git-diff.ts`'s two invocations a budget and killed the ones that
+// outlived it, and `BuildRunner.start()` awaits the before-snapshot before it spawns `claude` at
+// all. What #37 did not do was TELL anyone: `gitStatusSnapshot` answered `null`, the runner read
+// that as "no diff information", and neither the build stream nor the logbook carried a word
+// about it. A build whose `git` was wedged for the full budget reported no files touched and
+// read exactly like a build in a folder that is not a repo.
+//
+// The git is the `fake-git-hangs.mjs` fixture `git-diff.test.ts` already uses, reached through
+// the `gitCommand`/`gitArgsPrefix` seam — the same shape `command`/`commandArgsPrefix` gives the
+// fake `claude`, so nothing has to be on PATH and both CI legs behave identically.
+describe('BuildRunner — a git that runs out of budget says so', () => {
+  it('#81: emits one notice line on the build stream, and the build still finishes', async () => {
+    const runner = makeRunner({
+      gitTimeoutMs: 300,
+      gitCommand: process.execPath,
+      gitArgsPrefix: [FAKE_GIT_HANGS],
+    });
+
+    const { events, outcome } = await collectEvents(runner, 'p-git', 'b-git');
+
+    const notices = events.filter((e): e is Extract<BuildStreamEvent, { kind: 'notice' }> => e.kind === 'notice');
+    expect(notices.map((n) => n.code)).toEqual(['git-timed-out']);
+    // The words come from core, so the card, the ribbon, the status line, the logbook and the
+    // CLI cannot phrase the same code differently.
+    expect(buildStreamLine(notices[0])).toBe(buildNoticeLine('git-timed-out'));
+    expect(buildStreamLine(notices[0])).toMatch(/git ran out of time/i);
+
+    // ...and the notice is a note, not a failure: the build ran and answered as it always did.
+    expect(outcome.exitCode).toBe(0);
+    expect(outcome.cancelled).toBe(false);
+  }, 30_000);
+
+  // The detector control, and it earned its place: written first against the bare temp repo this
+  // file uses everywhere else, it caught a real `not-a-git-repo` notice — which is the feature
+  // working, not the test failing. A build in a REAL working tree is the only case that should
+  // be silent, so that is what the control builds.
+  it('#81: a build in a real git working tree emits no notice at all', async () => {
+    await execFileAsync('git', ['init'], { cwd: repoRoot });
+    await execFileAsync('git', ['config', 'user.email', 'test@example.com'], { cwd: repoRoot });
+    await execFileAsync('git', ['config', 'user.name', 'Test'], { cwd: repoRoot });
+
+    const runner = makeRunner();
+    const { events } = await collectEvents(runner, 'p-git-ok', 'b-git-ok');
+    expect(events.filter((e) => e.kind === 'notice')).toEqual([]);
+  }, 30_000);
+
+  // The third reason, end to end through the runner rather than only through `git-diff.ts`: the
+  // bare temp repo every other test here uses is not a working tree, and that is its own
+  // sentence — not the same silence a wedged git used to produce.
+  it('#81: a build outside a git working tree says THAT, in its own words', async () => {
+    const runner = makeRunner();
+    const { events } = await collectEvents(runner, 'p-git-norepo', 'b-git-norepo');
+
+    const notices = events.filter((e): e is Extract<BuildStreamEvent, { kind: 'notice' }> => e.kind === 'notice');
+    expect(notices.map((n) => n.code)).toEqual(['not-a-git-repo']);
+    expect(buildStreamLine(notices[0])).not.toBe(buildNoticeLine('git-timed-out'));
+    // The lead's 2026-09-15 review: this used to read 'this folder is not a git working tree',
+    // which a `safe.directory` refusal would earn about a folder that IS one. The sentence now
+    // reports what git said rather than concluding from it, and the code is unchanged.
+    expect(buildStreamLine(notices[0])).toMatch(/no working tree/i);
+    expect(buildStreamLine(notices[0])).not.toBe(buildNoticeLine('git-refused-the-tree'));
+  }, 15_000);
 });

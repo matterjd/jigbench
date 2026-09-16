@@ -15,10 +15,36 @@
  *      else — any DNS name in particular — is refused before Origin is even read.
  *   2. With an allowed Host, an absent Origin is still a non-browser client (curl, an MCP
  *      client, the CLI itself — none send one) and passes; a present Origin must match the
- *      Host, name and port.
+ *      Host, name and port, over `http:`. #81: absent means the header was not sent — a header
+ *      present with an empty value is not a client with no Origin and is refused with the rest.
  * A wildcard bind (`--host 0.0.0.0` / `::`) never appears in a Host header itself, so for
  * that deliberate LAN exposure any IP-LITERAL Host is accepted as well — a name can be
  * rebound, an address cannot; reach a wildcard-bound bench by its IP, not by machine name.
+ *
+ * ## What this gate does NOT stop — #81 item 5
+ *
+ * Rule 2's absent-Origin allowance is a real, deliberate hole, and it is worth naming here
+ * rather than leaving to be discovered. A browser sends NO `Origin` on a request it does not
+ * treat as a fetch: an `<img src>`, a `<script src>`, a `<link>`, an `<iframe>`, a plain
+ * navigation. A page on `https://evil.example` pointing one of those at
+ * `http://localhost:4600/api/state` sends `Host: localhost:4600` — the bench's own name,
+ * because that is the URL it used — and no Origin. Both rules pass. **The request runs.**
+ *
+ * That is not DNS rebinding (rule 1 is what refuses a name the attacker controls, and it does)
+ * and it is not fixable by tightening this function: `curl`, an MCP client and the CLI itself
+ * send no Origin either, and a local bench that refused them would be a bench no local tool
+ * could talk to.
+ *
+ * What the foreign page gets for it is nothing it can read. The browser hands the response to
+ * the tag that asked, not to the page's script, and the one API that WOULD hand over the body —
+ * `fetch`/`XHR` — sends an Origin, which a foreign page loses on here, on every method. Writes
+ * are out of reach twice over: every state-changing route is POST/PUT/DELETE, and the only
+ * cross-origin issue a page can make without JavaScript is an HTML `<form>`, which cannot send
+ * `Content-Type: application/json` — the only body type either gate's server parses. So the cost
+ * is the WORK a GET does, not the data it answers with. `SECURITY.md` says the same thing at
+ * more length, names every GET this reaches (`/api/plate` and `/api/plate/snapshot/:id`
+ * included — the first one probes your clamped app), and is the copy a reader finds first; the
+ * two move together, in substance rather than word for word.
  *
  * Extracted from `http.ts` (S17a) so `fs/route.ts` and `bench/host.ts` apply the exact same
  * check without an import cycle back into `http.ts`.
@@ -75,12 +101,19 @@ export function isAllowedHost(host: string | undefined, boundHost?: string): boo
 function originMatchesHost(origin: string, host: ParsedHost): boolean {
   let url: URL;
   try {
+    // `Origin: null` — what a browser sends for a sandboxed iframe, a `data:` URL or an
+    // origin-crossing redirect — lands here and throws, which is the refusal it should get. It
+    // is an OPAQUE origin, not an absent one.
     url = new URL(origin);
   } catch {
     return false;
   }
-  if (url.protocol !== 'http:' && url.protocol !== 'https:') return false;
-  const originPort = url.port === '' ? (url.protocol === 'https:' ? 443 : 80) : Number(url.port);
+  // #81: `http:` only. This accepted `https:` too, with a 443 default port to make it work —
+  // but nothing in Jig serves https: `createBench`'s `benchOrigin` is `http://localhost:<port>`,
+  // the plate proxy is http, and the CLI prints http. An `https` Origin on an allowed Host
+  // therefore cannot be this bench's own page; it is some other origin that shares the name.
+  if (url.protocol !== 'http:') return false;
+  const originPort = url.port === '' ? 80 : Number(url.port);
   return url.hostname.toLowerCase() === host.hostname && originPort === (host.port ?? 80);
 }
 
@@ -88,10 +121,18 @@ function originMatchesHost(origin: string, host: ParsedHost): boolean {
  * non-browser client — curl, an MCP client, the CLI itself — never sends one) or matches that
  * Host exactly, name and port. Browsers always send `Origin` on a cross-origin fetch/XHR and
  * on same-origin state-changing requests, so this needs no hardcoded port — it works whether
- * the bench is on its configured port or, in tests, an OS-assigned one. */
+ * the bench is on its configured port or, in tests, an OS-assigned one.
+ *
+ * #81: "absent" also covers a browser's `<img>`, `<script>` and navigation requests, which is
+ * why a foreign page can still make a GET RUN here — see "What this gate does NOT stop" above
+ * for what that does and does not cost. */
 export function isSameOriginOrAbsent(origin: string | undefined, host: string | undefined, boundHost?: string): boolean {
   if (!isAllowedHost(host, boundHost)) return false;
-  if (!origin) return true;
+  // #81: ABSENT means the header was not sent at all. This was `!origin`, which also waved
+  // through an `Origin:` header PRESENT with an empty value — a different thing from curl
+  // sending none, and not something any browser does. An empty (or blank) value now goes to the
+  // match below, where it fails to parse as a URL and is refused like any other non-match.
+  if (origin === undefined) return true;
   const parsed = parseHostHeader(host);
   return parsed !== undefined && originMatchesHost(origin, parsed);
 }

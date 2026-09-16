@@ -7,6 +7,7 @@ import { WebSocketServer, type WebSocket } from 'ws';
 import open from 'open';
 import { JIG_FORMAT, stubSurvey, type DetectedTargetSummary, type GaugeSet } from '@jigbench/core';
 import { HOST_REFUSED_MESSAGE, isAllowedHost, isSameOriginOrAbsent } from '../same-origin.js';
+import { isMalformedJsonError, MALFORMED_JSON_MESSAGE, refuseNonJsonBody } from '../json-body.js'; // #81
 import { attachBenchServing, type BenchServeMode } from '../bench-serve.js';
 import { defaultBenchDistDir } from '../default-bench-dist.js';
 import { logger } from '../logger.js';
@@ -323,6 +324,12 @@ export async function createBenchHost(options: CreateBenchHostOptions = {}): Pro
     next();
   });
 
+  // #81: and then, with the origin settled, what the body actually was. A body sent under a
+  // media type `express.json()` does not read reached the routes unparsed and was refused for
+  // whatever field it found missing — the wrong answer to the wrong question. 415 says the one
+  // useful thing instead. Mounted after the gate, so a foreign origin still loses on 403 first.
+  app.use('/api', refuseNonJsonBody);
+
   app.get('/api/health', (_req, res) => {
     res.json({ ok: true, repoRoot: repoRootOf(currentBench) });
   });
@@ -376,6 +383,15 @@ export async function createBenchHost(options: CreateBenchHostOptions = {}): Pro
   });
 
   app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
+    // #81: body-parser's own phrasing for an unparseable payload is V8's (`Unexpected token
+    // 'o', "not json" is not valid JSON`) and has changed spelling between Node releases. The
+    // STATUS it carries is right — 400: the media type was supported, the syntax was not — so
+    // only the sentence is replaced, in the bench's voice like every other refusal here.
+    if (isMalformedJsonError(err)) {
+      logger.warn('request failed', MALFORMED_JSON_MESSAGE);
+      res.status(400).json({ error: MALFORMED_JSON_MESSAGE });
+      return;
+    }
     const message = err instanceof Error ? err.message : String(err);
     const status = errorStatus(err) ?? 400;
     logger.warn('bench host: request failed', message);

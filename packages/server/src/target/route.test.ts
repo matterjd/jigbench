@@ -190,7 +190,10 @@ describe('POST /api/target/start', () => {
     expect(runner.getState()).toEqual({ status: 'none' });
   });
 
-  itOnWin32('#37: a repo whose only script splits under cmd.exe detects nothing to start, rather than starting that', async () => {
+  // #81: this title used to read "detects nothing to start, rather than starting that", which is
+  // the opposite of what the body asserts — a 202, and `runner.startedWith` carrying `run start`.
+  // The distinction it exists to pin is NAME versus VALUE: only the name reaches Jig's argv.
+  itOnWin32('#37: only the script NAME reaches Jig\'s argv — a start script whose COMMAND splits under cmd.exe still starts', async () => {
     const repoRoot = await freshRepo();
     await writeFile(join(repoRoot, 'package.json'), JSON.stringify({ scripts: { start: 'ng serve&calc.exe' } }), 'utf8');
     const { url } = await boot(fakeBench(repoRoot));

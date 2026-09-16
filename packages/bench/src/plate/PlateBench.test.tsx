@@ -118,10 +118,23 @@ describe('PlateBench', () => {
     const plateOrigin = 'http://localhost:4601';
 
     // Each event is dispatched INSIDE the wait's own retry — the same fix PR #15's b9596ef gave
-    // App.test.tsx's `pickOnPlate`. The bridge attaches its `message` listener in a passive
-    // effect after the render that creates the iframe, so the iframe can be in the DOM while
-    // the listener that knows the plate origin is not there yet; one dispatch fired in that
-    // gap is lost. main's push run 34175544158 (windows-latest, at 3939bc0) hit it:
+    // App.test.tsx's `pickOnPlate`.
+    //
+    // #81: PR #32's comment here described the wrong mechanism, and the right one matters
+    // because it is the one a future reader will look for. The bridge does NOT attach its
+    // listener late: `usePlateBridge`'s effect calls `window.addEventListener('message', ...)`
+    // unconditionally, on mount, so a listener has been there since the first commit. What it
+    // holds is a CLOSURE over `plateOrigin`, and that is `null` until `usePlatePoll` reports the
+    // plate up (`PlateBench.tsx:71`). Its first line is
+    //   if (!plateOrigin || event.origin !== plateOrigin) return;
+    // so while the origin is null every message is dropped by the listener that received it.
+    //
+    // The gap is real, just one step over: `PlateFrame` renders the iframe only for `status:
+    // 'up'`, the same render that gives `plateOrigin` a value — but the effect that swaps in a
+    // listener closing over the NEW origin is passive and flushes after commit, while `waitFor`
+    // can observe the iframe in the DOM as soon as that commit lands. A dispatch in between is
+    // seen by the stale-origin listener and discarded. main's push run 34175544158
+    // (windows-latest, at 3939bc0) hit it:
     //   AssertionError: expected "vi.fn()" to be called with arguments: [ { type: 'jig:event', …(2) } ]
     //   Number of calls: 0
     // Re-dispatching the same event is idempotent for these assertions (at least one call;

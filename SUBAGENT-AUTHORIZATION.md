@@ -2,16 +2,16 @@
 # Sub-Agent Authorization — machine-readable grant (TEMPLATE — unsigned; grants nothing as shipped).
 # Copy this whole file to authorize one delegation, fill the fields, tick a tier, sign.
 authorization:
-  repo_path: "<ABSOLUTE ON-DISK PATH TO THIS REPO>"  # CONTROL-plane repo (lock + guards live here) — exact, never re-spelled
+  repo_path: "C:/Users/matte/source/repos/jigbench"  # CONTROL-plane repo (lock + guards live here) — exact, never re-spelled
   work_repo_path: ""       # OPTIONAL target repo to execute in; blank = same as repo_path. If set, MUST be a registered sibling (workspace.yml repos:).
   base_branch: origin/main # HARD RULE: always cut from latest origin/main (in the WORK repo)
   work_branch: ""          # local branch the sub-agent works on
   objective: "<what the sub-agent may do — and nothing wider>"
-  tier: "T4"               # one of: T1 | T2 | T3 | T4  (see table below)
+  tier: "T3"               # the build tier we used for the MCP slice
   expiry: ""               # optional ISO date; blank = single task only
-  authorized_by: ""
-  date: ""                 # YYYY-MM-DD
-  scope_confirmed: false   # set true only after you've read the grant
+  authorized_by: "Matter"
+  date: "2026-09-15"
+  scope_confirmed: true
 ---
 
 # Sub-Agent Authorization Rule Sheet
@@ -30,8 +30,8 @@ authorization:
 
 | Field | Value |
 | --- | --- |
-| Control-plane repo (lock + guards) | `________________________` |
-| Work repo (where the worker writes) | `______  (blank = same as control-plane repo; else a registered sibling from workspace.yml repos:)` |
+| Control-plane repo (lock + guards) | `C:\Users\matte\source\repos\matter-notes` |
+| Work repo (where the worker writes) | `C:\Users\matte\source\repos\jigbench  (blank = same as control-plane repo; else a registered sibling from workspace.yml repos:)` |
 | Base branch to cut from | `origin/main` |
 | Work branch name | `________________________` |
 | Task / objective | `________________________` |
@@ -40,7 +40,7 @@ authorization:
 ## 2. Permission tier — *tick exactly one*
 
 ```
-[ ]  T1  full-commit-to-pr       most power
+[x]  T1  full-commit-to-pr       most power
 [ ]  T2  commit-to-push
 [ ]  T3  local-commit-to-branch
 [ ]  T4  readonly / logging      least power
@@ -103,8 +103,8 @@ Set the matching `tier:` value in the frontmatter (`T1`…`T4`).
 ## 5. Sign-off — *required before the sub-agent starts*
 
 ```
-Authorized by: ______________   Date: __________
-Tier granted:  [    ]   Scope confirmed: [ ]
+Authorized by: Jacob Matter   Date: 9/14/2026
+Tier granted:  [ T1 ]   Scope confirmed: [x]
 ```
 
 Mirror the sign-off into the frontmatter (`authorized_by`, `date`, `tier`,

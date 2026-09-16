@@ -15,7 +15,18 @@ import { extractPdfText } from './pdf.js';
 
 export interface ClampDocsOptions {
   repoRoot: string;
+  /** The spelling to WALK: every `stat`, `readdir` and `readFile` goes through this one. A
+   * caller that guards its input hands over the guard's real path, so nothing can be
+   * re-pointed between the check and the read. */
   folder: string;
+  /** #81 item 1 (the lead's repair): the spelling to RECORD, when it differs from the one
+   * walked — `fs/route.ts`'s `realParent`/`reportedParent` split, applied here. `repoRoot` is
+   * deliberately the caller's spelling (`bench/validate-clamp-path.ts` returns `resolved`, not
+   * `real`), so recording the real one makes `relative()` escape and every ref go absolute
+   * under the 8.3/junction mismatch `build/git-diff.ts` documents against a real CI failure —
+   * and `root`, `files[].file` and `chunks[].id` are all read back by `GET /api/docs`, the MCP
+   * `jig_docs` tool and the prompt builder. Defaults to `folder`. */
+  reportedFolder?: string;
 }
 
 export interface ClampDocsResult {
@@ -91,6 +102,9 @@ function kindForExtension(ext: string): DocKind | null {
 export async function clampDocs(options: ClampDocsOptions): Promise<ClampDocsResult> {
   const { repoRoot } = options;
   const folder = resolvePath(options.folder);
+  // The two spellings of one folder, kept apart: `folder` is read from, `reportedFolder` is
+  // written down. They are the same string unless the caller checked a link.
+  const reportedFolder = options.reportedFolder === undefined ? folder : resolvePath(options.reportedFolder);
 
   const stats = await stat(folder).catch(() => null);
   if (!stats || !stats.isDirectory()) {
@@ -114,7 +128,9 @@ export async function clampDocs(options: ClampDocsOptions): Promise<ClampDocsRes
       continue;
     }
 
-    const fileRef = computeFileRef(repoRoot, absoluteFile);
+    // Provenance is computed on the spelling the caller knows: rebase the walked file onto
+    // `reportedFolder` first, so `relative(repoRoot, …)` compares two forms of the same tree.
+    const fileRef = computeFileRef(repoRoot, join(reportedFolder, relative(folder, absoluteFile)));
 
     let fileChunks: DocChunk[];
     if (kind === 'md') {
@@ -132,7 +148,7 @@ export async function clampDocs(options: ClampDocsOptions): Promise<ClampDocsRes
 
   const index: DocsIndex = {
     jigFormat: JIG_FORMAT,
-    root: toPosix(folder),
+    root: toPosix(reportedFolder),
     clampedAt: new Date().toISOString(),
     files,
     chunks,
