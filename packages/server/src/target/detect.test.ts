@@ -140,7 +140,10 @@ describe('detectDevScript', () => {
   // `JSON.stringify(Infinity)` is the string `null` — the one shape that would hide the very
   // value under test.
   describe('#81: a port that comes out of the repo or a survey is bounded like one from a request', () => {
-    const OUT_OF_RANGE = ['1e999', '0', '-1', '65536', '4200.5'];
+    // The last one is a numeric STRING, written raw so it reaches the parser as `"4200"`:
+    // `AngularJsonShape` types `options.port` as `number`, so a string in the file is invisible
+    // to the type checker and only the runtime guard catches it.
+    const OUT_OF_RANGE = ['1e999', '0', '-1', '65536', '4200.5', '"4200"'];
 
     it('an angular.json port outside the range reads as no configured port, not as a port', async () => {
       for (const raw of OUT_OF_RANGE) {
@@ -165,7 +168,7 @@ describe('detectDevScript', () => {
     });
 
     it('a survey hint port outside the range falls through to the tier below', async () => {
-      for (const raw of [Infinity, 0, -1, 65536, 4200.5, Number.NaN]) {
+      for (const raw of [Infinity, 0, -1, 65536, 4200.5, Number.NaN, '4200' as unknown as number]) {
         const repoRoot = await freshDir();
         await writeFile(join(repoRoot, 'package.json'), JSON.stringify({ scripts: { start: 'ng serve' } }), 'utf8');
         const result = detectDevScript(repoRoot, { devServer: { script: 'start', port: raw } });
