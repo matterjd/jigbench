@@ -33,6 +33,22 @@ Issue #81 — hardening round 2, the follow-ups the S20 review left, one PR each
   tool and the prompt builder) stays the spelling you picked, so in-repo refs are still
   `docs/guide.md` when your repo is reached through a link or an 8.3 alias. The three routes
   answer one input with one refusal in one wording.
+- **every port `detectDevScript` can answer with is a whole number from 1 to 65535** — #70 bounded a
+  `port` that arrives in a request body and stopped there. Two more reached the runner without
+  ever meeting `valid-port.ts`: one read out of the clamped repo's own `angular.json`
+  (`"port": 1e999`), one out of a survey hint (`{script:'start', port:1e999}`). Both are data
+  from outside, exactly like a request body, and JSON has no Infinity literal but no exponent
+  ceiling either — so a parser reads `1e999` as `Infinity`, a value that IS a number, is not a
+  port, and used to spawn the app and then burn the whole 120-second availability probe waiting
+  for a port that cannot exist. `0`, `-1`, `65536` and `4200.5` are the same class, quieter.
+  Both now go through `isValidPort`, and an out-of-range value reads as NO configured port — the
+  tier below answers for it, and an unusable hint port never costs the hint its script. One test
+  walks all four tiers to say no path out of `detectDevScript` can hand the runner a port that
+  cannot be bound. Bounded here: the survey hint and `angular.json`, the two sources the bench
+  detects a target from. Two other readers of a port are NOT bounded and are their own items —
+  `jig serve`'s own `angular.json` read (`packages/cli/src/commands/serve.ts`, which cli may not
+  reach `isValidPort` from without a public export) and the web adapter's `--port N` guess out of
+  a package.json script (`packages/adapters/web/src/dev-server.ts`).
 
 The 0.2.0 desk retest, round 2 (issues #66 #67 #68 #69) — what Matter's second drive of the
 published package found, one PR each.

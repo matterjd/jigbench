@@ -1,6 +1,7 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { DetectedTargetSummary } from '@jigbench/core';
+import { isValidPort } from '../valid-port.js'; // #81
 
 /**
  * S17a (AMENDMENT-1 §7, A6): "Start the app runs the detected dev script inside the repo".
@@ -21,6 +22,13 @@ import type { DetectedTargetSummary } from '@jigbench/core';
  * that configured port, not a guessed one. `4200` (Angular's own default) is the last-resort
  * numeric guess when no `angular.json` exists at all; it is honestly a guess for a non-Angular
  * app with an unknown dev-server port, disclosed here rather than silently wrong.
+ *
+ * #81: every port this module can answer with goes through `valid-port.ts` first — the rule #70
+ * put on a `port` in a REQUEST body, applied to the two that come from data instead: a clamped
+ * repo's `angular.json` and an adapter's survey hint. Both are outside input, and `1e999` reads
+ * as `Infinity` out of either. An out-of-range value is treated as NO configured port and the
+ * tier below answers for it, so no path out of `detectDevScript` can hand the runner a port
+ * that cannot be bound (`detect.test.ts` walks all four tiers and says so).
  */
 
 const DEFAULT_PORT_GUESS = 4200;
@@ -73,7 +81,12 @@ function readDevServerHint(survey: unknown): DevServerHint | undefined {
   const hint = raw as Record<string, unknown>;
   return {
     script: typeof hint.script === 'string' ? hint.script : undefined,
-    port: typeof hint.port === 'number' ? hint.port : undefined,
+    // #81: `typeof x === 'number'` passed anything JSON can carry, and `1e999` is the one that
+    // bites — a parser reads it as `Infinity`, which IS a number and is not a port. An adapter's
+    // survey is data from outside exactly as a request body is (#70), so it meets the same rule.
+    // An unusable hint port is not an error and does not cost the hint its SCRIPT: it reads as
+    // no port at all, and the tier below answers for it.
+    port: isValidPort(hint.port) ? hint.port : undefined,
     url: typeof hint.url === 'string' ? hint.url : undefined,
   };
 }
@@ -94,7 +107,11 @@ function angularConfiguredPort(repoRoot: string): number | undefined {
     const parsed = JSON.parse(readFileSync(angularJsonPath, 'utf8')) as AngularJsonShape;
     const projectName = parsed.defaultProject ?? Object.keys(parsed.projects ?? {})[0];
     const port = projectName ? parsed.projects?.[projectName]?.architect?.serve?.options?.port : undefined;
-    return typeof port === 'number' ? port : DEFAULT_PORT_GUESS;
+    // #81: same rule, same reason — `"port": 1e999` in a clamped repo's own angular.json parses
+    // to `Infinity`, and this number goes onto `ng serve`'s command line AND into the runner's
+    // 120-second availability probe. A value outside 1-65535 reads as the "exists but sets no
+    // explicit port" case this function already has words for, not as a port.
+    return isValidPort(port) ? port : DEFAULT_PORT_GUESS;
   } catch {
     return DEFAULT_PORT_GUESS;
   }
