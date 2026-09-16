@@ -165,9 +165,17 @@ export function attachFsRoute(app: Express, options: FsRouteOptions = {}): void 
       }
       // `target` is the caller's own spelling — what every message says, what `entries[].path`
       // is built from, and what the browser navigates with; `real` is what the filesystem calls
-      // below actually touch, so nothing can be re-pointed between the guard and the use. #81:
-      // that now holds for `describeEntry`'s probes as well, which used to take the caller's
-      // spelling and traverse the link a second time on their own.
+      // below actually touch, so the caller's link is not traversed a second time after the
+      // guard. #81: that now holds for `describeEntry`'s probes as well, which used to take the
+      // caller's spelling and traverse the link on their own.
+      //
+      // What it does NOT mean, and used to say it did: `checkLocalPath` resolves THIS path, not
+      // the tree under it, and it returns a string rather than a handle. A `docs`/`.git`/
+      // `package.json`/`angular.json` that is itself a link inside a listed child is still
+      // followed by the probes below, and a component of `real` re-pointed between this line and
+      // the calls below is still followed — measured, not theoretical. Closing either one is its
+      // own item (an `lstat`-or-refuse on the probe names; a directory fd to make the reads
+      // relative), and neither is claimed here.
       const { resolved: target, real } = checked;
 
       const stats = await stat(real).catch(() => null);
@@ -193,8 +201,9 @@ export function attachFsRoute(app: Express, options: FsRouteOptions = {}): void 
       const flagged = await hiddenOrSystemNames(real, visible);
       const names = visible.filter((name) => !flagged.has(name)).sort((a, b) => a.localeCompare(b));
 
-      // #81: `real` for every probe (the spelling the guard cleared, and the one `readdir` and
-      // `attrib` above just used), `target` for every `path` that goes back on the wire.
+      // #81: `real` for every probe (the PARENT spelling the guard cleared, and the one
+      // `readdir` and `attrib` above just used — not a promise about the children it probes for),
+      // `target` for every `path` that goes back on the wire.
       const entries = await Promise.all(names.map((name) => describeEntry(real, target, name)));
       const parentPath = dirname(target);
 

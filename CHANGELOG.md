@@ -16,7 +16,11 @@ Issue #81 — hardening round 2, the follow-ups the S20 review left, one PR each
   again, and the flags then described a different directory than the names beside them came
   from. `describeEntry` now takes both spellings — the real one for every filesystem call, the
   caller's for the one thing it is for, the `path` each entry reads back as — so `entries[].path`
-  is unchanged and nothing is probed through a spelling the guard did not see.
+  is unchanged and every probe is made through the PARENT spelling the guard cleared. What that
+  does not cover, and this entry will not claim: the guard resolves the root, so a `docs`,
+  `.git`, `package.json` or `angular.json` that is itself a link INSIDE a listed child is still
+  followed by the probe, and a component of the cleared path that is re-pointed after the guard
+  returns is still followed too. Both are their own items.
 
 The 0.2.0 desk retest, round 2 (issues #66 #67 #68 #69) — what Matter's second drive of the
 published package found, one PR each.
