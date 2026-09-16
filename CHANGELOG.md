@@ -78,6 +78,22 @@ Issue #81 — hardening round 2, the follow-ups the S20 review left, one PR each
   POST/PUT/DELETE, and a `<form>` cannot send the JSON content type the bench parses), or rebind
   DNS. The cost is the work a `GET` does, not the data it answers with. `same-origin.ts`'s own
   doc comment carries the same account, so the code and the document say one thing.
+- **`TargetRunner.stop()` does not resolve until the child is gone** — it cleared `this.child`,
+  awaited `killTree`, and returned, but `killTree` answers when the KILLER is done (`taskkill`
+  exiting on Windows, `process.kill(-pid, 'SIGKILL')` returning on POSIX), which is not the
+  instant the target dies. A caller taking that resolution to mean "finished with this child"
+  was wrong twice: the OS could still be holding the target's working directory — the EBUSY on
+  windows-latest that #78 wrapped a teardown retry around rather than fixed — and the runner
+  could still be draining the target's stdout into `onLog` afterwards. `stop()` now waits for
+  the child's own `close` (the process reaped and its streams ended) under a bounded five-second
+  wait, because a grandchild that escaped the kill and inherited those pipes can hold them open
+  indefinitely; a wait that runs out is logged and `stop()` returns anyway, since leaving the
+  runner restartable is its job. The wait is on the child's `close` in every case, including the
+  one where its `exit` has already fired — that pair is not simultaneous, and the gap between
+  them IS the undrained output. #78's `maxRetries` is gone from the runner test's teardown, and
+  a plain `rm` is enough. What this costs a user: stopping a target — `POST /api/target/stop`,
+  an unclamp, or the server closing — can now take as long as the child does to go, up to that
+  five-second bound, where it used to return at once and leave the mess behind.
 
 The 0.2.0 desk retest, round 2 (issues #66 #67 #68 #69) — what Matter's second drive of the
 published package found, one PR each.
