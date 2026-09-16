@@ -13,20 +13,35 @@ import { z } from 'zod';
  */
 
 /**
- * #81 item 7: why a build has no diff information — the three reasons
- * `build/git-diff.ts`'s `gitStatusSnapshot` can answer `null`, which the caller used to read as
- * one indistinguishable "no diff" and tell nobody about at all.
+ * #81 item 7: why a build has no diff information — the reasons `build/git-diff.ts`'s
+ * `gitStatusSnapshot` can answer `null`, which the caller used to read as one
+ * indistinguishable "no diff" and tell nobody about at all.
  *
  *   - `git-timed-out` — a `git` invocation outlived its budget and was killed (#37's timeout).
  *     A credential helper waiting on a prompt, a dead network drive under the working tree, an
  *     `index.lock` someone else holds.
- *   - `git-not-found` — no `git` on PATH.
- *   - `not-a-git-repo` — `git` ran and said this folder is not inside a working tree.
+ *   - `git-not-found` — the spawn failed with ENOENT: there is no `git` at that name.
+ *   - `git-failed-to-start` — the spawn failed some OTHER way. EACCES on a `git` that is not
+ *     executable, EFTYPE on win32 for a file that is not an executable image, EMFILE, EAGAIN.
+ *     Separate from the one above because the code cannot tell WHY from an error event alone,
+ *     and a sentence that says "not on PATH" about a `git` that is right there sends the reader
+ *     looking in the wrong place (the lead's 2026-09-15 review).
+ *   - `not-a-git-repo` — `git` ran and reported no working tree here. Deliberately not worded
+ *     as "this folder is not a repo": a `safe.directory` / dubious-ownership refusal exits
+ *     non-zero from the same command, and that folder IS a repo.
+ *   - `git-refused-the-tree` — `git` acknowledged a working tree (`rev-parse --show-toplevel`
+ *     answered) and then would not read it: a corrupt index, a lock. Reproduced with a garbage
+ *     `.git/index`, where `rev-parse` exits 0 and `status` exits 128.
  *
- * They read differently on purpose: the first is a machine that needs looking at, the second is
- * a machine that needs git, and the third is normal.
+ * They read differently on purpose: what a reader does next is different for each.
  */
-export const BuildNoticeCodeSchema = z.enum(['git-timed-out', 'git-not-found', 'not-a-git-repo']);
+export const BuildNoticeCodeSchema = z.enum([
+  'git-timed-out',
+  'git-not-found',
+  'git-failed-to-start',
+  'not-a-git-repo',
+  'git-refused-the-tree',
+]);
 export type BuildNoticeCode = z.infer<typeof BuildNoticeCodeSchema>;
 
 /** One compact, already-parsed event out of `claude -p --output-format stream-json`'s NDJSON
@@ -63,10 +78,12 @@ export const ClaudeStatusSchema = z.discriminatedUnion('state', [
 export type ClaudeStatus = z.infer<typeof ClaudeStatusSchema>;
 
 /**
- * #81 item 7: the three reasons a before/after diff is unavailable, in three sentences that a
- * reader can tell apart. Each says what happened AND what it costs, because the cost is the same
- * in all three and the cause is not: the build still ran, and the files it reports are whatever
- * Claude named itself on a `FILES:` line.
+ * #81 item 7: why a before/after diff is unavailable, one sentence per reason and no two alike.
+ * Each says what happened AND what it costs, because the cost is the same in every one and the
+ * cause is not: the build still ran, and the files it reports are whatever Claude named itself
+ * on a `FILES:` line. No sentence here claims more than the code that picked it knows — a spawn
+ * that failed for an unknown reason does not say "not on PATH", and a tree git refused does not
+ * say the folder is not a repo (the lead's 2026-09-15 review).
  *
  * Before this the git snapshot simply answered `null`, the runner read that as "no diff
  * information", and nothing reached the stream or the logbook at all — a build whose `git` was
@@ -78,8 +95,12 @@ export function buildNoticeLine(code: BuildNoticeCode): string {
       return 'git ran out of time and was stopped — no before/after diff for this build; the files listed are the ones Claude named itself';
     case 'git-not-found':
       return 'git is not on PATH — no before/after diff for this build; the files listed are the ones Claude named itself';
+    case 'git-failed-to-start':
+      return 'git could not be started — no before/after diff for this build; the files listed are the ones Claude named itself';
     case 'not-a-git-repo':
-      return 'this folder is not a git working tree — no before/after diff for this build; the files listed are the ones Claude named itself';
+      return 'git reports no working tree here — no before/after diff for this build; the files listed are the ones Claude named itself';
+    case 'git-refused-the-tree':
+      return 'git found a working tree here but would not read it — a corrupt index, or a lock; no before/after diff for this build; the files listed are the ones Claude named itself';
     default:
       return '';
   }

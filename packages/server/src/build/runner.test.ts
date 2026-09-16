@@ -339,6 +339,10 @@ describe('BuildRunner — a git that runs out of budget says so', () => {
     const notices = events.filter((e): e is Extract<BuildStreamEvent, { kind: 'notice' }> => e.kind === 'notice');
     expect(notices.map((n) => n.code)).toEqual(['not-a-git-repo']);
     expect(buildStreamLine(notices[0])).not.toBe(buildNoticeLine('git-timed-out'));
-    expect(buildStreamLine(notices[0])).toMatch(/not a git working tree/i);
+    // The lead's 2026-09-15 review: this used to read 'this folder is not a git working tree',
+    // which a `safe.directory` refusal would earn about a folder that IS one. The sentence now
+    // reports what git said rather than concluding from it, and the code is unchanged.
+    expect(buildStreamLine(notices[0])).toMatch(/no working tree/i);
+    expect(buildStreamLine(notices[0])).not.toBe(buildNoticeLine('git-refused-the-tree'));
   }, 15_000);
 });

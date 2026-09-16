@@ -60,7 +60,7 @@ interface GitInvocation {
 
 /** #81: why one `git` invocation produced nothing usable. `undefined` means it ran — whatever
  * its exit code was, which is a separate question the caller asks next. */
-type GitRunFailure = 'git-timed-out' | 'git-not-found';
+type GitRunFailure = 'git-timed-out' | 'git-not-found' | 'git-failed-to-start';
 
 interface GitRunResult {
   code: number | null;
@@ -93,12 +93,16 @@ function run(git: GitInvocation, args: string[], cwd: string): Promise<GitRunRes
     }, git.timeoutMs);
     let child: ReturnType<typeof spawn>;
     try {
-      // A synchronous throw from `spawn` is the platform refusing the image outright — on win32
-      // that is what a missing `git` looks like; elsewhere it arrives as the `error` below.
+      // A synchronous throw from `spawn` is the platform refusing the call before there is a
+      // child at all: a bad option or argument type, and on win32 an EFTYPE for a file that is
+      // not an executable image (measured on this desk — a `.txt` path throws EFTYPE
+      // synchronously). A MISSING binary is not this: it arrives asynchronously as the `error`
+      // below, with ENOENT, on every platform. So this path cannot say "not on PATH" — it says
+      // only that git could not be started.
       child = spawn(git.command, [...git.argsPrefix, ...args], { cwd, shell: false, signal: controller.signal });
     } catch {
       clearTimeout(timer);
-      resolvePromise({ code: null, stdout: '', failure: 'git-not-found' });
+      resolvePromise({ code: null, stdout: '', failure: 'git-failed-to-start' });
       return;
     }
     let stdout = '';
@@ -106,12 +110,21 @@ function run(git: GitInvocation, args: string[], cwd: string): Promise<GitRunRes
       stdout += chunk.toString('utf8');
     });
     // An aborted child arrives here as an `error` (AbortError) or as a `close` with a null code
-    // and a signal; a git that is not installed arrives as an `error` (ENOENT). Every one of
-    // them still means "no diff information available" — `timedOut` is only what lets the words
-    // differ.
-    child.on('error', () => {
+    // and a signal; a git that is not installed arrives as an `error` with ENOENT. Every one of
+    // them still means "no diff information available" — what differs is what we may SAY about
+    // it. Our own abort we know about (`timedOut`). ENOENT is the one error that really does
+    // mean "there is no git at that name". Everything else — EACCES on a git that is not
+    // executable, EMFILE, ENOMEM, EAGAIN — is a spawn that failed for a reason this code does
+    // not know, and saying "git is not on PATH" about a git that is right there sends the reader
+    // looking in the wrong place (the lead's 2026-09-15 review).
+    child.on('error', (err: NodeJS.ErrnoException) => {
       clearTimeout(timer);
-      resolvePromise({ code: null, stdout: '', failure: timedOut ? 'git-timed-out' : 'git-not-found' });
+      const failure: GitRunFailure = timedOut
+        ? 'git-timed-out'
+        : err?.code === 'ENOENT'
+          ? 'git-not-found'
+          : 'git-failed-to-start';
+      resolvePromise({ code: null, stdout: '', failure });
     });
     child.on('close', (code) => {
       clearTimeout(timer);
@@ -121,8 +134,10 @@ function run(git: GitInvocation, args: string[], cwd: string): Promise<GitRunRes
 }
 
 /** #81: the top level, or the reason there isn't one. A non-zero exit from `rev-parse
- * --show-toplevel` is git itself saying this is not a working tree — the third reason, and the
- * only ordinary one of the three. */
+ * --show-toplevel` is git itself reporting no working tree here — the ordinary reason, and the
+ * one whose words are deliberately not "this folder is not a repo": a `safe.directory` /
+ * dubious-ownership refusal exits non-zero from this same command about a folder that IS one
+ * (the lead's 2026-09-15 review). */
 async function gitTopLevel(git: GitInvocation, repoRoot: string): Promise<{ topLevel: string } | { failure: BuildNoticeCode }> {
   const { code, stdout, failure } = await run(git, ['rev-parse', '--show-toplevel'], repoRoot);
   if (failure) return { failure };
@@ -191,9 +206,13 @@ export async function gitStatusSnapshot(repoRoot: string, options?: GitSnapshotO
   const { code, stdout, failure } = await run(git, ['status', '--porcelain', '-z'], repoRoot);
   if (failure) return unavailable(failure);
   // `status` succeeding after `rev-parse` did is the normal case; a non-zero exit here is git
-  // refusing the working tree it just acknowledged (a corrupt index, a lock), which reads as the
-  // same "not usable as a working tree" the third code names.
-  if (code !== 0) return unavailable('not-a-git-repo');
+  // refusing the working tree it just acknowledged — a corrupt index, a lock — and that is NOT
+  // "this folder is not a repo": `rev-parse --show-toplevel` has already answered with one.
+  // Reproduced on the lead's desk with a garbage `.git/index`: `rev-parse` exits 0 and prints
+  // the top level while `status --porcelain -z` exits 128 ("index file smaller than expected"),
+  // so the old code told the user a folder was not a working tree about a folder that
+  // demonstrably was one.
+  if (code !== 0) return unavailable('git-refused-the-tree');
 
   // `repoRoot` can reach this module through a path that is LEXICALLY different from, but
   // points at the very same directory as, what git's own `--show-toplevel` reports — an NTFS
