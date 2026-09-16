@@ -76,7 +76,10 @@ describe('isSameOriginOrAbsent', () => {
   it('an absent Origin on an allowed Host is a non-browser client (curl, an MCP client, the CLI) — allowed', () => {
     expect(isSameOriginOrAbsent(undefined, 'localhost:4600')).toBe(true);
     expect(isSameOriginOrAbsent(undefined, '127.0.0.1:4600')).toBe(true);
-    expect(isSameOriginOrAbsent('', '[::1]:4600')).toBe(true);
+    // #81: this line used to pass `''` and expect `true` — an `Origin:` header PRESENT with an
+    // empty value took the absent-Origin door, because the check was `!origin`. It is refused
+    // now, and the case moved to its own test below; `undefined` is what absent means.
+    expect(isSameOriginOrAbsent(undefined, '[::1]:4600')).toBe(true);
     expect(isSameOriginOrAbsent(undefined, '192.168.1.5:4600', '192.168.1.5')).toBe(true);
   });
 
@@ -141,5 +144,44 @@ describe('SECURITY.md names every /api GET a foreign page can cause to run', () 
     const section = noOriginSection();
     const missing = [...routes].filter((route) => !section.includes(route)).sort();
     expect(missing, 'GET routes a foreign page can run that SECURITY.md does not name').toEqual([]);
+  });
+});
+
+// #81 item 8 (a #65 suggestion the S20 review carried): three narrowings of the Origin half.
+// None of them is a rebinding case — #18 covers that — and none is reachable from an ordinary
+// browser talking to an ordinary bench. Each is a shape the gate ACCEPTED because the rule was
+// written a little wider than the thing it is guarding.
+describe('#81: the Origin half says what it means', () => {
+  it('requires the http: scheme — this bench is never served over https', () => {
+    // `originMatchesHost` accepted `https:` alongside `http:`, with a 443 default port to make
+    // it work. Nothing in Jig serves https: `createBench`'s own `benchOrigin` is
+    // `http://localhost:<port>`, the plate proxy is http, and the CLI prints http. An https
+    // Origin on an allowed Host therefore cannot be this bench's own page — it is some other
+    // origin that happens to share the name.
+    expect(isSameOriginOrAbsent('https://localhost:4600', 'localhost:4600')).toBe(false);
+    expect(isSameOriginOrAbsent('https://localhost', 'localhost')).toBe(false);
+    expect(isSameOriginOrAbsent('https://127.0.0.1:4600', '127.0.0.1:4600')).toBe(false);
+    expect(isSameOriginOrAbsent('https://192.168.1.5:4600', '192.168.1.5:4600', '192.168.1.5')).toBe(false);
+    // ...and the http spelling of each is untouched.
+    expect(isSameOriginOrAbsent('http://localhost:4600', 'localhost:4600')).toBe(true);
+    expect(isSameOriginOrAbsent('http://192.168.1.5:4600', '192.168.1.5:4600', '192.168.1.5')).toBe(true);
+  });
+
+  it('refuses an Origin header that is PRESENT and empty — that is not a client with no Origin', () => {
+    // The allowance is for a request that carries no Origin at all: curl, an MCP client, the
+    // CLI. A header sent with an empty value is a different thing, and it took the same door,
+    // because the check was `!origin`. Absent now means absent.
+    expect(isSameOriginOrAbsent('', 'localhost:4600')).toBe(false);
+    expect(isSameOriginOrAbsent('   ', 'localhost:4600')).toBe(false);
+    expect(isSameOriginOrAbsent(undefined, 'localhost:4600')).toBe(true); // still allowed
+  });
+
+  it('pins `Origin: null` — the opaque origin a sandboxed iframe or a data: URL sends', () => {
+    // A browser sends the literal string `null` as the Origin for a sandboxed iframe, a
+    // `data:` URL, or a redirect that crosses origins. It is not a missing Origin and it must
+    // never be read as one.
+    expect(isSameOriginOrAbsent('null', 'localhost:4600')).toBe(false);
+    expect(isSameOriginOrAbsent('null', '127.0.0.1:4600')).toBe(false);
+    expect(isSameOriginOrAbsent('null', '192.168.1.5:4600', '192.168.1.5')).toBe(false);
   });
 });

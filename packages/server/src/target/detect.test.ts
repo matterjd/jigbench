@@ -224,21 +224,63 @@ describe('detectDevScript', () => {
     });
   });
 
-  it('falls back to `npx ng serve --port <n>` when angular.json exists but no npm script does', async () => {
+  // #81: `npx ng serve` fetches `ng` FROM THE REGISTRY when the repo has no local install —
+  // a network download and then an execution, on nothing but the presence of an `angular.json`.
+  // The tier now requires the repo's own `node_modules/.bin/ng` (planted here) and passes
+  // `--no-install` so npx can never reach the registry even if the two disagree. The assertion
+  // that used to stand here expected no `--no-install` and no local binary at all.
+  async function plantLocalNg(repoRoot: string): Promise<void> {
+    const bin = join(repoRoot, 'node_modules', '.bin');
+    await mkdir(bin, { recursive: true });
+    // Both spellings, so the case runs identically on either CI leg: npm writes `ng` and
+    // `ng.cmd` side by side on Windows.
+    await writeFile(join(bin, 'ng'), '#!/usr/bin/env node\n', 'utf8');
+    await writeFile(join(bin, 'ng.cmd'), '@echo off\n', 'utf8');
+  }
+
+  it('falls back to `npx --no-install ng serve --port <n>` when angular.json exists, no npm script does, and ng is installed locally', async () => {
     const repoRoot = await freshDir();
-    await mkdir(repoRoot, { recursive: true });
     await writeFile(
       join(repoRoot, 'angular.json'),
       JSON.stringify({ defaultProject: 'app', projects: { app: {} } }),
       'utf8',
     );
+    await plantLocalNg(repoRoot);
+
     const result = detectDevScript(repoRoot);
     expect(result).toEqual({
-      ...expectedInvocation('npx', ['ng', 'serve', '--port', '4200']),
+      ...expectedInvocation('npx', ['--no-install', 'ng', 'serve', '--port', '4200']),
       cwd: repoRoot,
       port: 4200,
       source: 'angular.json',
     });
+  });
+
+  it('#81: declines the angular.json tier unless the repo has an ng of its own', async () => {
+    const repoRoot = await freshDir();
+    await writeFile(
+      join(repoRoot, 'angular.json'),
+      JSON.stringify({ defaultProject: 'app', projects: { app: { architect: { serve: { options: { port: 4300 } } } } } }),
+      'utf8',
+    );
+    // No node_modules/.bin/ng anywhere. `npx ng serve` would have DOWNLOADED `ng` from the
+    // registry here and run it, on nothing but the presence of an angular.json in a folder the
+    // human pointed at. The honest answer is the one the module already has words for: nothing
+    // to start, so the checklist asks for a URL instead.
+    expect(detectDevScript(repoRoot)).toBeNull();
+  });
+
+  it('#81: a package.json script still wins, local ng or not — only the bare angular.json tier is gated', async () => {
+    const repoRoot = await freshDir();
+    await writeFile(join(repoRoot, 'package.json'), JSON.stringify({ scripts: { start: 'ng serve' } }), 'utf8');
+    await writeFile(
+      join(repoRoot, 'angular.json'),
+      JSON.stringify({ defaultProject: 'app', projects: { app: { architect: { serve: { options: { port: 4300 } } } } } }),
+      'utf8',
+    );
+    const result = detectDevScript(repoRoot);
+    expect(result?.source).toBe('package.json');
+    expect(result?.port).toBe(4300); // still reads the real configured port
   });
 });
 
@@ -325,7 +367,7 @@ describe('isRunnableScriptName', () => {
     }
   });
 
-  it('accepts everything off win32 — npm is an ordinary executable there and nothing re-parses its argv', () => {
+  it('accepts everything else off win32 — npm is an ordinary executable there and nothing re-parses its argv', () => {
     for (const name of [...SPLITS_UNDER_CMD, ...ORDINARY]) {
       expect(isRunnableScriptName(name, 'linux'), name).toBe(true);
       expect(isRunnableScriptName(name, 'darwin'), name).toBe(true);
@@ -335,5 +377,56 @@ describe('isRunnableScriptName', () => {
   it('refuses an empty name on win32, and defaults to this platform when none is named', () => {
     expect(isRunnableScriptName('', 'win32')).toBe(false);
     expect(isRunnableScriptName('start')).toBe(true); // every platform agrees about `start`
+  });
+
+  // #81: two shapes the win32 charset happens to cover and no platform should accept, because
+  // neither is about cmd.exe re-parsing a line.
+  //
+  // A leading `-` is read as an OPTION by whatever the argv reaches. `npm run -x` is npm being
+  // handed a flag, not a script name, on every platform — and `-` passes the win32 charset
+  // (`[A-Za-z0-9._:-]`), so even the strict leg let it through. There is no legitimate npm
+  // script whose name starts with one.
+  //
+  // Length is the other: a name is a key of the repo's own package.json, which means it is
+  // whatever a hostile clone wrote there. 214 is `npm run`'s own practical ceiling by a wide
+  // margin and well under every platform's argument limit.
+  describe('#81: the two rules that are not about cmd.exe, so they hold on every platform', () => {
+    const PLATFORMS = ['win32', 'linux', 'darwin'] as const;
+
+    it('refuses a name beginning with `-`, which every argv reads as an option', () => {
+      for (const platform of PLATFORMS) {
+        for (const name of ['-x', '--force', '-', '--', '-rf']) {
+          expect(isRunnableScriptName(name, platform), `${name} on ${platform}`).toBe(false);
+        }
+      }
+    });
+
+    it('refuses a name past the cap, and keeps the longest one under it', () => {
+      for (const platform of PLATFORMS) {
+        expect(isRunnableScriptName('a'.repeat(214), platform), `214 on ${platform}`).toBe(true);
+        expect(isRunnableScriptName('a'.repeat(215), platform), `215 on ${platform}`).toBe(false);
+        expect(isRunnableScriptName('a'.repeat(100_000), platform), `100k on ${platform}`).toBe(false);
+      }
+    });
+
+    it('refuses an empty name everywhere, not only on win32', () => {
+      for (const platform of PLATFORMS) {
+        expect(isRunnableScriptName('', platform), platform).toBe(false);
+      }
+    });
+
+    // The detector control: neither rule may cost an ordinary name on any platform, and the
+    // off-win32 leniency about metacharacters is untouched.
+    it('leaves every ordinary name, and every off-win32 metacharacter name, alone', () => {
+      for (const platform of PLATFORMS) {
+        for (const name of ORDINARY) expect(isRunnableScriptName(name, platform), `${name} on ${platform}`).toBe(true);
+      }
+      for (const name of SPLITS_UNDER_CMD) {
+        expect(isRunnableScriptName(name, 'linux'), name).toBe(true);
+      }
+      // A `-` that is not leading is a perfectly good npm script name and stays one.
+      expect(isRunnableScriptName('lint-all', 'linux')).toBe(true);
+      expect(isRunnableScriptName('lint-all', 'win32')).toBe(true);
+    });
   });
 });

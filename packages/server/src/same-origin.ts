@@ -15,7 +15,8 @@
  *      else — any DNS name in particular — is refused before Origin is even read.
  *   2. With an allowed Host, an absent Origin is still a non-browser client (curl, an MCP
  *      client, the CLI itself — none send one) and passes; a present Origin must match the
- *      Host, name and port.
+ *      Host, name and port, over `http:`. #81: absent means the header was not sent — a header
+ *      present with an empty value is not a client with no Origin and is refused with the rest.
  * A wildcard bind (`--host 0.0.0.0` / `::`) never appears in a Host header itself, so for
  * that deliberate LAN exposure any IP-LITERAL Host is accepted as well — a name can be
  * rebound, an address cannot; reach a wildcard-bound bench by its IP, not by machine name.
@@ -100,12 +101,19 @@ export function isAllowedHost(host: string | undefined, boundHost?: string): boo
 function originMatchesHost(origin: string, host: ParsedHost): boolean {
   let url: URL;
   try {
+    // `Origin: null` — what a browser sends for a sandboxed iframe, a `data:` URL or an
+    // origin-crossing redirect — lands here and throws, which is the refusal it should get. It
+    // is an OPAQUE origin, not an absent one.
     url = new URL(origin);
   } catch {
     return false;
   }
-  if (url.protocol !== 'http:' && url.protocol !== 'https:') return false;
-  const originPort = url.port === '' ? (url.protocol === 'https:' ? 443 : 80) : Number(url.port);
+  // #81: `http:` only. This accepted `https:` too, with a 443 default port to make it work —
+  // but nothing in Jig serves https: `createBench`'s `benchOrigin` is `http://localhost:<port>`,
+  // the plate proxy is http, and the CLI prints http. An `https` Origin on an allowed Host
+  // therefore cannot be this bench's own page; it is some other origin that shares the name.
+  if (url.protocol !== 'http:') return false;
+  const originPort = url.port === '' ? 80 : Number(url.port);
   return url.hostname.toLowerCase() === host.hostname && originPort === (host.port ?? 80);
 }
 
@@ -120,7 +128,11 @@ function originMatchesHost(origin: string, host: ParsedHost): boolean {
  * for what that does and does not cost. */
 export function isSameOriginOrAbsent(origin: string | undefined, host: string | undefined, boundHost?: string): boolean {
   if (!isAllowedHost(host, boundHost)) return false;
-  if (!origin) return true;
+  // #81: ABSENT means the header was not sent at all. This was `!origin`, which also waved
+  // through an `Origin:` header PRESENT with an empty value — a different thing from curl
+  // sending none, and not something any browser does. An empty (or blank) value now goes to the
+  // match below, where it fails to parse as a URL and is refused like any other non-match.
+  if (origin === undefined) return true;
   const parsed = parseHostHeader(host);
   return parsed !== undefined && originMatchesHost(origin, parsed);
 }

@@ -228,8 +228,8 @@ describe('GET /api/fs/list', () => {
     }
   });
 
-  // #37: the same guard, applied to what the path really IS. A symlink or NTFS junction inside
-  // the home pointing at `\\attacker\share` is spelled like any other local path, and the `stat`
+  // #37: the same guard, applied to what the path really IS. A directory symlink inside the
+  // home pointing at `\\attacker\share` is spelled like any other local path, and the `stat`
   // that came next follows it — the SMB connection #18's guard exists to prevent, made after that
   // guard had said yes. Planting the win32 shape for real would make that connection on a CI
   // runner, so the realpath answer is injected here (`fs/local-path.test.ts` plants the

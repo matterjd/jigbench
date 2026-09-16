@@ -111,6 +111,31 @@ Issue #81 — hardening round 2, the follow-ups the S20 review left, one PR each
   No sentence claims more than the code knows — a spawn that failed for an unknown reason no
   longer reads as "git is not on PATH", and a working tree git named and then refused no longer
   reads as "this folder is not a git working tree".
+- **the small ones from round 2** — eight in one PR, a commit each. `POST /api/target/start` and
+  every detection tier refuse a **script name beginning with `-`** (an option, not a name, to any
+  argv — and it slipped past the win32 charset, which allows `-` so `lint-all` works) and cap its
+  length, on every platform rather than only win32, because neither rule is about cmd.exe
+  re-parsing a line. The **Origin half says what it means**: `http:` only (nothing in Jig serves
+  https, so an `https` Origin on an allowed Host cannot be the bench's own page), an `Origin:`
+  header present-and-empty is no longer read as a client that sent none, and `Origin: null` — a
+  sandboxed iframe's opaque origin — is pinned. A request **body that is not JSON** gets 415 and
+  a sentence saying to send `application/json`, instead of reaching the route unparsed and being
+  refused for a field it never had; a malformed body under `application/json` keeps its 400 and
+  gains the bench's own wording in place of the parser's V8 message. The **`angular.json` tier** runs only on
+  the repo's OWN `node_modules/.bin/ng`, rather than letting `npx` download `ng` from the
+  registry and run it on nothing but the presence of a config file; a repo with the config and
+  no `ng` of its own declines the tier and says there is nothing to start. Read that literally:
+  an `ng` hoisted to a workspace root, or installed globally, declines too, even though `npx`
+  would have found it without a download. `--no-install` goes on the invocation as well, which
+  stops npx INSTALLING a package the repo does not have — it does not stop npx asking the
+  registry about one.
+  **EPERM stops borrowing ENOENT's words** — a path you may not traverse said "no such path",
+  which sends a reader hunting for a typo in a path that is right there; ELOOP and ENOTDIR got
+  their own sentences with it. And three corrections in words only: the plate-bridge race
+  comment (the listener is attached, holding the previous commit's null `plateOrigin` — it is
+  not missing), a `target/route.test.ts` title that said the opposite of its body, and the claim
+  that an NTFS junction can point at a UNC share (it cannot — `mklink /J` refuses one; the
+  threat is a directory symlink).
 
 The 0.2.0 desk retest, round 2 (issues #66 #67 #68 #69) — what Matter's second drive of the
 published package found, one PR each.
@@ -201,6 +226,14 @@ PR each.
   refuses a link whose target sits inside a `.jig/` directory, the same lexical guard with the
   same hole. Every message, every `entries[].path` and the `repoRoot` a clamp records keep the
   caller's own spelling.
+  `\\host\share` by its spelling, and a directory symlink inside the home pointing at
+  `\\attacker\share` is spelled like any other local path: the `stat` that came next followed it,
+  which on Windows is the SMB connection the guard exists to prevent, made after the guard said
+  yes. The folder browser and clamp now share one rule (`fs/local-path.ts`) — refuse the spelling,
+  `realpath`, refuse that too, then do the filesystem work against the real path so nothing can be
+  re-pointed in between. Clamp also refuses a link whose target sits inside a `.jig/` directory,
+  the same lexical guard with the same hole. Every message, every `entries[].path` and the
+  `repoRoot` a clamp records keep the caller's own spelling.
 - **a git that never answers no longer holds a build open** — `build/git-diff.ts` spawned `git`
   with no timeout of any kind, and `BuildRunner.start()` awaits the before-snapshot before it
   spawns `claude` at all: a wedged git (a credential helper waiting on a prompt, a dead network

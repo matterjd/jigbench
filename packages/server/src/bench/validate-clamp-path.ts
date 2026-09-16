@@ -9,8 +9,8 @@ import { checkLocalPath, type CheckLocalPathDeps } from '../fs/local-path.js';
  * booting a server.
  *
  * #37: the UNC refusal and the existence check now come from `fs/local-path.ts`, shared with the
- * folder browser — a symlink spelled like a local path used to carry both guards past a `stat`
- * that followed it. Every rejection keeps its exact words.
+ * folder browser — a directory symlink spelled like a local path used to carry both guards past
+ * a `stat` that followed it. Every rejection keeps its exact words.
  */
 
 export type ClampPathValidation = { ok: true; resolved: string } | { ok: false; error: string };

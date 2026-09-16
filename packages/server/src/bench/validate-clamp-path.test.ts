@@ -55,7 +55,7 @@ describe('validateClampPath', () => {
     }
   });
 
-  // #37: #18's guard read the spelling, and a symlink (or an NTFS junction) inside the home is
+  // #37: #18's guard read the spelling, and a directory symlink inside the home is
   // spelled like any other local path — the `stat` that followed it was the SMB connection the
   // guard exists to prevent, made after the guard had said yes. The win32 shape cannot be planted
   // on either CI leg without making that connection for real, so the realpath answer is injected;
