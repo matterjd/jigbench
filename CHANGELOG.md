@@ -13,9 +13,12 @@ Issue #81 — hardening round 2, the follow-ups the S20 review left, one PR each
   browser sends no `Origin` at all on an `<img>`, a `<script>`, a `<link>`, an `<iframe>` or a
   plain navigation, and `same-origin.ts` lets an absent one through on purpose, because curl, an
   MCP client and the CLI never send one either. Such a request carries the bench's own name in
-  `Host` and runs. The section now names every `GET` that reaches — state, the docs index,
-  prompts and a build transcript, sketches, fixtures, toolpaths, the setup checklist, the
-  drafter probe, and folder names under `/api/fs/list` — and what such a page cannot do: read
+  `Host` and runs. The section now names every `GET` that reaches — the whole bench state
+  (marks and work orders, prompts, target file paths, the clamped repo's path, the recent-repo
+  list), the docs index, prompts and a build transcript, sketches, fixtures, toolpaths, the
+  setup checklist, the drafter probe, the plate status (your dev server's URL and port, the
+  headers the proxy rewrites, the active fixture, the mirror) and a stored snapshot, health, and
+  folder names under `/api/fs/list` — and what such a page cannot do: read
   any of it (the browser withholds the body from the page that asked, and the one API that would
   hand it over sends an `Origin` and is refused), write anything (every state-changing route is
   POST/PUT/DELETE, and a `<form>` cannot send the JSON content type the bench parses), or rebind

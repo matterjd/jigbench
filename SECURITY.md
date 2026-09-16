@@ -15,6 +15,7 @@ Jig runs locally. A few things are worth knowing if you are looking for security
   rewrites HTML responses to inject the loupe script. It handles `Content-Security-Policy` and
   `X-Frame-Options` selectively — only where needed to let the plate render the app — rather than
   stripping them outright.
+
 - **Both ports answer only to their own Host.** Every `/api/*` request and the WebSocket must
   carry a `Host` that names the bench itself — `localhost`, `127.0.0.1`, `[::1]`, or the `--host`
   it was started with (a wildcard bind accepts any IP-literal Host, never a DNS name) — and a
@@ -42,11 +43,16 @@ Jig runs locally. A few things are worth knowing if you are looking for security
   bench that refused them would be a bench no local tool could talk to.
 
   So assume any foreign page you have open can cause **any** `/api` `GET` to execute:
-  `/api/state` (the survey, the gauges, the wiring, the target's state), `/api/docs` (the
-  clamped docs index), `/api/prompts` and a build's transcript, `/api/sketches`,
-  `/api/fixtures`, `/api/toolpaths`, `/api/setup` (which also runs dev-script detection),
-  `/api/drafter` (which probes your local Ollama and records whether it answered), and
-  `/api/fs/roots` + `/api/fs/list` (folder names anywhere on the disk).
+  `/api/state` (the whole bench state — the survey, the gauges, the wiring, the target's state,
+  every mark and work order with its prompt, target file path and drafted text, the clamped
+  repo's own path, and on a bench started with no repo the list of recently clamped repo paths),
+  `/api/docs` (the clamped docs index), `/api/prompts` and a build's transcript,
+  `/api/sketches`, `/api/fixtures`, `/api/toolpaths`, `/api/setup` (which also runs dev-script
+  detection), `/api/drafter` (which probes your local Ollama and records whether it answered),
+  `/api/plate` (your dev server's URL and port, every header the proxy rewrites, the active
+  fixture and the trial-fit mirror's port and status — and it probes the clamped app and the
+  mirror on every call), `/api/plate/snapshot/:id` (a stored snapshot's HTML, by id),
+  `/api/health`, and `/api/fs/roots` + `/api/fs/list` (folder names anywhere on the disk).
 
   What such a page **cannot** do:
 
@@ -65,15 +71,20 @@ Jig runs locally. A few things are worth knowing if you are looking for security
 
   What it costs is therefore the **work**, not the data: a folder walk, a detection run, a docs
   read, an Ollama probe. That is inherent to a local HTTP server that must also answer
-  non-browser clients on the same port. One of those GETs leaves a trace, and it is in-memory
+  non-browser clients on the same port. Two of those GETs leave a trace, and both are in-memory
   and self-correcting: `/api/drafter` sets the drafter-wiring status from what its probe just
-  observed. Nothing under `/api` writes a file, clamps a repo, starts
+  observed, and `/api/plate` caches the header-rewrite list from its own probe when the target
+  answers, which a later call reports while the target is down. Nothing under `/api` writes a
+  file, clamps a repo, starts
   the target or runs an agent on a `GET` — that is the line, and a route that ever needed to
   would need a method other than `GET` instead.
+
 - **The MCP server is stdio-only and local.** Jig does not expose MCP over a network transport. An
   agent talks to it over stdio, on the machine that launched it.
+
 - **Writes are confined to `.jig/` in the clamped repo.** Jig never writes outside the repo it is
   pointed at, and never edits application source.
+
 - **Network calls are limited to three things:** the local target app you clamped, a local Ollama
   instance if one is running, and an optional one-time model download the first time you run Jig.
   Nothing else leaves the machine, and nothing leaves it at all unless you connect an agent.

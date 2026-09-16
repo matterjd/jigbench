@@ -40,9 +40,10 @@
  * are out of reach twice over: every state-changing route is POST/PUT/DELETE, and the only
  * cross-origin issue a page can make without JavaScript is an HTML `<form>`, which cannot send
  * `Content-Type: application/json` — the only body type either gate's server parses. So the cost
- * is the WORK a GET does, not the data it answers with. `SECURITY.md` says the same thing in
- * the same words, names every GET this reaches, and is the copy a reader finds first; the two
- * move together.
+ * is the WORK a GET does, not the data it answers with. `SECURITY.md` says the same thing at
+ * more length, names every GET this reaches (`/api/plate` and `/api/plate/snapshot/:id`
+ * included — the first one probes your clamped app), and is the copy a reader finds first; the
+ * two move together, in substance rather than word for word.
  *
  * Extracted from `http.ts` (S17a) so `fs/route.ts` and `bench/host.ts` apply the exact same
  * check without an import cycle back into `http.ts`.
