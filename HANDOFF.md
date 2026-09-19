@@ -182,9 +182,9 @@ keeping both sides' intent; nothing was dropped and nothing was refactored.
 bounds, with the same unbounded `typeof port === 'number'`, and builds `http://localhost:Infinity`
 from it. It is a third path, outside item 3's acceptance (scoped to `detectDevScript`), and fixing it
 means exporting `isValidPort` from `@jigbench/server`'s public API — `cli` may import nothing else.
-That is a widening no item asked for. **#81 is closed and neither #102 nor #103 carries it**, so it
-still wants an issue of its own — as does `packages/adapters/web/src/dev-server.ts:18`, the third
-path the #94 review named.
+That is a widening no item asked for. **#81 is closed and neither #102 nor #103 carries it — filed as
+#104 on 2026-09-16 by the eval seat**, together with `packages/adapters/web/src/dev-server.ts:18`,
+the third path the #94 review named.
 
 ### Still true, and still worth knowing before you touch this code
 
@@ -249,8 +249,8 @@ no build output under `examples/`, so **both of #54's failures pass here**. Olde
 `orders/service.trialfit.test.ts`, cleared by a re-run), and it is a line on #102 · #4 esbuild advisory · #5 karma qs · #6 the legacy log does not survive a
 re-read. Seen once in CI and never root-caused: `plate/proxy.test.ts` letting an interceptor
 short-circuit the proxy on ubuntu (run 34174031120 attempt 1; green on the re-run). **#24 and #37 are
-closed.** **Still not filed, and someone should:** the card's built message says *"flip before"*,
-naming a switch #8 removed.
+closed.** **Filed as #104 (2026-09-16):** the card's built message says *"flip before"*, naming a
+switch #8 removed.
 
 **Rules of record:** a slice is a branch (`delegate/build-sN` or `fix/<slug>`), test-first with the
 red line quoted in the commit body, `git commit -s`, a PR in the worker-report shape, both CI legs
