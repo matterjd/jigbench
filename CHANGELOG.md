@@ -37,6 +37,17 @@ Issue #23 — S21, Matter's three rulings of 2026-09-14, one commit each.
   banned set out of COMMISSION.md §3's own table rather than holding a second copy of it, applies
   it with no pairing exemption to what `jig serve` actually returns, and carries controls proving
   the table really parsed and that the detector fires on the exact line this slice removed.
+- **ruling 3 — the before controls stay out for 0.2.x, and the books say so** — PR #14 removed the
+  two-plate mirror's switch because S12 had shipped it as a disclosed no-op over prompt-local state
+  rather than the S9 snapshot machinery, and a control that answers nothing is a floor item (#8,
+  closed) — but AMENDMENT-1 §3 ("with *before* one click away"), §4 ("the mirror" under Advanced)
+  and `docs/team/v0.2/CHASSIS.md` §1 ("Built + before", "the mirror (before|after two plates)") all
+  still ruled the control ON. Matter accepted the removal for 0.2.x with **a real before as roadmap
+  slice S27** in its place, so nothing was built: the three records carry the ruling and name S27,
+  `docs/ROADMAP.md`'s S27 row records that it is unblocked, and the annotation is load-bearing
+  rather than decorative — `AdvancedDrawer.test.tsx` now holds the drawer's missing control and the
+  three notes in one place, so S27 cannot return the control without amending the books with it.
+- The S21 row in `docs/ROADMAP.md` says shipped, with what each ruling was and what landed under it.
 
 Issue #81 — hardening round 2, the follow-ups the S20 review left, one PR each.
 

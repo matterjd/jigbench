@@ -51,6 +51,16 @@ you must operate to get through the loop.
 | gauges | **Design system** (tab name); *gauges* stays the word for one token | |
 | trial fit | **Built** — the plate after the build, with *before* one click away | the two-plate mirror is Advanced |
 
+> **#23 ruling 3 (Matter, 2026-09-14): the *before* half of this row is NOT in 0.2.x.** PR #14
+> removed the two-plate mirror's switch because S12 had shipped it as a disclosed no-op and a
+> control that answers nothing is a floor item (#8, closed). Matter **accepted that removal for
+> 0.2.x**, and **a real before is roadmap slice S27** (`docs/ROADMAP.md`, "a real before for a
+> built Prompt") in its place. So: **Built** is the ruled word and it stands; *before* returns
+> when S27 gives a built Prompt a snapshot to show. Until then the Advanced drawer says where
+> the mirror went in words rather than offering a control —
+> `packages/bench/src/chassis/AdvancedDrawer.tsx`, and the pair of tests in
+> `AdvancedDrawer.test.tsx` that hold this annotation and that absence together.
+
 Unchanged: bench · clamp · survey · plate · sketch · logbook · scrap bin.
 
 ## 4. The default view (the brief for concept D)
@@ -69,6 +79,13 @@ Unchanged: bench · clamp · survey · plate · sketch · logbook · scrap bin.
   the mirror, MCP status, the spine.
 - **Sketch:** the sheet with real snapping (4px grid, edge and centre alignment lines), five
   primitives, the app's gauges only; a sketch is a prompt target: *build this screen*.
+
+> **#23 ruling 3 (Matter, 2026-09-14): "the mirror" in the Advanced list is not in 0.2.x.**
+> Everything else on this line is built. The mirror's switch was removed by PR #14 (#8: S12
+> shipped it as a no-op over prompt-local state, not the trial-fit snapshot machinery), Matter
+> **accepted that removal for 0.2.x**, and **a real before is roadmap slice S27** in its place.
+> The drawer says so in words where the switch was. See §3's note above for the same ruling
+> against the tongue row.
 
 ## 5. v0.2 — the slices
 

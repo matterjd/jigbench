@@ -35,6 +35,15 @@ retest script for the loop.
 | **status line** (28px, bottom, full width) | One line: `Claude · idle` \| `· not installed` \| `· building · mm:ss · <event>` \| `· built · N files · m:ss`. Click opens the **logbook** as a drawer over it (reuses `Logbook.tsx`). Nothing else on the line. | New `StatusLine`; `Logbook.tsx` reused |
 | **Advanced drawer** (264px, under the plate, off by default) | Rulers + guides (`PlateRulers`/`PlateGuides`, reused), the SIM strip (`SimStrip`, reused), **the spine** (every prompt on the 4-rung ladder — `Ladder.tsx` adapted to the 4-state prompt ladder), **Fixtures** (`FixturePanel`, reused; its form label reads *key* not *seed*), **Toolpath** (`ToolpathBar`, reused; its state word reads *tracing* not *recording*), **the mirror** (before\|after two plates — `TrialFitMirror` reused, retargeted at the release snapshot), MCP status (from `/api/state.shop`). | Existing v0.1 panels, reorganised under one `AdvancedDrawer` |
 
+> **#23 ruling 3 (Matter, 2026-09-14): the two *before* claims in this table are not in 0.2.x.**
+> The right column's "Built + before" and the Advanced drawer's "**the mirror** (before|after two
+> plates)" both describe a control PR #14 removed — S12 had shipped the switch as a disclosed
+> no-op over prompt-local state rather than the S9 snapshot machinery, and a control that answers
+> nothing is a floor item (#8, closed). Matter **accepted that removal for 0.2.x**, and **a real
+> before is roadmap slice S27** (`docs/ROADMAP.md`, "a real before for a built Prompt") in its
+> place: a Prompt held at Ready keeps a snapshot, and the mirror shows it beside the built app.
+> Every other row here stands as ruled. AMENDMENT-1 §3 and §4 carry the same note.
+
 ## 2. The artifact: Prompt, not work order (A4)
 
 `toolState.ts`'s `Tool` union becomes `'point' | 'sketch' | 'hand'`. The old `'loupe'` and `'mark'`
