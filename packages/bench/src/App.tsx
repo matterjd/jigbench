@@ -24,7 +24,7 @@ import { useTool } from './tools/toolState.js';
 import { usePrompts } from './prompts/usePrompts.js';
 import { PromptsPane } from './prompts/PromptsPane.js';
 import { PromptCard } from './prompts/PromptCard.js';
-import type { BuildStreamEvent, Prompt, PromptTarget } from '@jigbench/core';
+import { buildNoticeLine, type BuildStreamEvent, type Prompt, type PromptTarget } from '@jigbench/core';
 import './App.css';
 
 interface DocsSearchResult {
@@ -279,7 +279,15 @@ export function App() {
     buildingId && activeStream.length > 0
       ? (() => {
           const last = activeStream[activeStream.length - 1];
-          return last.kind === 'text' || last.kind === 'raw' ? last.text : last.kind === 'tool' ? `${last.name} · ${last.target}` : undefined;
+          if (last.kind === 'text' || last.kind === 'raw') return last.text;
+          if (last.kind === 'tool') return `${last.name} · ${last.target}`;
+          // #103 (#98): a `notice` is the build speaking about ITSELF, and it was the one kind
+          // this could not say — so `StatusLine` fell through to its `?? 'starting claude -p'`
+          // and went on claiming the build was starting, through the very stall the notice
+          // exists to explain. `buildNoticeLine` is core's own wording, the same one the card,
+          // the ribbon and the logbook use, so the four still say the same thing (`build.ts`).
+          if (last.kind === 'notice') return buildNoticeLine(last.code);
+          return undefined;
         })()
       : undefined;
 

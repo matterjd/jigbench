@@ -225,7 +225,9 @@ export class BuildRunner implements BuildRunnerLike {
     const startedAt = running.startedAt;
 
     // #81 item 7: one line, in words, whenever a snapshot cannot be taken — and a different line
-    // for each of the three reasons. #37 gave the git calls a budget and killed the ones that
+    // for each of the five reasons (`BuildNoticeCodeSchema`; #103 (#98): three, here, was the
+    // count before `git-failed-to-start` and `git-refused-the-tree`). #37 gave the git calls a
+    // budget and killed the ones that
     // outlived it; what it did not do was TELL anyone, so a build whose git was wedged for the
     // full fifteen seconds reported "no files touched" and read exactly like a build in a folder
     // that is not a repo. The words live in core's `buildNoticeLine`, so the card, the ribbon,

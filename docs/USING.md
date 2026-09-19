@@ -17,8 +17,10 @@ From a folder that is not a repo, the bench opens on the **Clamp** screen (its p
 repo; the survey reads it"*). **recent benches** lists every repo you clamped before — one click
 re-clamps it. Under **pick the repo folder** the folder browser walks your drives (or `/` and
 `~`); a folder that is a repo carries a `git`, `package.json`, `angular.json` or `.csproj` badge,
-and `docs` when it has a docs folder. Pick one, or paste a path into the field under the browser,
-and press **Clamp** — the one ember act on the screen. While it runs the screen says *"clamping ·
+and `docs` when it has a docs folder. A child that is a symbolic link or a junction is not listed
+at all — the browser keeps only real directories — so a linked folder is reached by pasting its
+path rather than by clicking to it (`SECURITY.md` says why). Pick one, or paste a path into the
+field under the browser, and press **Clamp** — the one ember act on the screen. While it runs the screen says *"clamping ·
 the survey reads the repo — a few seconds"*; a path Jig cannot clamp is answered in words
 (*"not clamped · no such path: …"*), never a blank.
 

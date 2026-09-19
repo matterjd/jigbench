@@ -12,7 +12,9 @@ We will acknowledge a report and work with you on a fix before any public disclo
 Jig runs locally. A few things are worth knowing if you are looking for security issues:
 
 - **The proxy rewrites HTML.** Jig's local proxy sits in front of the target app's dev server and
-  rewrites HTML responses to inject the loupe script. It handles `Content-Security-Policy` and
+  rewrites HTML responses to inject Jig's own picking script — the one **Point** clicks through
+  and **Inspect** reads (`packages/server/src/plate/loupe.js` on disk). It handles
+  `Content-Security-Policy` and
   `X-Frame-Options` selectively — only where needed to let the plate render the app — rather than
   stripping them outright.
 
@@ -30,6 +32,16 @@ Jig runs locally. A few things are worth knowing if you are looking for security
   proxy's own `Host` rewrite would hide the attacker's name from the dev server's check too.
   Paths handed to the folder browser or to clamp are refused when they name a UNC share.
 
+- **The folder browser drops a link or a junction child.** `GET /api/fs/list` keeps only the
+  children `readdir` reports as real directories, and a symbolic link or an NTFS junction is
+  reported as a link rather than a directory — so such a child is never listed, and it cannot be
+  browsed to. Treat that as the rule rather than as a gap: the guard judges the folder you asked
+  for, not the tree under it, so a listed child that was itself a link would be probed (`.git`,
+  `package.json`, `angular.json`, `docs`, `*.csproj`) through a link nothing had judged. A linked
+  folder you do want is still reachable by naming its path directly — the path field on the Clamp
+  screen, or `?path=` on this route — where the same local-path guard judges it as the folder you
+  asked for.
+
 - **A page on another site can still make Jig run a `GET`. It cannot read the answer, and it
   cannot write.** This is the limit of the rule above, and it is worth stating plainly rather
   than leaving to be inferred.
@@ -44,7 +56,8 @@ Jig runs locally. A few things are worth knowing if you are looking for security
 
   So assume any foreign page you have open can cause **any** `/api` `GET` to execute:
   `/api/state` (the whole bench state — the survey, the gauges, the wiring, the target's state,
-  every mark and work order with its prompt, target file path and drafted text, the clamped
+  every **Point** you have placed and every **prompt** with its text, target file path and
+  drafted text (`marks` and `workOrders` are what those two are called on the wire), the clamped
   repo's own path, and on a bench started with no repo the list of recently clamped repo paths),
   `/api/docs` (the clamped docs index), `/api/prompts` and a build's transcript,
   `/api/sketches`, `/api/fixtures`, `/api/toolpaths`, `/api/setup` (which also runs dev-script

@@ -195,8 +195,14 @@ export function attachSetupRoute(app: Express, ctx: SetupRouteContext): void {
       }
 
       // Both spellings, kept apart the way `fs/route.ts` keeps `realParent` from
-      // `reportedParent`. The WALK goes through the REAL path — the one the guard cleared, so
-      // nothing can be re-pointed between the check and the read. What the clamp RECORDS stays
+      // `reportedParent`. The WALK goes through the REAL path — the one the guard cleared — so
+      // the caller's own link is not traversed a second time after the check.
+      //
+      // #103 (#95): that is all it buys, and this comment used to claim more. `checkLocalPath`
+      // returns a STRING rather than a handle and resolves only the path it was handed, so a
+      // component of `checked.real` re-pointed between the line above and `clampDocs`'s own
+      // `stat`/`readdir` is still followed — the same qualification `fs/route.ts` now carries.
+      // What the clamp RECORDS stays
       // the caller's spelling: the HTTP response here is only counts, but the route rewrites
       // `.jig/survey/docs.json`, whose `root`, `files[].file` and `chunks[].id` are all
       // spellings, and `GET /api/docs`, the MCP `jig_docs` tool and the prompt builder read

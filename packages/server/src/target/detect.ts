@@ -1,7 +1,8 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { DetectedTargetSummary } from '@jigbench/core';
-import { isValidPort } from '../valid-port.js'; // #81
+import { isValidPort, portRefusedMessage } from '../valid-port.js'; // #81, #103
+import { logger } from '../logger.js'; // #103
 
 /**
  * S17a (AMENDMENT-1 §7, A6): "Start the app runs the detected dev script inside the repo".
@@ -38,6 +39,30 @@ import { isValidPort } from '../valid-port.js'; // #81
 
 const DEFAULT_PORT_GUESS = 4200;
 const PACKAGE_JSON_SCRIPT_PRIORITY = ['start', 'dev', 'serve'] as const;
+
+/**
+ * #103 (#94): the two places a port is thrown away say which value they threw away.
+ *
+ * #81 bounded both data-borne ports and let the tier below answer, which is right and was
+ * silent: an `angular.json` reading `"port": 1e999` became `DEFAULT_PORT_GUESS`, so the Clamp
+ * screen reported `{source: 'angular.json', port: 4200}` about a file that does not say 4200,
+ * and an out-of-range survey hint became `undefined` with nothing said either.
+ *
+ * `valid-port.ts` already owns the words for exactly this value, and they are reused here
+ * rather than re-worded — but `portRefusedMessage` is a 400 BODY, and a port that arrives as
+ * data has nobody to send a 400 to. So it goes to the log instead. The caller is not told and
+ * nothing is refused: detection's contract (an unusable port reads as NO configured port, the
+ * tier below answers) is unchanged, and this only stops the value vanishing.
+ *
+ * `undefined` in means nothing was configured, which is not a value that was ignored — the
+ * "exists but sets no explicit port" case `angularConfiguredPort` already has words for, and a
+ * survey that never named a port. Those say nothing.
+ */
+function noteIgnoredPort(source: string, value: unknown): undefined {
+  if (value === undefined) return undefined;
+  logger.warn(`target detect: ignoring the port from ${source} — ${portRefusedMessage(value)}`);
+  return undefined;
+}
 
 /** Windows cannot `CreateProcess` a `.cmd` file directly — `spawn('npm.cmd', ..., {shell:
  * false})` throws a SYNCHRONOUS `EINVAL` on current Node (reproduced live during this slice's
@@ -90,8 +115,9 @@ function readDevServerHint(survey: unknown): DevServerHint | undefined {
     // bites — a parser reads it as `Infinity`, which IS a number and is not a port. An adapter's
     // survey is data from outside exactly as a request body is (#70), so it meets the same rule.
     // An unusable hint port is not an error and does not cost the hint its SCRIPT: it reads as
-    // no port at all, and the tier below answers for it.
-    port: isValidPort(hint.port) ? hint.port : undefined,
+    // no port at all, and the tier below answers for it. #103 (#94): and it is named on the way
+    // out, so the port the bench then reports is not silently a different number.
+    port: isValidPort(hint.port) ? hint.port : noteIgnoredPort('the survey hint', hint.port),
     url: typeof hint.url === 'string' ? hint.url : undefined,
   };
 }
@@ -115,8 +141,12 @@ function angularConfiguredPort(repoRoot: string): number | undefined {
     // #81: same rule, same reason — `"port": 1e999` in a clamped repo's own angular.json parses
     // to `Infinity`, and this number goes onto `ng serve`'s command line AND into the runner's
     // 120-second availability probe. A value outside 1-65535 reads as the "exists but sets no
-    // explicit port" case this function already has words for, not as a port.
-    return isValidPort(port) ? port : DEFAULT_PORT_GUESS;
+    // explicit port" case this function already has words for, not as a port. #103 (#94): with
+    // the difference that an out-of-range value is NAMED on its way out, because the caller is
+    // about to be told `{source: 'angular.json', port: 4200}` about a file that says otherwise.
+    if (isValidPort(port)) return port;
+    noteIgnoredPort(`${angularJsonPath} (using ${DEFAULT_PORT_GUESS} instead)`, port);
+    return DEFAULT_PORT_GUESS;
   } catch {
     return DEFAULT_PORT_GUESS;
   }

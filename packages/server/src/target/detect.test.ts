@@ -1,9 +1,10 @@
-import { describe, expect, it, afterEach } from 'vitest';
+import { describe, expect, it, afterEach, vi } from 'vitest';
 import { mkdtemp, rm, writeFile, mkdir } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { detectDevScript, isRunnableScriptName, packageJsonScriptNames } from './detect.js';
-import { isValidPort } from '../valid-port.js';
+import { isValidPort, portRefusedMessage } from '../valid-port.js';
+import { logger } from '../logger.js';
 
 // Windows cannot CreateProcess a `.cmd` file directly — `spawn('npm.cmd', ..., {shell:
 // false})` throws a SYNCHRONOUS `EINVAL` on current Node (reproduced live on this desk, Node
@@ -205,8 +206,10 @@ describe('detectDevScript', () => {
       // tier 3 — angular.json alone, which also puts the port on the command line.
       //
       // The local `ng` is planted deliberately: #81 item 8 (PR #99) gates this tier on the
-      // repo having its own `node_modules/.bin/ng`, because `npx ng serve` downloads one from
-      // the registry otherwise. Planting it here makes this case exercise tier 3 whether or not
+      // repo having its own `node_modules/.bin/ng`, because `npx ng serve` otherwise runs
+      // whatever `ng` it can resolve — an ancestor `.bin`, the global PATH, or, finding
+      // neither, one it downloads (#103/#99: not a download in every case, which is what this
+      // said). Planting it here makes this case exercise tier 3 whether or not
       // that PR has landed — without it, tier 3 declines once it does and this walk silently
       // stops walking the tier it is named for.
       const ngTier = await freshDir();
@@ -224,11 +227,15 @@ describe('detectDevScript', () => {
     });
   });
 
-  // #81: `npx ng serve` fetches `ng` FROM THE REGISTRY when the repo has no local install —
-  // a network download and then an execution, on nothing but the presence of an `angular.json`.
-  // The tier now requires the repo's own `node_modules/.bin/ng` (planted here) and passes
-  // `--no-install` so npx can never reach the registry even if the two disagree. The assertion
-  // that used to stand here expected no `--no-install` and no local binary at all.
+  // #81: `npx ng serve` runs SOME `ng` when the repo has no local install — an ancestor
+  // `node_modules/.bin`, the global PATH, or, finding neither, one it fetches from the registry
+  // first — and it does so on nothing but the presence of an `angular.json`. The tier now
+  // requires the repo's own `node_modules/.bin/ng` (planted here) and passes `--no-install`,
+  // which stops npx INSTALLING and running a package the repo does not have; it does not stop
+  // npx asking the registry about one, and `detect.ts`'s own doc records the measurement that
+  // says so. The assertion that used to stand here expected no `--no-install` and no local
+  // binary at all. (#103/#99: this said the fetch was what happened, full stop, and that
+  // `--no-install` made the registry unreachable. Neither is true as written.)
   async function plantLocalNg(repoRoot: string): Promise<void> {
     const bin = join(repoRoot, 'node_modules', '.bin');
     await mkdir(bin, { recursive: true });
@@ -263,10 +270,16 @@ describe('detectDevScript', () => {
       JSON.stringify({ defaultProject: 'app', projects: { app: { architect: { serve: { options: { port: 4300 } } } } } }),
       'utf8',
     );
-    // No node_modules/.bin/ng anywhere. `npx ng serve` would have DOWNLOADED `ng` from the
-    // registry here and run it, on nothing but the presence of an angular.json in a folder the
-    // human pointed at. The honest answer is the one the module already has words for: nothing
-    // to start, so the checklist asks for a URL instead.
+    // No node_modules/.bin/ng anywhere in this repo. #103 (#99): what `npx ng serve` would then
+    // have RUN is not decidable from the repo, and this said it was — npx resolves an ancestor
+    // `node_modules/.bin` and the global PATH before it asks the registry, so on a desk that has
+    // an `ng` above this folder or installed globally it runs that one with no download at all
+    // (measured: `npx --no-install ng --version` in an empty scratch directory printed 21.2.6,
+    // and this desk has `@angular/cli` installed globally). A download is what happens on a desk
+    // with neither. What is true either way is the part that matters: a detector would have
+    // picked the command, and picked it from nothing but the presence of an angular.json in a
+    // folder the human pointed at. The honest answer is the one the module already has words
+    // for: nothing to start, so the checklist asks for a URL instead.
     expect(detectDevScript(repoRoot)).toBeNull();
   });
 
@@ -428,5 +441,81 @@ describe('isRunnableScriptName', () => {
       expect(isRunnableScriptName('lint-all', 'linux')).toBe(true);
       expect(isRunnableScriptName('lint-all', 'win32')).toBe(true);
     });
+  });
+});
+
+// #103 (#94): a port this module throws away is NAMED on the path that throws it away.
+//
+// #81 bounded both data-borne ports with `isValidPort` and let the tier below answer — correct,
+// and silent. An `angular.json` reading `"port": 1e999` became `DEFAULT_PORT_GUESS`, so the
+// Clamp screen reported `{source: 'angular.json', port: 4200}` about a file that does not say
+// 4200; an out-of-range survey hint became `undefined` with the same nothing said.
+// `valid-port.ts`'s `portRefusedMessage` — the words this repo already has for exactly this
+// value — was reachable only from `target/route.ts` and `trialfit/route.ts`, the two places a
+// port arrives in a REQUEST and can be refused back to its sender. A port that arrives as DATA
+// has no sender to refuse, so it is named on stderr instead of vanishing.
+describe('#103 (#94): the port it ignores, in words', () => {
+  function warnSpy() {
+    return vi.spyOn(logger, 'warn').mockImplementation(() => {});
+  }
+
+  afterEach(() => vi.restoreAllMocks());
+
+  it('names the out-of-range angular.json port it dropped, and the guess it used instead', async () => {
+    const repoRoot = await freshDir();
+    await writeFile(
+      join(repoRoot, 'angular.json'),
+      '{"defaultProject":"app","projects":{"app":{"architect":{"serve":{"options":{"port":1e999}}}}}}',
+      'utf8',
+    );
+    await mkdir(join(repoRoot, 'node_modules', '.bin'), { recursive: true });
+    await writeFile(join(repoRoot, 'node_modules', '.bin', 'ng'), '#!/usr/bin/env node\n', 'utf8');
+    await writeFile(join(repoRoot, 'node_modules', '.bin', 'ng.cmd'), '@echo off\n', 'utf8');
+
+    const warn = warnSpy();
+    const result = detectDevScript(repoRoot);
+
+    // The behaviour #81 established is unchanged: the tier still answers, with a bindable port.
+    expect(result?.source).toBe('angular.json');
+    expect(result?.port).toBe(4200);
+
+    const said = warn.mock.calls.map((c) => String(c[0])).join('\n');
+    expect(said, 'the dropped angular.json port was not named anywhere').toContain('angular.json');
+    expect(said, 'the value that was dropped was not named').toContain('Infinity');
+    expect(said, 'the words are valid-port.ts\'s own, not a second wording').toContain(portRefusedMessage(Infinity));
+  });
+
+  it('names the out-of-range survey hint port it dropped', async () => {
+    const repoRoot = await freshDir();
+    await writeFile(join(repoRoot, 'package.json'), JSON.stringify({ scripts: { start: 'ng serve' } }), 'utf8');
+
+    const warn = warnSpy();
+    const result = detectDevScript(repoRoot, { devServer: { script: 'start', port: 65_536 } });
+
+    expect(result?.source).toBe('survey');
+    expect(result?.port).toBe(4200); // the tier below answered, as #81 says it should
+
+    const said = warn.mock.calls.map((c) => String(c[0])).join('\n');
+    expect(said, 'the dropped survey hint port was not named anywhere').toContain('survey');
+    expect(said, 'the words are valid-port.ts\'s own').toContain(portRefusedMessage(65_536));
+  });
+
+  // The control that keeps this from becoming noise: the two cases that are NOT a dropped port
+  // say nothing at all. An `angular.json` with no `port` key is the documented "exists but sets
+  // no explicit port" case, and a survey with no `devServer.port` never named one to begin with.
+  it('says nothing when there was no port to ignore', async () => {
+    const repoRoot = await freshDir();
+    await writeFile(
+      join(repoRoot, 'angular.json'),
+      JSON.stringify({ defaultProject: 'app', projects: { app: { architect: { serve: {} } } } }),
+      'utf8',
+    );
+    await writeFile(join(repoRoot, 'package.json'), JSON.stringify({ scripts: { start: 'ng serve' } }), 'utf8');
+
+    const warn = warnSpy();
+    const result = detectDevScript(repoRoot, { devServer: { script: 'start' } });
+
+    expect(result?.port).toBe(4200);
+    expect(warn.mock.calls.map((c) => String(c[0])), 'a port nobody configured is not a port that was ignored').toEqual([]);
   });
 });
