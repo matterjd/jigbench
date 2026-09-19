@@ -1,4 +1,4 @@
-import type { Express, NextFunction, Request, Response } from 'express';
+import type { IRouter, NextFunction, Request, Response } from 'express';
 import type { PlateProxyHandle } from '../plate/proxy.js';
 import { TrialFitMirror } from './mirror.js';
 import { SnapshotStore } from './snapshot.js';
@@ -39,7 +39,10 @@ export interface AttachTrialFitRouteOptions {
  * save/serve the release-moment "before" snapshot the loupe's `jig:snapshot` produces.
  * Mounted once from `http.ts` alongside the other `/api/*` routes.
  */
-export function attachTrialFitRoute(app: Express, options: AttachTrialFitRouteOptions): void {
+// #23 ruling 1: `IRouter`, not `Express` — `bench/host.ts` mounts this on a per-bench
+// `express.Router()` too now; an Express app satisfies `IRouter`, so `http.ts`'s call is
+// unchanged. Same move `fixtures/route.ts` and `plate/route.ts` made for S17b.
+export function attachTrialFitRoute(app: IRouter, options: AttachTrialFitRouteOptions): void {
   const { mirror, snapshotStore, primaryPlate } = options;
 
   app.post('/api/plate/mirror', async (req: Request, res: Response, next: NextFunction) => {

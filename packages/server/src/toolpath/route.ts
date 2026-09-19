@@ -1,4 +1,4 @@
-import type { Express, NextFunction, Request, Response } from 'express';
+import type { IRouter, NextFunction, Request, Response } from 'express';
 import type { ToolpathStep } from '@jigbench/core';
 import { ToolpathNotFoundError, ToolpathStore } from './store.js';
 
@@ -11,7 +11,10 @@ function sendError(res: Response, status: number, message: string): void {
  * scrap/restore (Law II). Mounted once from `http.ts` alongside the other `/api/*` routes,
  * mirroring `fixtures/route.ts` exactly.
  */
-export function attachToolpathsRoute(app: Express, toolpathStore: ToolpathStore): void {
+// #23 ruling 1: `IRouter`, not `Express` — `bench/host.ts` mounts this on a per-bench
+// `express.Router()` too now; an Express app satisfies `IRouter`, so `http.ts`'s call is
+// unchanged. Same move `fixtures/route.ts` and `plate/route.ts` made for S17b.
+export function attachToolpathsRoute(app: IRouter, toolpathStore: ToolpathStore): void {
   app.get('/api/toolpaths', (_req, res) => {
     res.json({ toolpaths: toolpathStore.list() });
   });

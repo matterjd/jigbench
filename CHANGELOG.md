@@ -6,6 +6,24 @@ semantic versioning strictly (pre-1.0).
 
 ## [Unreleased]
 
+Issue #23 — S21, Matter's three rulings of 2026-09-14, one commit each.
+
+- **ruling 1 — the Advanced routes answer on the Clamp-screen path too (toolpath, work orders,
+  trial fit)** — a bench created at runtime mounted the loop (prompts, plate, fixtures,
+  sketches, docs) and stopped there, a gap S17a disclosed in `bench/host.ts` and nothing had
+  closed: `AdvancedDrawer.tsx` still rendered the Toolpath panel, and `docs/TEST-RUN.md` step 21
+  told a reader to record and replay one after `npx jigbench` from a folder that is not a repo —
+  a step that could not pass. `Bench` now holds the `ToolpathStore`, the `TrialFitMirror` +
+  `SnapshotStore` and an `OrdersService` alongside the loop's own pieces, and the per-bench router
+  mounts their routes from the SAME attach functions the `--repo`-at-boot path uses; the mirror's
+  status rides the primary plate's report there too. They are torn down with the bench like every
+  other per-bench route — after an unclamp they 404 again, and a toolpath recorded on one repo is
+  not listed under the next. The work-order routes were the one Advanced surface with no
+  `attachXRoute` of its own, so S5's and S8's two delimited blocks moved out of `http.ts` into
+  `orders/route.ts` unchanged (same paths, same status codes, same sentences) and both paths now
+  mount one surface rather than two. Advanced is still one toggle away on the surface
+  (AMENDMENT-1 §3); what changed is that the Clamp path answers for it.
+
 Issue #81 — hardening round 2, the follow-ups the S20 review left, one PR each.
 
 - **a UNC path is refused before the connection, and the words say only what is true** — the
