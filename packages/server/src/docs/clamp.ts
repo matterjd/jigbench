@@ -16,8 +16,16 @@ import { extractPdfText } from './pdf.js';
 export interface ClampDocsOptions {
   repoRoot: string;
   /** The spelling to WALK: every `stat`, `readdir` and `readFile` goes through this one. A
-   * caller that guards its input hands over the guard's real path, so nothing can be
-   * re-pointed between the check and the read. */
+   * caller that guards its input hands over the guard's real path, so the caller's own link is
+   * not traversed a second time after the guard.
+   *
+   * #103 (#95): that is the whole of what it buys, and the sentence here used to claim more.
+   * `checkLocalPath` returns a STRING, not a handle, and it resolves THAT path, not the tree
+   * under it — so a component of this folder re-pointed between the guard returning and the
+   * `stat`/`readdir` below is still followed, and a file or directory inside it that is itself
+   * a link is followed too. Measured, not theoretical: `fs/route.ts` carries the same
+   * qualification for the same reason. Closing it is its own item (a directory fd, so the reads
+   * are made relative to something already opened), and it is not claimed here. */
   folder: string;
   /** #81 item 1 (the lead's repair): the spelling to RECORD, when it differs from the one
    * walked — `fs/route.ts`'s `realParent`/`reportedParent` split, applied here. `repoRoot` is

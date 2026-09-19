@@ -70,8 +70,12 @@ Issue #81 — hardening round 2, the follow-ups the S20 review left, one PR each
   spelled like any other local path, so it carried the share straight past that check and
   `clampDocs` walked it — a `stat`, then a `readdir` of every directory under it, each one the
   SMB connection the guard exists to prevent. The route calls `checkLocalPath` before any read
-  now, and `clampDocs` WALKS the spelling the guard cleared, so nothing can be re-pointed
-  between the check and the read — while what the docs index RECORDS (its `root`, every
+  now, and `clampDocs` WALKS the spelling the guard cleared, so the caller's own link is not
+  traversed a second time after the check. That is all it buys, and this entry will not claim
+  more: `checkLocalPath` returns a string rather than a handle and resolves only the path it was
+  handed, so a component of that path re-pointed between the guard returning and the
+  `stat`/`readdir` is still followed — the same qualification the folder-browser entry below
+  carries — while what the docs index RECORDS (its `root`, every
   `files[].file` and every `chunks[].id`, all read back by `GET /api/docs`, the MCP `jig_docs`
   tool and the prompt builder) stays the spelling you picked, so in-repo refs are still
   `docs/guide.md` when your repo is reached through a link or an 8.3 alias. The three routes

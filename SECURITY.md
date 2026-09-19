@@ -30,6 +30,16 @@ Jig runs locally. A few things are worth knowing if you are looking for security
   proxy's own `Host` rewrite would hide the attacker's name from the dev server's check too.
   Paths handed to the folder browser or to clamp are refused when they name a UNC share.
 
+- **The folder browser drops a link or a junction child.** `GET /api/fs/list` keeps only the
+  children `readdir` reports as real directories, and a symbolic link or an NTFS junction is
+  reported as a link rather than a directory — so such a child is never listed, and it cannot be
+  browsed to. Treat that as the rule rather than as a gap: the guard judges the folder you asked
+  for, not the tree under it, so a listed child that was itself a link would be probed (`.git`,
+  `package.json`, `angular.json`, `docs`, `*.csproj`) through a link nothing had judged. A linked
+  folder you do want is still reachable by naming its path directly — the path field on the Clamp
+  screen, or `?path=` on this route — where the same local-path guard judges it as the folder you
+  asked for.
+
 - **A page on another site can still make Jig run a `GET`. It cannot read the answer, and it
   cannot write.** This is the limit of the rule above, and it is worth stating plainly rather
   than leaving to be inferred.

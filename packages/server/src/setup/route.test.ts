@@ -286,8 +286,10 @@ describe('POST /api/docs/clamp', () => {
   });
 
   // #81 item 1, the lead's repair: the guard's two spellings must stay APART. The walk goes
-  // through `real` (the spelling the guard cleared, so nothing can be re-pointed between the
-  // check and the read), but everything the index RECORDS — its `root`, every `files[].file`
+  // through `real` (the spelling the guard cleared, so the caller's own link is not traversed a
+  // second time after the check — #103 (#95): not that nothing can be re-pointed, which is what
+  // this said and what `route.ts` no longer claims), but everything the index RECORDS — its
+  // `root`, every `files[].file`
   // and every `chunks[].id` — is the caller's spelling, because `bench.repoRoot` is the
   // caller's spelling too (`bench/validate-clamp-path.ts` returns `resolved`, not `real`) and
   // `relative()` between the two forms escapes: the same 8.3/junction mismatch
