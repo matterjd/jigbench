@@ -206,8 +206,10 @@ describe('detectDevScript', () => {
       // tier 3 — angular.json alone, which also puts the port on the command line.
       //
       // The local `ng` is planted deliberately: #81 item 8 (PR #99) gates this tier on the
-      // repo having its own `node_modules/.bin/ng`, because `npx ng serve` downloads one from
-      // the registry otherwise. Planting it here makes this case exercise tier 3 whether or not
+      // repo having its own `node_modules/.bin/ng`, because `npx ng serve` otherwise runs
+      // whatever `ng` it can resolve — an ancestor `.bin`, the global PATH, or, finding
+      // neither, one it downloads (#103/#99: not a download in every case, which is what this
+      // said). Planting it here makes this case exercise tier 3 whether or not
       // that PR has landed — without it, tier 3 declines once it does and this walk silently
       // stops walking the tier it is named for.
       const ngTier = await freshDir();
@@ -225,11 +227,15 @@ describe('detectDevScript', () => {
     });
   });
 
-  // #81: `npx ng serve` fetches `ng` FROM THE REGISTRY when the repo has no local install —
-  // a network download and then an execution, on nothing but the presence of an `angular.json`.
-  // The tier now requires the repo's own `node_modules/.bin/ng` (planted here) and passes
-  // `--no-install` so npx can never reach the registry even if the two disagree. The assertion
-  // that used to stand here expected no `--no-install` and no local binary at all.
+  // #81: `npx ng serve` runs SOME `ng` when the repo has no local install — an ancestor
+  // `node_modules/.bin`, the global PATH, or, finding neither, one it fetches from the registry
+  // first — and it does so on nothing but the presence of an `angular.json`. The tier now
+  // requires the repo's own `node_modules/.bin/ng` (planted here) and passes `--no-install`,
+  // which stops npx INSTALLING and running a package the repo does not have; it does not stop
+  // npx asking the registry about one, and `detect.ts`'s own doc records the measurement that
+  // says so. The assertion that used to stand here expected no `--no-install` and no local
+  // binary at all. (#103/#99: this said the fetch was what happened, full stop, and that
+  // `--no-install` made the registry unreachable. Neither is true as written.)
   async function plantLocalNg(repoRoot: string): Promise<void> {
     const bin = join(repoRoot, 'node_modules', '.bin');
     await mkdir(bin, { recursive: true });
@@ -264,10 +270,16 @@ describe('detectDevScript', () => {
       JSON.stringify({ defaultProject: 'app', projects: { app: { architect: { serve: { options: { port: 4300 } } } } } }),
       'utf8',
     );
-    // No node_modules/.bin/ng anywhere. `npx ng serve` would have DOWNLOADED `ng` from the
-    // registry here and run it, on nothing but the presence of an angular.json in a folder the
-    // human pointed at. The honest answer is the one the module already has words for: nothing
-    // to start, so the checklist asks for a URL instead.
+    // No node_modules/.bin/ng anywhere in this repo. #103 (#99): what `npx ng serve` would then
+    // have RUN is not decidable from the repo, and this said it was — npx resolves an ancestor
+    // `node_modules/.bin` and the global PATH before it asks the registry, so on a desk that has
+    // an `ng` above this folder or installed globally it runs that one with no download at all
+    // (measured: `npx --no-install ng --version` in an empty scratch directory printed 21.2.6,
+    // and this desk has `@angular/cli` installed globally). A download is what happens on a desk
+    // with neither. What is true either way is the part that matters: a detector would have
+    // picked the command, and picked it from nothing but the presence of an angular.json in a
+    // folder the human pointed at. The honest answer is the one the module already has words
+    // for: nothing to start, so the checklist asks for a URL instead.
     expect(detectDevScript(repoRoot)).toBeNull();
   });
 
