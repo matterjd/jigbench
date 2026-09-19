@@ -12,7 +12,9 @@ We will acknowledge a report and work with you on a fix before any public disclo
 Jig runs locally. A few things are worth knowing if you are looking for security issues:
 
 - **The proxy rewrites HTML.** Jig's local proxy sits in front of the target app's dev server and
-  rewrites HTML responses to inject the loupe script. It handles `Content-Security-Policy` and
+  rewrites HTML responses to inject Jig's own picking script — the one **Point** clicks through
+  and **Inspect** reads (`packages/server/src/plate/loupe.js` on disk). It handles
+  `Content-Security-Policy` and
   `X-Frame-Options` selectively — only where needed to let the plate render the app — rather than
   stripping them outright.
 
@@ -54,7 +56,8 @@ Jig runs locally. A few things are worth knowing if you are looking for security
 
   So assume any foreign page you have open can cause **any** `/api` `GET` to execute:
   `/api/state` (the whole bench state — the survey, the gauges, the wiring, the target's state,
-  every mark and work order with its prompt, target file path and drafted text, the clamped
+  every **Point** you have placed and every **prompt** with its text, target file path and
+  drafted text (`marks` and `workOrders` are what those two are called on the wire), the clamped
   repo's own path, and on a bench started with no repo the list of recently clamped repo paths),
   `/api/docs` (the clamped docs index), `/api/prompts` and a build's transcript,
   `/api/sketches`, `/api/fixtures`, `/api/toolpaths`, `/api/setup` (which also runs dev-script

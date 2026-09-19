@@ -111,7 +111,29 @@ describe('isSameOriginOrAbsent', () => {
 // names, which is the shape that catches the next one too.
 describe('SECURITY.md names every /api GET a foreign page can cause to run', () => {
   const REPO_ROOT = join(here, '..', '..', '..');
-  const GET_ROUTE = /\.get\(\s*['"](\/api[^'"]*)['"]/g;
+
+  /** A GET whose path spells `/api` itself, however it is quoted. #103 (#96): backticks too —
+   * the old pattern accepted `'` and `"` only, so a template-literal path was invisible to it
+   * for no reason anyone chose. A path with a `${}` in it will now be enumerated LITERALLY and
+   * red this check until SECURITY.md names it, which is the right way round: a route whose path
+   * a reader cannot see spelled out is exactly the one worth being made to write down. */
+  const GET_ROUTE = /\.get\(\s*['"`](\/api[^'"`]*)['"`]/g;
+
+  /** #103 (#96): a GET whose `/api` is at the MOUNT rather than in the string —
+   * `router.get('/leak', …)` beside `app.use('/api', router)`. The verifier for #96 ran that
+   * control and the suite stayed green: a new, unnamed, foreign-reachable GET with the gate
+   * satisfied. Nothing in the tree is registered that way today (every one of them spells the
+   * full `/api` literal), so this was latent rather than a live hole — and a latent hole in a
+   * check whose whole job is to catch the NEXT route is the one worth closing.
+   *
+   * The receiver is captured, not ignored, so a relative path is only ever composed with the
+   * prefix its own router was mounted under — never with every prefix in the repo. */
+  const ROUTER_GET = /([\w$]+)\s*\.get\(\s*['"`](\/[^'"`]*)['"`]/g;
+
+  /** `app.use('<prefix>', <router>)` — a prefix mount whose handler is a NAMED router. An
+   * inline `(req, res, next) => …` (which is what both servers mount their Host gate as) has no
+   * name to match a `.get` against and is deliberately not matched. */
+  const ROUTER_MOUNT = /\.use\(\s*['"`](\/[^'"`]*)['"`]\s*,\s*([A-Za-z_$][\w$]*)\s*\)/g;
 
   /** `/api/prompts/:id/builds/:buildId/transcript` is named in the section as `/api/prompts`
    * plus "a build's transcript" — the family is the unit a reader can act on, so the check asks
@@ -134,10 +156,28 @@ describe('SECURITY.md names every /api GET a foreign page can cause to run', () 
   }
 
   it('every GET route in packages/server is named there', () => {
+    const sources = collectFiles(here).map((file) => readFileSync(file, 'utf8'));
+
+    // #103 (#96): which `/api` prefix each named router is mounted under. Collected across
+    // every file first, because a router is routinely built in one file and mounted in another
+    // (`bench/host.ts` mounts what `fixtures/`, `plate/`, `prompts/` and `sketch/` attach).
+    const mountedUnder = new Map<string, Set<string>>();
+    for (const source of sources) {
+      for (const [, prefix, router] of source.matchAll(ROUTER_MOUNT)) {
+        if (!prefix.startsWith('/api')) continue;
+        const prefixes = mountedUnder.get(router) ?? new Set<string>();
+        prefixes.add(prefix.replace(/\/+$/, ''));
+        mountedUnder.set(router, prefixes);
+      }
+    }
+
     const routes = new Set<string>();
-    for (const file of collectFiles(here)) {
-      const source = readFileSync(file, 'utf8');
+    for (const source of sources) {
       for (const match of source.matchAll(GET_ROUTE)) routes.add(family(match[1]));
+      for (const [, receiver, path] of source.matchAll(ROUTER_GET)) {
+        if (path.startsWith('/api')) continue; // already counted by GET_ROUTE, whatever it hung off
+        for (const prefix of mountedUnder.get(receiver) ?? []) routes.add(family(`${prefix}${path}`));
+      }
     }
     expect(routes.size, 'no /api GET routes found — the scan is broken, not the document').toBeGreaterThan(5);
 
