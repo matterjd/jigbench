@@ -3,6 +3,7 @@ import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testi
 import { App } from './App.js';
 import { setTool } from './tools/toolState.js';
 import { setAdvanced } from './chassis/advancedState.js';
+import { buildNoticeLine } from '@jigbench/core';
 
 // A minimal fake — App composes the whole chassis with no injection point of its own (unlike
 // SimStrip's `fetchImpl` prop), so this is the one place exercising them together needs to
@@ -463,5 +464,30 @@ describe('App (S17b: the Clamp screen, the logbook drawer, the setup drawer)', (
     fireEvent.click(screen.getByRole('button', { name: /^setup/ }));
     expect(await screen.findByLabelText(/setup — the checklist/)).toBeTruthy();
     expect(screen.queryByLabelText(/logbook — the record/)).toBeNull();
+  });
+  // #103 (#98): a `notice` is the build saying something about ITSELF, and it was the one kind
+  // the status line could not say. `lastEventText` answered `undefined` for anything but
+  // text/raw/tool, so `StatusLine` fell through to its `?? 'starting claude -p'` and went on
+  // claiming the build was starting — through a fifteen-second git stall, which is precisely
+  // the stretch the notice exists to explain. `core/src/build.ts` says the line is shared "so
+  // all four say the same thing about the same event"; three of the four were saying it.
+  it('#103 (#98): a build notice reaches the status line instead of leaving it on "starting claude -p"', async () => {
+    render(<App />);
+    sendState({
+      ...clampedState,
+      wiring: { ...wiring, claude: 'installed' as const }, // the line only reports a build when the binary is there
+      status: { claude: { state: 'building', id: '0003', elapsed: 12_000 } },
+    });
+    act(() => {
+      FakeWebSocket.instances[0]!.onmessage?.({
+        data: JSON.stringify({ type: 'build', id: '0003', event: { kind: 'notice', code: 'git-timed-out' }, elapsedMs: 12_000 }),
+      });
+    });
+
+    const line = await screen.findByTitle(/Claude — click to open the logbook/);
+    expect(line.textContent, 'the status line did not say what the build said about itself').toContain(
+      buildNoticeLine('git-timed-out'),
+    );
+    expect(line.textContent, 'still claiming the build is starting, through the stall').not.toContain('starting claude -p');
   });
 });

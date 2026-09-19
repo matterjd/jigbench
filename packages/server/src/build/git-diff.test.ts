@@ -156,12 +156,14 @@ describe('#37: a git that never answers', () => {
 });
 
 // #81 item 7: #37 gave these calls a budget and killed the ones that outlived it. What it did
-// not do was tell anyone — every one of the three ways this function answers `null` reached the
+// not do was tell anyone — every one of the five ways this function answers `null` reached the
 // caller as the same bare `null`, which `build/runner.ts` read as "no diff information" and said
 // nothing about. A build whose `git` was wedged for the full fifteen seconds reported no files
 // touched and read exactly like a build in a folder that is not a repo.
 //
-// One test per reason, because the acceptance is that the three read differently.
+// One test per reason, because the acceptance is that the five read differently. #103 (#98):
+// these two sentences said THREE while five `it`s sat under them — the count was right in the
+// tests and wrong in the words that explain them.
 describe('#81: why a snapshot is null, in words', () => {
   let repoRoot: string;
 

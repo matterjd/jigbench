@@ -43,11 +43,14 @@ export interface GitSnapshotOptions {
   /**
    * #81 item 7: called at most once, with WHY this snapshot is about to answer `null`.
    *
-   * There are exactly three reasons and they used to be indistinguishable — every one of them
-   * arrived at the caller as a bare `null`, which `build/runner.ts` read as "no diff
-   * information" and told nobody. A git wedged for the full fifteen seconds looked identical to
-   * a folder that simply is not a repo. The caller turns the code into one line on the build
-   * stream (`@jigbench/core`'s `buildNoticeLine` owns the words).
+   * There are exactly five reasons (`BuildNoticeCodeSchema`) and they used to be
+   * indistinguishable — every one of them arrived at the caller as a bare `null`, which
+   * `build/runner.ts` read as "no diff information" and told nobody. A git wedged for the full
+   * fifteen seconds looked identical to a folder that simply is not a repo. The caller turns
+   * the code into one line on the build stream (`@jigbench/core`'s `buildNoticeLine` owns the
+   * words). #103 (#98): this said THREE, which was the count before `git-failed-to-start` and
+   * `git-refused-the-tree` were split out of the other two — a docblock a future caller reads
+   * for the contract, telling them there were fewer answers than the enum has.
    */
   onUnavailable?: (code: BuildNoticeCode) => void;
 }
@@ -187,11 +190,12 @@ export interface GitStatusSnapshot {
   paths: Set<string>;
 }
 
-/** `null` when `repoRoot` isn't inside a git working tree at all, `git` itself isn't on PATH, or
- * (#37) a `git` invocation outlived its budget — the caller treats every one of those as "no
- * diff information available", never a thrown error. #81: and is now TOLD which of the three it
- * was, through `options.onUnavailable`, so it can say so in words instead of silently reporting
- * no files touched. */
+/** `null` when `repoRoot` isn't inside a git working tree at all, `git` itself isn't on PATH,
+ * `git` could not be started some other way, `git` acknowledged a working tree and then refused
+ * to read it, or (#37) a `git` invocation outlived its budget — the caller treats every one of
+ * those as "no diff information available", never a thrown error. #81: and is now TOLD which of
+ * the five it was, through `options.onUnavailable`, so it can say so in words instead of
+ * silently reporting no files touched. */
 export async function gitStatusSnapshot(repoRoot: string, options?: GitSnapshotOptions): Promise<GitStatusSnapshot | null> {
   const git = invocationFrom(options);
   const unavailable = (code: BuildNoticeCode): null => {
