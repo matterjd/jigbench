@@ -91,8 +91,14 @@ Issue #81 — hardening round 2, the follow-ups the S20 review left, one PR each
   Both now go through `isValidPort`, and an out-of-range value reads as NO configured port — the
   tier below answers for it, and an unusable hint port never costs the hint its script. One test
   walks all four tiers to say no path out of `detectDevScript` can hand the runner a port that
-  cannot be bound. Bounded here: the survey hint and `angular.json`, the two sources the bench
-  detects a target from. Two other readers of a port are NOT bounded and are their own items —
+  cannot be bound. Bounded here: the survey hint and `angular.json` — the two sources a PORT is
+  read from, which is not the same count as the sources a TARGET is detected from. Those are
+  three (`source: 'survey' | 'package.json' | 'angular.json'`), and the `package.json` tier
+  reads its port out of `angular.json` like the others, which is why bounding two covers all of
+  them. And an out-of-range value is now NAMED on the path that drops it (`logger.warn`, in
+  `valid-port.ts`'s own words): the tier below still answers, but the Clamp screen no longer
+  reports `{source: 'angular.json', port: 4200}` about a file that says otherwise with nothing
+  said anywhere. Two other readers of a port are NOT bounded and are their own items —
   `jig serve`'s own `angular.json` read (`packages/cli/src/commands/serve.ts`, which cli may not
   reach `isValidPort` from without a public export) and the web adapter's `--port N` guess out of
   a package.json script (`packages/adapters/web/src/dev-server.ts`).
