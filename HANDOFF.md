@@ -1,5 +1,6 @@
 # HANDOFF — next-session entry point
 
+> **S21 — issue #23, the three rulings — is MERGED as [#106](https://github.com/matterjd/jigbench/pull/106) → `6c29879` (2026-09-19): the Advanced routes answer on the Clamp path, "go to the bench" is ratified, the before controls stay out for 0.2.x (S27 is the real before). #23 is closed; #107 filed. NEXT: #103 (green tier — seven small follow-ups), then #102 (amber; its cloud prompt is still to be written in the shape of `03b-hardening-round-2.md`). Matter owes `docs/TEST-RUN.md` step 21 on glass and the 0.2.1 publish. Below, the S20b entry this baton was last written for:**
 > **S20b — issue #81, hardening round 2 — is MERGED.** The eight PRs —
 > [#91](https://github.com/matterjd/jigbench/pull/91) · [#92](https://github.com/matterjd/jigbench/pull/92) ·
 > [#94](https://github.com/matterjd/jigbench/pull/94) · [#95](https://github.com/matterjd/jigbench/pull/95) ·
