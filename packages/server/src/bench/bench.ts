@@ -6,6 +6,11 @@ import { SketchStore } from '../sketch/store.js'; // S17b
 import { createFixtureInterceptor } from '../fixtures/interceptor.js';
 import { PromptStore } from '../prompts/store.js';
 import { PromptService } from '../prompts/service.js';
+// #23 ruling 1 — the Advanced tier, per bench (S5/S8's own surfaces)
+import { ToolpathStore } from '../toolpath/store.js';
+import { TrialFitMirror } from '../trialfit/mirror.js';
+import { SnapshotStore } from '../trialfit/snapshot.js';
+import { OrdersService } from '../orders/service.js';
 import { BuildRunner } from '../build/runner.js';
 import type { BuildRunnerLike, BuildStreamEvent } from '../build/types.js';
 import { OllamaDrafter, type OllamaLike } from '../orders/drafters/ollama.js';
@@ -21,13 +26,12 @@ import { logger } from '../logger.js';
  * S17b folds the `SketchStore` in too — the loop (prompts, plate, fixtures, sketches, docs)
  * rides `bench/host.ts` per bench now, through one swappable router; see that file.
  *
- * Deliberately NOT bundled: `ToolpathStore`, `TrialFitMirror`/`SnapshotStore`,
- * `OrdersService` — those are S5/S8's own surfaces, "Advanced" per
- * AMENDMENT-1 §3, and out of this slice's named file scope. `createJigServer`'s EXISTING
- * `--repo`-at-boot path (every current test) keeps constructing them exactly as it does
- * today, untouched by this file. A server booted through `bench/host.ts` (no initial
- * `--repo`) does not mount their HTTP routes at all yet — a disclosed gap for whichever slice
- * wires the Clamp screen's full feature set (see the worker report).
+ * S21 (#23 ruling 1, Matter 2026-09-14 — "MOUNT them (toolpath, work orders, trial fit) so
+ * the Clamp path equals --repo") folds in the Advanced tier S17a deliberately left out and
+ * disclosed as a gap: the `ToolpathStore`, the `TrialFitMirror` + `SnapshotStore`, and the
+ * `OrdersService`. They are still "Advanced" per AMENDMENT-1 §3 — one toggle away on the
+ * surface — but a bench reached through the Clamp screen now holds exactly what a bench
+ * reached through `--repo` holds, and `bench/host.ts` mounts their routes per bench.
  */
 
 export interface CreateBenchOptions {
@@ -66,6 +70,11 @@ export interface Bench {
   readonly promptService: PromptService;
   readonly runner: BuildRunnerLike;
   readonly plate: PlateProxyHandle;
+  /** #23 ruling 1 — the Advanced tier, one set per bench, torn down with it. */
+  readonly toolpathStore: ToolpathStore;
+  readonly trialFitMirror: TrialFitMirror;
+  readonly snapshotStore: SnapshotStore;
+  readonly orders: OrdersService;
   /** A one-time-at-construction snapshot, same reasoning as `http.ts`'s own
    * `wiring.claude` — see that file's comment for why this is never re-probed live. */
   readonly claudeInstalled: boolean;
@@ -124,6 +133,17 @@ export async function createBench(repoRoot: string, opts: CreateBenchOptions): P
     onBuildEvent: opts.onBuildEvent ?? noop,
   });
 
+  // #23 ruling 1: the Advanced tier, constructed exactly as `http.ts`'s --repo path does —
+  // the toolpath index and the trial-fit snapshot dir under this repo's own `.jig/`, the
+  // mirror on this bench's own origin, and one `OrdersService` over the same store (sharing
+  // the probed `ollama` above rather than building a second client for the same desk).
+  const toolpathStore = new ToolpathStore(repoRoot, store); // store satisfies ToolpathWiringSink
+  await toolpathStore.init();
+  const trialFitMirror = new TrialFitMirror(opts.benchOrigin);
+  const snapshotStore = new SnapshotStore(repoRoot);
+  await snapshotStore.init();
+  const orders = new OrdersService({ store, notify, ollama });
+
   const claudeInstalled = await runner.isClaudeAvailable();
 
   const watcher = new JigWatcher({
@@ -146,10 +166,19 @@ export async function createBench(repoRoot: string, opts: CreateBenchOptions): P
     promptService,
     runner,
     plate,
+    toolpathStore,
+    trialFitMirror,
+    snapshotStore,
+    orders,
     claudeInstalled,
     async close(): Promise<void> {
       watcher.stop();
+      // #23 ruling 1: same order `http.ts`'s own close uses — drain any background auto-draft
+      // before the store goes away, then any build in flight, then the mirror's listening
+      // socket (it binds a real port when Advanced started one, and nothing else would).
+      await orders.close();
       await promptService.close();
+      await trialFitMirror.close();
       await plate.close();
     },
   };

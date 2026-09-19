@@ -51,6 +51,16 @@ you must operate to get through the loop.
 | gauges | **Design system** (tab name); *gauges* stays the word for one token | |
 | trial fit | **Built** — the plate after the build, with *before* one click away | the two-plate mirror is Advanced |
 
+> **#23 ruling 3 (Matter, 2026-09-14): the *before* half of this row is NOT in 0.2.x.** PR #14
+> removed the two-plate mirror's switch because S12 had shipped it as a disclosed no-op and a
+> control that answers nothing is a floor item (#8, closed). Matter **accepted that removal for
+> 0.2.x**, and **a real before is roadmap slice S27** (`docs/ROADMAP.md`, "a real before for a
+> built Prompt") in its place. So: **Built** is the ruled word and it stands; *before* returns
+> when S27 gives a built Prompt a snapshot to show. Until then the Advanced drawer says where
+> the mirror went in words rather than offering a control —
+> `packages/bench/src/chassis/AdvancedDrawer.tsx`, and the pair of tests in
+> `AdvancedDrawer.test.tsx` that hold this annotation and that absence together.
+
 Unchanged: bench · clamp · survey · plate · sketch · logbook · scrap bin.
 
 ## 4. The default view (the brief for concept D)
@@ -69,6 +79,13 @@ Unchanged: bench · clamp · survey · plate · sketch · logbook · scrap bin.
   the mirror, MCP status, the spine.
 - **Sketch:** the sheet with real snapping (4px grid, edge and centre alignment lines), five
   primitives, the app's gauges only; a sketch is a prompt target: *build this screen*.
+
+> **#23 ruling 3 (Matter, 2026-09-14): "the mirror" in the Advanced list is not in 0.2.x.**
+> Everything else on this line is built. The mirror's switch was removed by PR #14 (#8: S12
+> shipped it as a no-op over prompt-local state, not the trial-fit snapshot machinery), Matter
+> **accepted that removal for 0.2.x**, and **a real before is roadmap slice S27** in its place.
+> The drawer says so in words where the switch was. See §3's note above for the same ruling
+> against the tongue row.
 
 ## 5. v0.2 — the slices
 
@@ -115,8 +132,16 @@ in Jig's own folder browser (a page cannot receive a real path from the OS picke
 the survey runs as you pick and shows what it found; **Start the app** runs the detected dev script
 inside the repo with its log visible (or take a URL); **Docs** picks a folder (default `./docs`);
 **Register with Claude Code** writes `.mcp.json` (diff first) and optionally the Desktop entry;
-**Open the bench**. A setup checklist lives one click from the status line. The CLI subcommands stay
+**Go to the bench**. A setup checklist lives one click from the status line. The CLI subcommands stay
 for scripts and CI; the bench never requires them.
+
+> **Amended by #23 ruling 2 (Matter, 2026-09-14): "RATIFY 'go to the bench'".** This section said
+> *"Open the bench"* until S21, as did `docs/team/v0.2/REMOTE-KICKOFF.md`, while the build has
+> shipped **go to the bench** since S17b and COMMISSION.md §3 bans *open* as the name of anything
+> on the surface. The build's word is the ruled one; the two doc lines moved to it, and so did the
+> one place the code still printed the old phrase — `jig serve`'s no-repo line, outside the
+> tongue's reach because `packages/bench/src/tongue.test.ts` guards the bench's JSX and cannot see
+> a terminal. `packages/cli/src/tongue-terminal.test.ts` is the gate that can.
 
 | Slice | What lands |
 |---|---|

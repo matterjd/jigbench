@@ -6,6 +6,49 @@ semantic versioning strictly (pre-1.0).
 
 ## [Unreleased]
 
+Issue #23 — S21, Matter's three rulings of 2026-09-14, one commit each.
+
+- **ruling 1 — the Advanced routes answer on the Clamp-screen path too (toolpath, work orders,
+  trial fit)** — a bench created at runtime mounted the loop (prompts, plate, fixtures,
+  sketches, docs) and stopped there, a gap S17a disclosed in `bench/host.ts` and nothing had
+  closed: `AdvancedDrawer.tsx` still rendered the Toolpath panel, and `docs/TEST-RUN.md` step 21
+  told a reader to record and replay one after `npx jigbench` from a folder that is not a repo —
+  a step that could not pass. `Bench` now holds the `ToolpathStore`, the `TrialFitMirror` +
+  `SnapshotStore` and an `OrdersService` alongside the loop's own pieces, and the per-bench router
+  mounts their routes from the SAME attach functions the `--repo`-at-boot path uses; the mirror's
+  status rides the primary plate's report there too. They are torn down with the bench like every
+  other per-bench route — after an unclamp they 404 again, and a toolpath recorded on one repo is
+  not listed under the next. The work-order routes were the one Advanced surface with no
+  `attachXRoute` of its own, so S5's and S8's two delimited blocks moved out of `http.ts` into
+  `orders/route.ts` unchanged (same paths, same status codes, same sentences) and both paths now
+  mount one surface rather than two. Advanced is still one toggle away on the surface
+  (AMENDMENT-1 §3); what changed is that the Clamp path answers for it.
+- **ruling 2 — "go to the bench" is ratified, and the terminal is inside the tongue** — the build
+  has shipped **go to the bench** since S17b while AMENDMENT-1 §7 and
+  `docs/team/v0.2/REMOTE-KICKOFF.md` still said *"Open the bench"* and `jig serve`'s no-repo line
+  still PRINTED it, three slices after COMMISSION.md §3 banned *open* as the name of anything on
+  the surface. Matter ratified the build's word: the two doc lines moved to it, §7 carries the
+  amendment, `docs/TEST-RUN.md`'s two quoted terminal blocks match what the terminal now prints,
+  and the line itself reads *No repo clamped yet — go to the bench to pick one.* The reason it
+  survived is that `packages/bench/src/tongue.test.ts` guards the bench's JSX and cannot see a
+  terminal — and copying that gate would still not have caught this line, because it allows a
+  banned word after an em dash (where a `Word — plain word` pairing puts it) and this one sat
+  there as a verb. `packages/cli/src/tongue-terminal.test.ts` is the gate that can: it reads the
+  banned set out of COMMISSION.md §3's own table rather than holding a second copy of it, applies
+  it with no pairing exemption to what `jig serve` actually returns, and carries controls proving
+  the table really parsed and that the detector fires on the exact line this slice removed.
+- **ruling 3 — the before controls stay out for 0.2.x, and the books say so** — PR #14 removed the
+  two-plate mirror's switch because S12 had shipped it as a disclosed no-op over prompt-local state
+  rather than the S9 snapshot machinery, and a control that answers nothing is a floor item (#8,
+  closed) — but AMENDMENT-1 §3 ("with *before* one click away"), §4 ("the mirror" under Advanced)
+  and `docs/team/v0.2/CHASSIS.md` §1 ("Built + before", "the mirror (before|after two plates)") all
+  still ruled the control ON. Matter accepted the removal for 0.2.x with **a real before as roadmap
+  slice S27** in its place, so nothing was built: the three records carry the ruling and name S27,
+  `docs/ROADMAP.md`'s S27 row records that it is unblocked, and the annotation is load-bearing
+  rather than decorative — `AdvancedDrawer.test.tsx` now holds the drawer's missing control and the
+  three notes in one place, so S27 cannot return the control without amending the books with it.
+- The S21 row in `docs/ROADMAP.md` says shipped, with what each ruling was and what landed under it.
+
 Issue #81 — hardening round 2, the follow-ups the S20 review left, one PR each.
 
 - **a UNC path is refused before the connection, and the words say only what is true** — the

@@ -18,6 +18,10 @@ import { attachPromptsRoute } from '../prompts/route.js';
 import { attachPlateRoute } from '../plate/route.js';
 import { attachFixturesRoute } from '../fixtures/route.js';
 import { attachSketchesRoute } from '../sketch/route.js';
+// #23 ruling 1 — the Advanced tier's routes, mounted per bench like the rest of the loop
+import { attachToolpathsRoute } from '../toolpath/route.js';
+import { attachTrialFitRoute } from '../trialfit/route.js';
+import { attachWorkOrdersRoute } from '../orders/route.js';
 import { attachFsRoute } from '../fs/route.js';
 import { TargetRunner, type TargetRunnerLike } from '../target/runner.js';
 import { attachTargetRoute } from '../target/route.js';
@@ -41,9 +45,13 @@ import { defaultRecentBenchesFile, readRecentBenches, recordRecentBench, updateR
  * fixtures, prompts, sketches) plus the target runner and the fs/setup/clamp surfaces. S17b:
  * THE LOOP — `/api/prompts`, `/api/plate`, `/api/fixtures`, `/api/sketches`, `/api/docs` —
  * is mounted per bench through one swappable `express.Router` (see `currentRouter` below),
- * built on every clamp and dropped on unclamp. It still does NOT mount `orders`/`toolpath`/
- * `trialfit` routes — those are Advanced-tier (AMENDMENT-1 §3) and out of scope here; a
- * server booted with no initial `--repo` does not expose them (a disclosed gap).
+ * built on every clamp and dropped on unclamp.
+ *
+ * S21 closes S17b's disclosed gap. #23 ruling 1 (Matter, 2026-09-14): "Advanced routes on the
+ * Clamp-screen path: MOUNT them (toolpath, work orders, trial fit) so the Clamp path equals
+ * --repo." The Advanced tier is still one toggle away on the surface (AMENDMENT-1 §3) — what
+ * changed is that a bench reached through the Clamp screen now ANSWERS for it, on the same
+ * per-bench router, torn down with the bench like every other route here.
  */
 
 export interface CreateBenchHostOptions {
@@ -237,14 +245,28 @@ export async function createBenchHost(options: CreateBenchHostOptions = {}): Pro
   }
 
   /** S17b: the loop, for one bench — see `currentRouter`. Every attach function here is the
-   * same one `http.ts`'s --repo-at-boot path mounts on its app; only the mount point differs. */
+   * same one `http.ts`'s --repo-at-boot path mounts on its app; only the mount point differs.
+   * S21 (#23 ruling 1) adds the Advanced three — toolpath, work orders, trial fit — from the
+   * same attach functions, so the two paths mount one surface and not two. */
   function buildLoopRouter(bench: Bench): Router {
     const router = express.Router();
     attachPromptsRoute(router, bench.promptService);
-    attachPlateRoute(router, bench.plate, () => bench.store.getActiveFixture());
+    // #23 ruling 1: the mirror's status rides the primary plate's own report on the --repo
+    // path; passing the thunk here is the rest of that parity, not a new field.
+    attachPlateRoute(
+      router,
+      bench.plate,
+      () => bench.store.getActiveFixture(),
+      () => bench.trialFitMirror.getStatus(),
+    );
     attachFixturesRoute(router, bench.fixtureStore, () => bench.store.getState().survey, () => bench.plate.url);
     attachSketchesRoute(router, bench.sketchStore, () => bench.store.getState().gauges);
     router.get('/api/docs', createDocsRoute(bench.repoRoot));
+    // === #23 ruling 1: the Advanced tier, per bench ===
+    attachWorkOrdersRoute(router, { store: bench.store, orders: bench.orders, notify: broadcastState });
+    attachToolpathsRoute(router, bench.toolpathStore);
+    attachTrialFitRoute(router, { mirror: bench.trialFitMirror, snapshotStore: bench.snapshotStore, primaryPlate: bench.plate });
+    // === end #23 ruling 1 block ===
     return router;
   }
 

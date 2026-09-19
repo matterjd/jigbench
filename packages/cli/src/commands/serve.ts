@@ -96,7 +96,11 @@ export async function runServeCommand(options: ServeCommandOptions): Promise<Ser
       // it on every clamp the Clamp screen makes.
       platePort: options.platePort,
     });
-    const message = [`Jig is on the bench: ${handle.url}`, 'No repo clamped yet — open the bench to pick one.'].join('\n');
+    // #23 ruling 2 (Matter, 2026-09-14): "RATIFY 'go to the bench'". This line printed the
+    // tongue's banned word for three slices because the terminal is a surface
+    // `packages/bench/src/tongue.test.ts` cannot see; `src/tongue-terminal.test.ts` is the
+    // gate that can, reading the banned set out of COMMISSION.md §3 itself.
+    const message = [`Jig is on the bench: ${handle.url}`, 'No repo clamped yet — go to the bench to pick one.'].join('\n');
     return { message, url: handle.url, close: () => handle.close() };
   }
 

@@ -153,25 +153,42 @@ not await its child, a git that hits its budget silently, and eight small ones.
 - Item 5 ends with `SECURITY.md` and `same-origin.ts` saying the same thing about every method.
 - Item 6 ends with #78's teardown retry deleted and both CI legs green without it.
 
-### S21 · issue #23, the three rulings
+### S21 · issue #23, the three rulings · SHIPPED 2026-09-19
 **S · ruling · after R0 · prompt** `04-rulings.md`
 
 **Goal.** Get Matter's three answers, then write them into the docs and the build. **Why now.** One
-of the three makes a `docs/TEST-RUN.md` step impossible to pass.
+of the three made a `docs/TEST-RUN.md` step impossible to pass.
 
-1. **Advanced on the Clamp path.** `bench/host.ts` does not mount toolpath, orders or trialfit while
-   the Advanced drawer still renders the Toolpath panel. Mount the three (the stores exist), hide
-   the panels in words there and cut the TEST-RUN step, or say Advanced needs `--repo`.
-2. **The step into the bench.** AMENDMENT 1 §7 and `docs/team/v0.2/REMOTE-KICKOFF.md` use "Open",
-   the build says "go to the bench", the tongue bans "open". Ratify the build and amend the two doc
-   lines, or change the build.
-3. **The before controls.** #8 closed by removing them, while AMENDMENT 1 §3 and §4 and
-   `docs/team/v0.2/CHASSIS.md` still rule them on. Annotate it (S27 returns them) or build #8 now.
+**Matter answered on #23 on 2026-09-14; all three landed on `fix/s21-rulings`, one commit per
+ruling** (the integration PR's head, its merge sha and its CI run are recorded on issue #1, the
+same shape S20/S20b used).
+
+1. **Advanced on the Clamp path — RULED (a): MOUNT them.** *"Advanced routes on the Clamp-screen
+   path: MOUNT them (toolpath, work orders, trial fit) so the Clamp path equals --repo."* A `Bench`
+   holds the `ToolpathStore`, the `TrialFitMirror` + `SnapshotStore` and an `OrdersService` now, and
+   `bench/host.ts`'s per-bench router mounts their routes from the same attach functions the
+   `--repo`-at-boot path uses — so `docs/TEST-RUN.md` step 21's toolpath recording passes on the
+   Clamp path, and the Advanced drawer's Toolpath panel has a server behind it. The work-order
+   routes moved out of `http.ts` into `orders/route.ts` unchanged to make that one surface, not two.
+2. **The step into the bench — RULED (a): ratify the build.** *"RATIFY 'go to the bench'; amend
+   AMENDMENT-1 section 7 and the kickoff, and fix the terminal line in serve.ts."* Done in all four
+   places (§7 carries the amendment, the kickoff, `serve.ts`, and the two terminal blocks
+   `docs/TEST-RUN.md` quotes), and `packages/cli/src/tongue-terminal.test.ts` is the gate that would
+   have caught it — the bench's `tongue.test.ts` cannot see a terminal, and its pairing exemption
+   would have let this line through even if it could.
+3. **The before controls — RULED (a): accept the removal.** *"ACCEPT PR #14's removal for 0.2.x; a
+   real before stays as roadmap slice S27 in its place."* Nothing built. AMENDMENT 1 §3 and §4 and
+   `docs/team/v0.2/CHASSIS.md` §1 each carry the ruling and name S27, and
+   `AdvancedDrawer.test.tsx` holds that annotation and the control's absence together, so S27
+   cannot land without amending them.
 
 **Acceptance.**
-- The session prints the three questions and their options on #23 and builds nothing.
+- The session prints the three questions and their options on #23 and builds nothing. — **met**
+  (the questions went up on #23; Matter answered them on 2026-09-14 before anything was built).
 - Once Matter answers, the ruled words land in the docs and the code they name, one PR per ruling.
-- `floor-*.test.ts` and `tongue.test.ts` stay green.
+  — **met, one commit per ruling on one branch** rather than one PR each: this lane is a delegated
+  build, and the repo's integration-PR precedent (#80, #88, #101) is what carries it to `main`.
+- `floor-*.test.ts` and `tongue.test.ts` stay green. — **met.**
 
 ## 2 · v0.3, the next stacks
 
@@ -240,11 +257,13 @@ costs less than a second stack adapter.
 ## 3 · v0.3, the loop deepens
 
 ### S27 · a real before for a built Prompt
-**M · amber · after S21 (ruling 3) · prompt** `10-a-real-before.md`
+**M · amber · unblocked — S21 ruling 3 (Matter, 2026-09-14) · prompt** `10-a-real-before.md`
 
 **Goal.** A Prompt held at Ready keeps a snapshot, and the mirror under Advanced shows it beside the
 app after the build. **Why now.** #8 closed by removing a switch that did nothing; the before itself
-was never built.
+was never built. Ruling 3 put THIS slice in its place for 0.2.x, so AMENDMENT 1 §3 and §4 and
+`docs/team/v0.2/CHASSIS.md` §1 now name S27 by number — and `AdvancedDrawer.test.tsx` fails the
+moment the control returns without those three notes being amended with it.
 
 **Acceptance.**
 - Holding Ready takes a snapshot keyed by prompt id.
@@ -309,7 +328,7 @@ standing exception in question form, and stays a question until Matter rules on 
 
 | # | Debt | Absorbed by |
 |---|---|---|
-| #23 | the three rulings Matter owes | S21 |
+| #23 | the three rulings Matter owes | S21 — ruled 2026-09-14, shipped 2026-09-19 |
 | #24 | the small fixes from the 0.2.0 review and the walkthrough | S19 |
 | #37 | the hardening items from the fix round | S20 |
 | #81 | hardening round 2, the follow-ups the S20 review left | S20b — shipped 2026-09-15, closed |

@@ -727,3 +727,116 @@ describe('Polish on the Clamp-screen path (#21)', () => {
     expect(ollama.calls.filter((c) => c.kind === 'available')).toEqual([]);
   });
 });
+
+// #23 ruling 1 (Matter, 2026-09-14): "Advanced routes on the Clamp-screen path: MOUNT them
+// (toolpath, work orders, trial fit) so the Clamp path equals --repo." Until S21 this host
+// mounted prompts/plate/fixtures/sketches/docs and stopped there — so a bench reached through
+// the Clamp screen had no Advanced tier at all, while `AdvancedDrawer.tsx` still rendered the
+// Toolpath panel and `docs/TEST-RUN.md` step 21 told a reader to record one there. Parity, not
+// a new surface: the same three attach functions `http.ts`'s --repo-at-boot path already
+// mounts, on the per-bench router, torn down with the bench like every other loop route.
+describe('#23 ruling 1: the Advanced routes answer on a runtime bench too (toolpath · work orders · trial fit)', () => {
+  it('toolpath: GET /api/toolpaths answers, and POST writes under the CLAMPED repo', async () => {
+    const h = await boot();
+    const repoRoot = await freshRepo();
+    await clamp(h, repoRoot);
+
+    const list = await fetch(`${h.url}/api/toolpaths`);
+    expect(list.status).toBe(200);
+    expect(await list.json()).toEqual({ toolpaths: [] });
+
+    const created = await fetch(`${h.url}/api/toolpaths`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ name: 'tour', steps: [] }),
+    });
+    expect(created.status).toBe(201);
+    expect(await readdir(join(repoRoot, '.jig', 'toolpaths'))).toHaveLength(1);
+  });
+
+  it('work orders: POST /api/marks creates one, GET /api/state reports it, and the ladder moves answer', async () => {
+    const h = await boot({ ollama: new FakeOllamaDrafter({ available: false }) });
+    const repoRoot = await freshRepo();
+    await clamp(h, repoRoot);
+
+    const marked = await fetch(`${h.url}/api/marks`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ target: { path: 'x' }, prompt: 'show days overdue', draft: false }),
+    });
+    expect(marked.status).toBe(201);
+    const id = (await marked.json()).workOrder.id as string;
+
+    const state = await (await fetch(`${h.url}/api/state`)).json();
+    expect(state.workOrders.map((w: { id: string }) => w.id)).toEqual([id]);
+
+    // The ladder move that only the mounted OrdersService can answer: a `marked` order cannot
+    // be released, and the 409 is the service's own conflict, not express's 404.
+    const released = await fetch(`${h.url}/api/work-orders/${id}/release`, { method: 'POST' });
+    expect(released.status).toBe(409);
+
+    expect((await fetch(`${h.url}/api/drafter`)).status).toBe(200);
+  });
+
+  it('trial fit: a snapshot saved on this bench reads back, and the mirror reaches /api/plate', async () => {
+    const h = await boot();
+    const repoRoot = await freshRepo();
+    await clamp(h, repoRoot);
+
+    const saved = await fetch(`${h.url}/api/plate/snapshot`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ id: 'p-0001', html: '<p>before</p>' }),
+    });
+    expect(saved.status).toBe(201);
+
+    const read = await fetch(`${h.url}/api/plate/snapshot/p-0001`);
+    expect(read.status).toBe(200);
+    expect(await read.text()).toContain('before');
+
+    // Parity with `http.ts`: the primary plate's own report carries the mirror's status once
+    // one is running, which is the thunk `attachPlateRoute` takes and this path never passed.
+    const started = await fetch(`${h.url}/api/plate/mirror`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ target: 'http://127.0.0.1:9', port: 0 }),
+    });
+    expect(started.status).toBe(200);
+    const plate = await (await fetch(`${h.url}/api/plate`)).json();
+    expect(plate.mirror).toBeDefined();
+    expect(plate.mirror.port).toBe((await started.json()).port);
+  });
+
+  it('all three are PER BENCH: after POST /api/unclamp they are gone again (404), like the loop', async () => {
+    const h = await boot();
+    const repoRoot = await freshRepo();
+    await clamp(h, repoRoot);
+    expect((await fetch(`${h.url}/api/toolpaths`)).status).toBe(200);
+
+    await fetch(`${h.url}/api/unclamp`, { method: 'POST' });
+    expect((await fetch(`${h.url}/api/toolpaths`)).status).toBe(404);
+    expect((await fetch(`${h.url}/api/drafter`)).status).toBe(404);
+    expect((await fetch(`${h.url}/api/plate/snapshot/p-0001`)).status).toBe(404);
+  });
+
+  it("re-clamping answers for THAT repo — a toolpath recorded on A is not listed under B", async () => {
+    const h = await boot();
+    const repoA = await freshRepo();
+    const repoB = await freshRepo();
+
+    await clamp(h, repoA);
+    expect(
+      (
+        await fetch(`${h.url}/api/toolpaths`, {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ name: 'tour', steps: [] }),
+        })
+      ).status,
+    ).toBe(201);
+    expect((await (await fetch(`${h.url}/api/toolpaths`)).json()).toolpaths).toHaveLength(1);
+
+    await clamp(h, repoB);
+    expect(await (await fetch(`${h.url}/api/toolpaths`)).json()).toEqual({ toolpaths: [] });
+  });
+});
