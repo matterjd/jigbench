@@ -62,6 +62,33 @@ function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+/**
+ * #103 (#97): a `sleep` whose LOSING timer can be taken back.
+ *
+ * `sleep` above is a bare `setTimeout` — no `unref`, and nothing keeping the handle — so a race
+ * it loses leaves a referenced timer holding the event loop for the rest of its duration. That
+ * is harmless for the probe loop's own 500 ms tick and not harmless at all for `awaitExit`'s
+ * 5 s bound, which `close` wins in every ordinary case: a caller that stops its target and
+ * expects to exit waited out a timer nobody was waiting for. Before #81 `awaitExit` returned at
+ * the reaped check ahead of building the race, so the fast win32 path left none — the repair
+ * widened the leak rather than introducing it.
+ *
+ * `cancel()` is safe to call whichever side won: `clearTimeout` on a timer that has already
+ * fired is a no-op.
+ */
+function cancellableSleep(ms: number): { promise: Promise<void>; cancel: () => void } {
+  let handle: ReturnType<typeof setTimeout> | undefined;
+  const promise = new Promise<void>((resolve) => {
+    handle = setTimeout(resolve, ms);
+  });
+  return {
+    promise,
+    cancel: () => {
+      if (handle !== undefined) clearTimeout(handle);
+    },
+  };
+}
+
 /** #24 (the 0.2.0 review): a dev server that believes it owns a TTY writes colour, so the app's
  * own log arrived in the Clamp screen and the logbook drawer as `\x1B[33m\u276F\x1B[39m
  * Building...`. Three shapes cover everything `ng serve`, `vite` and npm itself emit:
@@ -306,9 +333,19 @@ export class TargetRunner implements TargetRunnerLike {
    * `taskkill`'s own `close` — a whole macrotask, by which time the target's `exit` has usually
    * been processed.
    *
-   * The fallback below is different: a listener attached AFTER the fact, for a child this
-   * runner did not start (`exited` is null). That one really can wait forever on an event that
-   * has already fired, so the reaped check guards it — and only it.
+   * The fallback below is different: a listener attached AFTER the fact, which really can wait
+   * forever on an event that has already fired — so the reaped check guards it, and only it.
+   *
+   * #103 (#97): what reaches that branch is NOT "a child this runner did not start", which is
+   * what this said. The class doc above rules that out ("a bench close stops what it started"),
+   * and `stop()` is `awaitExit`'s only caller, always with `this.childExited`. `exited` is null
+   * beside a non-null child for exactly one reason: `start()` assigns `this.child` and then
+   * `this.childExited` a few statements later, and the `createInterface({ input: child.stdout! })`
+   * calls sit between them. A throw there — the non-null assertions are the reason one is
+   * conceivable — leaves the field set and the promise never assigned, and the next `stop()`
+   * finds that pair. It is a narrow window and it is the whole of the branch's job; the check is
+   * kept rather than deleted because deleting it means making `exited` non-null in the
+   * signature, and the window above is the case that would then be a type lie.
    */
   private async awaitExit(child: ChildProcess, exited: Promise<unknown> | null): Promise<void> {
     let closed: Promise<unknown>;
@@ -321,10 +358,12 @@ export class TargetRunner implements TargetRunnerLike {
         child.once('error', () => resolve());
       });
     }
-    const outcome = await Promise.race([
-      closed.then(() => 'exited' as const),
-      sleep(STOP_EXIT_TIMEOUT_MS).then(() => 'timeout' as const),
-    ]);
+    // #103 (#97): the bound is cancellable, and it is cancelled whichever side won — `close`
+    // wins this race in every ordinary case, and the 5 s timer it beat used to stay referenced
+    // for the rest of those 5 s after every `stop()`.
+    const bound = cancellableSleep(STOP_EXIT_TIMEOUT_MS);
+    const outcome = await Promise.race([closed.then(() => 'exited' as const), bound.promise.then(() => 'timeout' as const)]);
+    bound.cancel();
     if (outcome === 'timeout') {
       logger.warn(
         `target runner: pid ${child.pid} had not exited ${STOP_EXIT_TIMEOUT_MS}ms after killTree; giving up the wait`,

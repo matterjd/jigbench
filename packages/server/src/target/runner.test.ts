@@ -329,3 +329,59 @@ describe('TargetRunner', () => {
     }
   }, 40_000);
 });
+
+// #103 (#97): the LOSING half of `awaitExit`'s race is taken back.
+//
+// `sleep` is a bare `setTimeout` with no `unref` and nothing holding the handle, and
+// `awaitExit` races one against the child's `close` unconditionally. `close` wins in every
+// ordinary case, and the 5 s timer it beat stayed live and referenced for the rest of those
+// 5 s — after EVERY `stop()`, including the fast win32 case that used to leave none at all
+// (before #81 the method returned at the reaped check, ahead of building the race, so the
+// repair widened the leak rather than introducing it). A CLI that stops its target and expects
+// to exit sits there instead.
+//
+// The instrument is `process.getActiveResourcesInfo()`, which answers the runtime's own
+// question — is anything holding the loop open — rather than a spy on `clearTimeout`, which
+// would only say a call was made and not which handle it took back.
+//
+// It is COARSE, and that decided the shape of this: it reports one `Timeout` per live timer
+// DURATION, not per timer. A second test driving the same leak through `stop()` was written
+// and then deleted, because it passed in both states — the test below leaks a 5 s timer while
+// red, so the 5 s entry already existed and `stop()`'s own never moved the count. It would
+// have been a green that proved nothing, and order-dependent besides. The proof is taken at
+// the one site that builds the timer, over a window of a single `await`, and `stop()` is
+// `awaitExit`'s only caller (`grep -n 'awaitExit' runner.ts`).
+describe('#103 (#97): awaitExit leaves no timer behind', () => {
+  function liveTimeouts(): number {
+    return process.getActiveResourcesInfo().filter((r) => r === 'Timeout').length;
+  }
+
+
+  // The instrument control: prove this counter can SEE a timer of exactly the kind under test
+  // before trusting it to report zero of them.
+  it('the counter sees a referenced setTimeout, and sees it go', () => {
+    const before = liveTimeouts();
+    const handle = setTimeout(() => {}, 5_000);
+    expect(liveTimeouts() - before, 'the counter cannot see a live timer — it cannot prove one absent').toBe(1);
+    clearTimeout(handle);
+    expect(liveTimeouts() - before).toBe(0);
+  });
+
+  it('a `close` that has already fired leaves no 5 s timeout holding the event loop', async () => {
+    const runner = new TargetRunner({ onLog: () => {}, onStateChange: () => {} });
+    // An already-resolved `exited`, which is the ordinary case: `stop()` calls `killTree` and
+    // awaits, so by the time `awaitExit` runs the child has usually closed.
+    const alreadyClosed = Promise.resolve();
+    const child = { pid: 4242, exitCode: 0, signalCode: null, once: () => {} } as unknown as ChildProcess;
+
+    const before = liveTimeouts();
+    await (
+      runner as unknown as { awaitExit(c: ChildProcess, e: Promise<unknown> | null): Promise<void> }
+    ).awaitExit(child, alreadyClosed);
+
+    expect(
+      liveTimeouts() - before,
+      'awaitExit returned with its losing 5 s timer still referenced — the event loop is held open',
+    ).toBe(0);
+  });
+});
