@@ -115,8 +115,16 @@ in Jig's own folder browser (a page cannot receive a real path from the OS picke
 the survey runs as you pick and shows what it found; **Start the app** runs the detected dev script
 inside the repo with its log visible (or take a URL); **Docs** picks a folder (default `./docs`);
 **Register with Claude Code** writes `.mcp.json` (diff first) and optionally the Desktop entry;
-**Open the bench**. A setup checklist lives one click from the status line. The CLI subcommands stay
+**Go to the bench**. A setup checklist lives one click from the status line. The CLI subcommands stay
 for scripts and CI; the bench never requires them.
+
+> **Amended by #23 ruling 2 (Matter, 2026-09-14): "RATIFY 'go to the bench'".** This section said
+> *"Open the bench"* until S21, as did `docs/team/v0.2/REMOTE-KICKOFF.md`, while the build has
+> shipped **go to the bench** since S17b and COMMISSION.md §3 bans *open* as the name of anything
+> on the surface. The build's word is the ruled one; the two doc lines moved to it, and so did the
+> one place the code still printed the old phrase — `jig serve`'s no-repo line, outside the
+> tongue's reach because `packages/bench/src/tongue.test.ts` guards the bench's JSX and cannot see
+> a terminal. `packages/cli/src/tongue-terminal.test.ts` is the gate that can.
 
 | Slice | What lands |
 |---|---|

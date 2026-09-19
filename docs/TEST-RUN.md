@@ -68,7 +68,7 @@ PASS: the last line names the current `main` commit (0.2.0 or later).
 T=$(mktemp -d) && cd "$T" && npx --yes jigbench@0.2.0 --no-open --port 4699 & sleep 8; curl -s http://127.0.0.1:4699/api/state | head -c 200; echo; pid=$(netstat -ano | grep ":4699 " | grep LISTENING | awk '{print $NF}' | head -1); [ -n "$pid" ] && taskkill //PID "$pid" //F; cd /tmp && rm -rf "$T"
 ```
 PASS: the terminal prints `Jig is on the bench: http://localhost:4699` and `No repo clamped yet —
-open the bench to pick one.`; the `curl` answers `{"bench":null,…` — the Clamp screen's server side,
+go to the bench to pick one.`; the `curl` answers `{"bench":null,…` — the Clamp screen's server side,
 from the registry, in a folder that is not a repo.
 
 ---
@@ -90,7 +90,7 @@ cd /c/Users/matte/source/repos/jigbench/examples/ledger-angular && npm ci --no-a
 PASS in T2:
 ```
 Jig is on the bench: http://localhost:4600
-No repo clamped yet — open the bench to pick one.
+No repo clamped yet — go to the bench to pick one.
 ```
 and the browser opens on the **Clamp** screen: the word **Jig** with its pairing, **Clamp —
 attach a repo; the survey reads it**, **recent benches** (*No recent benches yet — pick a folder

@@ -34,7 +34,7 @@ THE FRONTIER, in order:
    `POST /api/target/url`, **Docs** → `POST /api/docs/clamp {folder}` (default `./docs` when
    present), **Register with Claude Code** → `POST /api/setup/mcp` for the diff, then `{apply:true}`
    (the Desktop entry likewise via `/api/setup/desktop`, 404 when the platform has no known path),
-   **Open the bench**. A setup checklist from `GET /api/setup` one click from the status line.
+   **Go to the bench**. A setup checklist from `GET /api/setup` one click from the status line.
    While in the bench: fold #7 (delete the bench's local Prompt-type mirror, import from
    `@jigbench/core`) and #9 (feed the logbook drawer the build stream and the target log). Tongue:
    clamp · bench · survey · plate · Point · Prompts · Claude. Floor tests (`floor-*.test.ts`,

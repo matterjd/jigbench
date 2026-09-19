@@ -23,6 +23,20 @@ Issue #23 — S21, Matter's three rulings of 2026-09-14, one commit each.
   `orders/route.ts` unchanged (same paths, same status codes, same sentences) and both paths now
   mount one surface rather than two. Advanced is still one toggle away on the surface
   (AMENDMENT-1 §3); what changed is that the Clamp path answers for it.
+- **ruling 2 — "go to the bench" is ratified, and the terminal is inside the tongue** — the build
+  has shipped **go to the bench** since S17b while AMENDMENT-1 §7 and
+  `docs/team/v0.2/REMOTE-KICKOFF.md` still said *"Open the bench"* and `jig serve`'s no-repo line
+  still PRINTED it, three slices after COMMISSION.md §3 banned *open* as the name of anything on
+  the surface. Matter ratified the build's word: the two doc lines moved to it, §7 carries the
+  amendment, `docs/TEST-RUN.md`'s two quoted terminal blocks match what the terminal now prints,
+  and the line itself reads *No repo clamped yet — go to the bench to pick one.* The reason it
+  survived is that `packages/bench/src/tongue.test.ts` guards the bench's JSX and cannot see a
+  terminal — and copying that gate would still not have caught this line, because it allows a
+  banned word after an em dash (where a `Word — plain word` pairing puts it) and this one sat
+  there as a verb. `packages/cli/src/tongue-terminal.test.ts` is the gate that can: it reads the
+  banned set out of COMMISSION.md §3's own table rather than holding a second copy of it, applies
+  it with no pairing exemption to what `jig serve` actually returns, and carries controls proving
+  the table really parsed and that the detector fires on the exact line this slice removed.
 
 Issue #81 — hardening round 2, the follow-ups the S20 review left, one PR each.
 
